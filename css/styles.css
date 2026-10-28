@@ -112,6 +112,8 @@ a { color: var(--blue); }
 .checklist li { margin-bottom: 8px; }
 .checklist label { display: flex; gap: 8px; align-items: flex-start; cursor: pointer; }
 .checklist input { margin-top: 4px; }
+.flags-title { margin-top: 18px; color: #b3322b; }
+.flags li::marker { color: var(--red); }
 
 /* ---------- Quiz ---------- */
 .quiz { margin-top: 20px; }

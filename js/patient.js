@@ -54,6 +54,9 @@
     $('d-icd').textContent = 'ICD-10 ' + d.icd10;
     $('d-points').innerHTML = d.patient.keyPoints.map((k) => `<li>${k}</li>`).join('');
     $('d-questions').innerHTML = d.patient.questions.map((k) => `<li><label><input type="checkbox"> ${k}</label></li>`).join('');
+    const flags = d.patient.redFlags || [];
+    $('d-flags-wrap').hidden = !flags.length;
+    $('d-flags').innerHTML = flags.map((k) => `<li>${k}</li>`).join('');
     renderQuiz(d.patient.quiz);
     player.load({ title: d.name, scenes: d.patient.scenes });
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });

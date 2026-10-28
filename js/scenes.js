@@ -130,5 +130,91 @@
     M.text(ctx, o.transporter, 155, 236, { size: 13, color: o.color || '#0d6e5d', weight: 700 });
   }
 
-  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule };
+  // Arterial routes from the heart, in person() units (s), used to animate blood reaching each organ.
+  const BODY_PATHS = {
+    brain: [[0.15, -0.78], [0.02, -1.1], [0, -1.35], [0, -1.72]],
+    eye: [[0.15, -0.78], [0.02, -1.1], [0.06, -1.42], [0.14, -1.6]],
+    kidney: [[0.15, -0.78], [0, -0.55], [0, -0.15], [0.26, -0.08]],
+    feet: [[0.15, -0.78], [0, -0.55], [0, 0.2], [0.27, 0.4], [0.27, 1.55]],
+    hands: [[0.15, -0.78], [-0.3, -1.0], [-0.72, -0.95], [-0.72, 0.05]],
+  };
+
+  function along(pts, f) {
+    const lens = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]));
+    let d = f * lens.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < lens.length; i++) {
+      if (d <= lens[i]) { const t = d / lens[i]; return [lerp(pts[i][0], pts[i + 1][0], t), lerp(pts[i][1], pts[i + 1][1], t)]; }
+      d -= lens[i];
+    }
+    return pts[pts.length - 1];
+  }
+
+  // Human figure with a beating heart pumping sugar-laden blood along the arterial routes.
+  // o.highlight: route key(s) to emphasise; o.density: 0..1 amount of sugar in the blood.
+  function bodyWithBlood(ctx, x, y, s, t, o = {}) {
+    const pts = M.person(ctx, x, y, s, { color: '#dfe7f3' });
+    const hi = [].concat(o.highlight || []), dens = o.density == null ? 1 : o.density;
+    Object.entries(BODY_PATHS).forEach(([k, rel]) => {
+      const path = rel.map(([u, v]) => [x + u * s, y + v * s]);
+      const on = !hi.length || hi.includes(k);
+      ctx.save();
+      ctx.strokeStyle = on ? 'rgba(201,74,74,0.8)' : 'rgba(201,74,74,0.22)';
+      ctx.lineWidth = on ? 5 : 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+      ctx.beginPath(); path.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke();
+      ctx.restore();
+      const n = Math.round((on ? 8 : 3) * dens);
+      for (let i = 0; i < n; i++) {
+        const [px, py] = along(path, (t * 0.25 + i / n + M.rnd(i + k.length) * 0.05) % 1);
+        M.glucose(ctx, px, py, on ? 5.5 : 4, on ? 1 : 0.5);
+      }
+    });
+    M.heart(ctx, x + 0.15 * s, y - 0.78 * s, s * 0.17, { beat: Math.max(0, Math.sin(t * 6.5)) });
+    return pts;
+  }
+
+  // Caption pill whose text advances through phases: [[fromP, text, color], ...].
+  function phasePill(ctx, x, y, p, phases) {
+    let cur = null;
+    phases.forEach((ph) => { if (p >= ph[0]) cur = ph; });
+    if (!cur) return;
+    const a = ease(seg(p, cur[0], cur[0] + 0.05)), col = cur[2] || C.red;
+    M.pill(ctx, cur[1], x, y, { bg: 'rgba(255,255,255,0.95)', border: col, color: col, size: 16, alpha: a });
+  }
+
+  // Body on the left; a magnifying lens pops out of one organ to show close-up damage.
+  // o: { at, paths, title, zoom(ctx, cx, cy, R, p, s), symptom, color }
+  function organZoom(o) {
+    return (ctx, p, s) => {
+      const pts = bodyWithBlood(ctx, 200, 322, 98, s, { highlight: o.paths });
+      const [ox, oy] = pts[o.at];
+      M.text(ctx, o.title, 40, 84, { size: 30, weight: 800, align: 'left' });
+      const g = M.back(seg(p, 0.02, 0.14)), cx = 640, cy = 262, R = 205;
+      if (g > 0) {
+        const r = R * g, d = Math.hypot(ox - cx, oy - cy), b = Math.atan2(oy - cy, ox - cx), w = Math.acos(Math.min(1, r / d));
+        ctx.save();
+        ctx.beginPath(); ctx.moveTo(ox, oy);
+        ctx.lineTo(cx + r * Math.cos(b + w), cy + r * Math.sin(b + w));
+        ctx.lineTo(cx + r * Math.cos(b - w), cy + r * Math.sin(b - w));
+        ctx.closePath(); ctx.fillStyle = 'rgba(47,111,222,0.10)'; ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.shadowColor = 'rgba(30,50,80,0.25)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 8;
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.clip();
+        ctx.translate(cx, cy); ctx.scale(g, g); ctx.translate(-cx, -cy);
+        o.zoom(ctx, cx, cy, R, p, s);
+        ctx.restore();
+        ctx.save();
+        ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.lineWidth = 9; ctx.strokeStyle = '#ffffff'; ctx.stroke();
+        ctx.beginPath(); ctx.arc(cx, cy, r + 5, 0, M.TAU); ctx.lineWidth = 2; ctx.strokeStyle = '#b8cdf4'; ctx.stroke();
+        ctx.restore();
+      }
+      M.hotspot(ctx, ox, oy, 1, { t: s, color: o.color || C.red });
+      if (o.symptom) M.pill(ctx, o.symptom, 640, 507, { bg: '#fdecea', border: C.red, color: '#a3261f', size: 17, alpha: ease(seg(p, 0.6, 0.7)) });
+    };
+  }
+
+  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, organZoom };
 })();

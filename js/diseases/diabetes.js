@@ -190,114 +190,254 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~60 s)
+  // Patient portal script (~60 s): sugar builds up, travels the body, and
+  // each organ is shown up close through a magnifying lens.
   // ---------------------------------------------------------------------------
+
+  // Eye: retinal capillaries weaken, bulge, leak; then "what you might see".
+  function eyeZoom(ctx, cx, cy, R, p, s) {
+    const g = ctx.createRadialGradient(cx + 40, cy, 20, cx, cy, R);
+    g.addColorStop(0, '#f6a676'); g.addColorStop(1, '#c4492e');
+    ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    const coat = ease(seg(p, 0.12, 0.35));
+    const curve = (k, x) => cy + [-95, 5, 100][k] + Math.sin(x * 0.02 + k * 2) * 20;
+    for (let k = 0; k < 3; k++) {
+      ctx.save(); ctx.lineCap = 'round';
+      [[16, M.mix('#9e2a22', '#b07a2a', coat * 0.7)], [9, '#e0574a']].forEach(([w, col]) => {
+        ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath();
+        for (let x = cx - R; x <= cx + R; x += 6) (x === cx - R ? ctx.moveTo(x, curve(k, x)) : ctx.lineTo(x, curve(k, x)));
+        ctx.stroke();
+      });
+      ctx.restore();
+      for (let i = 0; i < 6; i++) { const x = cx - R + ((rnd(k * 9 + i) * 2 * R + s * 55) % (2 * R)); M.glucose(ctx, x, curve(k, x), 5); }
+    }
+    const spots = [[0, 0.32], [0, 0.7], [1, 0.48], [2, 0.28], [2, 0.66]];
+    spots.forEach(([k, f], i) => {
+      const x = cx - R + f * 2 * R, y = curve(k, x);
+      const leak = ease(seg(p, 0.5 + i * 0.03, 0.72 + i * 0.03));
+      if (leak > 0) {
+        let gr = ctx.createRadialGradient(x + 8, y + 14, 2, x + 8, y + 14, 46 * leak);
+        gr.addColorStop(0, 'rgba(255,224,110,0.85)'); gr.addColorStop(1, 'rgba(255,224,110,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x + 8, y + 14, 46 * leak, 0, M.TAU); ctx.fill();
+        gr = ctx.createRadialGradient(x, y, 2, x, y, 34 * leak);
+        gr.addColorStop(0, 'rgba(120,8,8,0.9)'); gr.addColorStop(1, 'rgba(120,8,8,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 34 * leak, 0, M.TAU); ctx.fill();
+      }
+      const bulge = M.back(seg(p, 0.3 + i * 0.04, 0.45 + i * 0.04));
+      if (bulge > 0) { M.dot(ctx, x, y - 8, 14 * bulge, '#b3261c'); M.dot(ctx, x - 4, y - 12, 4 * bulge, 'rgba(255,255,255,0.4)'); }
+    });
+    const vis = ease(seg(p, 0.76, 0.88));
+    if (vis > 0) {
+      ctx.save(); ctx.globalAlpha = vis; ctx.filter = `blur(${3 * vis}px)`;
+      ctx.fillStyle = '#a7d6f7'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R * 0.62);
+      ctx.fillStyle = '#93cf7e'; ctx.fillRect(cx - R, cy - R + 2 * R * 0.62, 2 * R, 2 * R);
+      M.dot(ctx, cx + 95, cy - 100, 32, '#ffd75e');
+      ctx.fillStyle = '#f4e1c1'; ctx.fillRect(cx - 110, cy - 20, 120, 90);
+      ctx.fillStyle = '#d9534f'; ctx.beginPath(); ctx.moveTo(cx - 125, cy - 20); ctx.lineTo(cx - 50, cy - 80); ctx.lineTo(cx + 25, cy - 20); ctx.fill();
+      ctx.fillStyle = '#8a5a3b'; ctx.fillRect(cx - 62, cy + 20, 26, 50);
+      ctx.fillStyle = '#7a5230'; ctx.fillRect(cx + 82, cy + 10, 12, 60);
+      M.dot(ctx, cx + 88, cy - 5, 38, '#4f9e4a');
+      ctx.filter = 'none';
+      [[-60, -70, 46], [40, 20, 38], [-10, 110, 42], [120, 60, 30]].forEach(([dx, dy, r]) => {
+        const gr = ctx.createRadialGradient(cx + dx, cy + dy, 2, cx + dx, cy + dy, r);
+        gr.addColorStop(0, 'rgba(25,18,18,0.8)'); gr.addColorStop(1, 'rgba(25,18,18,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx + dx, cy + dy, r, 0, M.TAU); ctx.fill();
+      });
+      ctx.restore();
+    }
+    S.phasePill(ctx, cx, cy - R + 42, p, [[0.12, 'Sugar weakens tiny vessels'], [0.32, 'Weak spots bulge'], [0.52, 'They leak blood and fluid'], [0.78, 'What you might see', C.blue]]);
+  }
+
+  // Kidney: the filter (sieve) gets coated, holes stretch so protein leaks, then scars and clogs.
+  function kidneyZoom(ctx, cx, cy, R, p, s) {
+    ctx.fillStyle = '#fde3de'; ctx.fillRect(cx - R, cy - R, 2 * R, R);
+    ctx.fillStyle = '#fff4cc'; ctx.fillRect(cx - R, cy, 2 * R, R);
+    M.text(ctx, 'Blood', cx - 140, cy - 105, { size: 16, color: '#b3453c' });
+    M.text(ctx, 'Urine', cx - 140, cy + 105, { size: 16, color: '#a07a00' });
+    const coat = ease(seg(p, 0.12, 0.35)), stretch = ease(seg(p, 0.35, 0.6)), scar = ease(seg(p, 0.66, 0.85));
+    const holes = [], nH = 8, gap = 2 * R / nH, bandH = 22 + coat * 10;
+    for (let i = 0; i < nH; i++) holes.push({ x: cx - R + gap * (i + 0.5), blocked: [1, 4, 6].includes(i) && scar > 0.5 });
+    const hw = lerp(8, 24, stretch);
+    ctx.fillStyle = M.mix('#9b7bd1', '#c79a3a', coat * 0.6);
+    let prev = cx - R;
+    holes.forEach((h) => { ctx.fillRect(prev, cy - bandH / 2, h.x - hw / 2 - prev, bandH); prev = h.x + hw / 2; });
+    ctx.fillRect(prev, cy - bandH / 2, cx + R - prev, bandH);
+    holes.forEach((h) => { if (h.blocked) { ctx.fillStyle = '#6f6577'; ctx.fillRect(h.x - hw / 2 - 1, cy - bandH / 2, hw + 2, bandH); } });
+    M.text(ctx, 'Filter', cx + 150, cy - bandH / 2 - 14, { size: 14, color: '#6a4fb0', weight: 700 });
+    const open = holes.filter((h) => !h.blocked);
+    // waste passes through the filter as it should
+    for (let i = 0; i < 18; i++) {
+      const h = open[i % open.length], ph = (s * 0.3 + rnd(i)) % 1, y = lerp(cy - 170, cy + 170, ph);
+      const x = h.x + (rnd(i + 5) - 0.5) * 70 * Math.min(1, Math.abs(y - cy) / 90);
+      M.dot(ctx, x, y, 4, '#7d8f5a');
+    }
+    // proteins: kept in the blood until the holes stretch
+    for (let i = 0; i < 10; i++) {
+      const leaks = rnd(i + 200) < stretch * 0.8;
+      if (leaks) {
+        const h = open[(i * 3) % open.length], ph = (s * 0.25 + rnd(i + 30)) % 1, y = lerp(cy - 160, cy + 170, ph);
+        M.dot(ctx, h.x + (rnd(i + 7) - 0.5) * 60 * Math.min(1, Math.abs(y - cy) / 90), y, 9, C.blue);
+      } else {
+        M.dot(ctx, cx - R + 40 + rnd(i + 40) * (2 * R - 80), cy - 40 - Math.abs(Math.sin(s * 2 + i)) * 90, 9, C.blue);
+      }
+    }
+    for (let i = 0; i < 6; i++) M.rbc(ctx, cx - R + ((rnd(i + 60) * 2 * R + s * 40) % (2 * R)), cy - 110 - rnd(i + 61) * 50, 9);
+    // waste piles up once filters scar
+    for (let i = 0; i < Math.floor(scar * 22); i++) M.dot(ctx, cx - 170 + rnd(i + 90) * 340, cy - 22 - rnd(i + 91) * 60, 4, '#7d8f5a');
+    // foam in the urine when protein leaks
+    for (let i = 0; i < Math.floor(stretch * 14); i++) {
+      const x = cx - 150 + rnd(i + 120) * 300, y = cy + 150 - ((s * 12 + rnd(i + 121) * 30) % 30);
+      ctx.beginPath(); ctx.arc(x, y, 6 + rnd(i) * 6, 0, M.TAU); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(200,180,120,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    M.dot(ctx, cx + 60, cy + 112, 9, C.blue); M.text(ctx, 'protein', cx + 74, cy + 112, { size: 14, align: 'left', color: C.muted, alpha: stretch });
+    S.phasePill(ctx, cx, cy - R + 42, p, [[0.12, 'Sugar coats the tiny filters'], [0.36, 'Holes stretch, protein leaks out'], [0.66, 'Scarred filters: waste builds up']]);
+  }
+
+  // Nerve: insulation and blood supply fail from the foot end; signals stop; an unfelt sore grows.
+  function nerveZoom(ctx, cx, cy, R, p, s) {
+    ctx.fillStyle = '#fcefe8'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    const ny = cy - 70, dmg = ease(seg(p, 0.12, 0.5)), brk = cx + R - dmg * R * 1.3;
+    ctx.save(); ctx.strokeStyle = '#d65a50'; ctx.lineWidth = lerp(7, 2, dmg); ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(cx - R, ny + 34); ctx.lineTo(cx + R, ny + 34); ctx.stroke(); ctx.restore();
+    for (let i = 0; i < 8; i++) M.glucose(ctx, cx - R + ((rnd(i + 3) * 2 * R + s * 50) % (2 * R)), ny + 34, 5);
+    ctx.save(); ctx.strokeStyle = '#8a6bc9'; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.moveTo(cx - R, ny); ctx.lineTo(brk, ny); ctx.stroke();
+    ctx.setLineDash([6, 10]); ctx.strokeStyle = 'rgba(138,107,201,0.35)';
+    ctx.beginPath(); ctx.moveTo(brk, ny); ctx.lineTo(cx + R, ny); ctx.stroke(); ctx.restore();
+    for (let x = cx - R + 10; x < cx + R; x += 58) {
+      const lost = x > brk;
+      M.rr(ctx, x, ny - 12, 44, 24, 12);
+      ctx.fillStyle = lost ? 'rgba(220,200,150,0.35)' : '#f6d98a'; ctx.fill();
+      if (lost) M.cross(ctx, x + 22, ny, 6, { color: 'rgba(160,120,90,0.6)', width: 3 });
+    }
+    const reach = 1 - seg(dmg, 0.35, 0.8);
+    for (let i = 0; i < 3; i++) {
+      const x = cx + R - ((s * 140 + i * 140) % (2 * R));
+      const a = x > brk ? 0.25 + 0.25 * Math.sin(s * 20 + i) : reach;
+      if (a > 0.02) { M.dot(ctx, x, ny, 13, `rgba(255,200,60,${0.45 * a})`); M.dot(ctx, x, ny, 6, `rgba(255,190,40,${a})`); }
+    }
+    M.text(ctx, '← to brain', cx - R + 70, ny - 34, { size: 14, color: C.muted });
+    M.text(ctx, 'from foot', cx + R - 70, ny - 34, { size: 14, color: C.muted });
+    // foot stepping on a tack
+    const fy = cy + 20;
+    ctx.fillStyle = '#f2c8a8';
+    ctx.fillRect(cx - 120, fy - 10, 62, 60);
+    ctx.beginPath();
+    ctx.moveTo(cx - 120, fy + 40); ctx.lineTo(cx - 112, fy + 112);
+    ctx.quadraticCurveTo(cx - 112, fy + 140, cx - 72, fy + 140); ctx.lineTo(cx + 110, fy + 140);
+    ctx.quadraticCurveTo(cx + 150, fy + 140, cx + 146, fy + 116); ctx.quadraticCurveTo(cx + 132, fy + 92, cx + 40, fy + 80);
+    ctx.quadraticCurveTo(cx - 40, fy + 70, cx - 58, fy + 40); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#9aa7b8'; ctx.beginPath(); ctx.moveTo(cx + 20, fy + 162); ctx.lineTo(cx + 30, fy + 140); ctx.lineTo(cx + 40, fy + 162); ctx.fill();
+    ctx.fillStyle = '#c9d3e2'; ctx.fillRect(cx - R, fy + 162, 2 * R, 6);
+    const sore = ease(seg(p, 0.55, 0.9));
+    if (sore > 0) {
+      const gr = ctx.createRadialGradient(cx + 30, fy + 134, 1, cx + 30, fy + 134, 34 * sore);
+      gr.addColorStop(0, 'rgba(140,20,20,0.95)'); gr.addColorStop(0.5, 'rgba(214,70,60,0.8)'); gr.addColorStop(1, 'rgba(214,70,60,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(cx + 30, fy + 134, 40 * sore, 16 * sore, 0, 0, M.TAU); ctx.fill();
+      M.pill(ctx, "Can't feel it", cx + 100, fy + 40, { size: 14, bg: '#fff', border: C.red, color: '#a3261f', alpha: seg(p, 0.65, 0.72) });
+    }
+    S.phasePill(ctx, cx, cy - R + 42, p, [[0.12, 'Sugar damages nerve insulation'], [0.38, 'Signals fade: tingling, numbness'], [0.6, 'A small cut can go unnoticed']]);
+  }
+
+  // Large artery: sticky walls collect fatty plaque, a clot blocks flow → heart attack or stroke.
+  function arteryZoom(ctx, cx, cy, R, p, s) {
+    ctx.fillStyle = '#fff2ef'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+    const coat = ease(seg(p, 0.08, 0.3)), plq = ease(seg(p, 0.25, 0.62)) * 0.8, clot = M.back(seg(p, 0.62, 0.74));
+    // blood slows to a crawl once the clot forms
+    const sClot = p > 0 ? 0.68 * s / p : s, tEff = s < sClot ? s : sClot + (s - sClot) * 0.08;
+    M.vessel(ctx, cx - R, cy - 110, 2 * R, 190, {
+      t: tEff, wall: 26, wallColor: M.mix('#f2b8ae', '#e3b04f', coat * 0.75), plaque: plq,
+      items: [{ kind: 'rbc', n: 18, speed: 90 }, { kind: 'glucose', n: 14, speed: 70 }, { kind: 'dot', n: 8, speed: 60, color: '#e8c547', r: 5 }],
+    });
+    if (clot > 0) {
+      ctx.save(); ctx.beginPath(); ctx.ellipse(cx, cy - 15, 26 * clot, 42 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill();
+      ctx.strokeStyle = 'rgba(255,190,190,0.5)'; ctx.lineWidth = 2;
+      for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(cx - 20 * clot, cy - 15 + i * 14 * clot); ctx.lineTo(cx + 20 * clot, cy - 10 + i * 12 * clot); ctx.stroke(); }
+      ctx.restore();
+    }
+    const out = ease(seg(p, 0.78, 0.9));
+    if (out > 0) {
+      const beat = Math.max(0, Math.sin(s * 6.5)) * (1 - out * 0.8);
+      M.heart(ctx, cx - 70, cy + 124, 32, { beat, alpha: out });
+      ctx.save(); ctx.globalAlpha = out; ctx.beginPath(); ctx.ellipse(cx - 58, cy + 134, 11, 8, 0.5, 0, M.TAU); ctx.fillStyle = '#4a1010'; ctx.fill(); ctx.restore();
+      M.brain(ctx, cx + 75, cy + 124, 40, { alpha: out });
+      ctx.save(); ctx.globalAlpha = out; ctx.beginPath(); ctx.ellipse(cx + 85, cy + 116, 11, 8, 0, 0, M.TAU); ctx.fillStyle = '#4a1010'; ctx.fill(); ctx.restore();
+      M.text(ctx, 'Heart attack', cx - 70, cy + 166, { size: 14, weight: 700, color: '#a3261f', alpha: out });
+      M.text(ctx, 'Stroke', cx + 75, cy + 166, { size: 14, weight: 700, color: '#a3261f', alpha: out });
+    }
+    S.phasePill(ctx, cx, cy - R + 42, p, [[0.08, 'Sugar makes artery walls sticky'], [0.28, 'Fatty plaque builds up'], [0.62, 'A clot can block blood flow']]);
+  }
+
   const patientScenes = [
     {
-      label: 'What it is',
-      caption: 'Type 2 diabetes means too much sugar stays in your blood, instead of moving into your cells for energy.',
-      draw(ctx, p, s) {
-        const k = ease(seg(p, 0.1, 0.9));
-        M.vessel(ctx, 60, 190, 580, 170, { t: s, items: [{ kind: 'rbc', n: 12, speed: 70 }, { kind: 'glucose', n: lerp(8, 46, k), speed: 55 }] });
-        M.text(ctx, 'Inside a blood vessel', 350, 390, { size: 18, color: C.muted });
-        M.gauge(ctx, 690, 270, 220, lerp(0.3, 0.88, k), { title: 'Blood sugar', valueText: k > 0.6 ? 'High' : k > 0.3 ? 'Rising' : 'Normal' });
-        M.glucose(ctx, 700, 330, 8); M.text(ctx, '= sugar (glucose)', 716, 330, { size: 16, align: 'left', color: C.muted });
-        M.rbc(ctx, 700, 362, 8); M.text(ctx, '= red blood cell', 716, 362, { size: 16, align: 'left', color: C.muted });
-      },
-    },
-    {
-      label: 'Insulin is the key',
-      caption: 'Food turns into sugar. Insulin, made by your pancreas, works like a key that unlocks your cells so sugar can get in.',
-      draw(ctx, p, s) {
-        const cx = 720, cy = 290, r = 120, a = Math.PI;
-        M.pancreas(ctx, 200, 200, 110);
-        M.text(ctx, 'Pancreas', 200, 270, { size: 18, color: C.muted });
-        M.emoji(ctx, '🍞', 110, 410, 40, ease(seg(p, 0, 0.1)));
-        M.arrow(ctx, 145, 410, 215, 410, { color: '#c9d3e2', alpha: ease(seg(p, 0, 0.1)) });
-        M.text(ctx, 'food → sugar', 160, 448, { size: 15, color: C.muted, alpha: ease(seg(p, 0, 0.1)) });
-        const opened = ease(seg(p, 0.55, 0.62)), glow = ease(seg(p, 0.7, 1));
-        M.cell(ctx, cx, cy, r, { receptors: [{ a, open: opened }], glow, label: glow > 0.5 ? 'Cell gets energy ⚡' : 'Body cell' });
-        const ka = ease(seg(p, 0.12, 0.55));
-        const [dx, dy] = keyDock(cx, cy, r, a, 0);
-        M.key(ctx, lerp(270, dx, ka), lerp(215, dy, ka), 1.4, 0);
-        M.text(ctx, 'Insulin', lerp(270, dx, ka), lerp(215, dy, ka) - 28, { size: 15, color: C.teal, weight: 700 });
-        const lx = cx - r, ly = cy;
-        for (let i = 0; i < 9; i++) {
-          const sx = 300 + rnd(i) * 160, sy = 320 + rnd(i + 3) * 120;
-          const ex = cx - 40 + rnd(i + 5) * 90, ey = cy - 60 + rnd(i + 7) * 110;
-          const t = seg(p, 0.6 + i * 0.03, 0.78 + i * 0.03);
-          const x = t < 0.5 ? lerp(sx, lx - 6, t * 2) : lerp(lx - 6, ex, (t - 0.5) * 2);
-          const y = t < 0.5 ? lerp(sy, ly, t * 2) : lerp(ly, ey, (t - 0.5) * 2);
-          M.glucose(ctx, x, y + (t === 0 ? Math.sin(s * 2 + i) * 4 : 0), 8);
-        }
-      },
-    },
-    {
-      label: 'What goes wrong',
-      caption: 'In type 2 diabetes, the locks get rusty. The key does not work well, so sugar builds up in the blood.',
+      label: 'Sugar builds up',
+      caption: 'With type 2 diabetes, insulin cannot unlock your cells well, so extra sugar stays in your blood.',
       draw(ctx, p, s) {
         const cx = 720, cy = 290, r = 120;
         const angles = [Math.PI, Math.PI * 0.84, Math.PI * 1.16];
         M.cell(ctx, cx, cy, r, { receptors: angles.map((a) => ({ a, rust: 1 })), label: 'Body cell' });
         angles.forEach((a, i) => {
-          const app = ease(seg(p, 0.08 + i * 0.05, 0.35 + i * 0.05));
-          const jig = seg(p, 0.38, 0.55) > 0 && seg(p, 0.38, 0.55) < 1 ? Math.sin(s * 30 + i) * 3 : 0;
-          const back = ease(seg(p, 0.55, 0.72)) * 60;
-          const extra = (1 - app) * 260 + back;
+          const app = ease(seg(p, 0.05 + i * 0.05, 0.32 + i * 0.05));
+          const jig = seg(p, 0.34, 0.5) > 0 && seg(p, 0.34, 0.5) < 1 ? Math.sin(s * 30 + i) * 3 : 0;
+          const extra = (1 - app) * 260 + ease(seg(p, 0.5, 0.66)) * 60;
           const [x, y] = keyDock(cx, cy, r, a, extra);
-          M.key(ctx, x + jig, y, 1.4, a + Math.PI, C.teal, 1 - 0.4 * seg(p, 0.6, 0.8));
-          if (p > 0.5) M.cross(ctx, cx + Math.cos(a) * (r + 30), cy + Math.sin(a) * (r + 30) - 30, 9, { alpha: ease(seg(p, 0.5, 0.58)) });
+          M.key(ctx, x + jig, y, 1.4, a + Math.PI, C.teal, 1 - 0.4 * seg(p, 0.55, 0.75));
+          if (p > 0.46) M.cross(ctx, cx + Math.cos(a) * (r + 30), cy + Math.sin(a) * (r + 30) - 30, 9, { alpha: ease(seg(p, 0.46, 0.54)) });
         });
-        const n = Math.floor(lerp(6, 34, seg(p, 0.3, 1)));
-        for (let i = 0; i < n; i++) M.glucose(ctx, 120 + rnd(i) * 360 + Math.sin(s + i) * 4, 120 + rnd(i + 4) * 320, 8);
-        M.pill(ctx, 'Sugar piles up in the blood', 300, 470, { bg: '#fff4e5', border: C.amber, size: 17, alpha: ease(seg(p, 0.6, 0.7)) });
+        M.text(ctx, 'Insulin (key)', 460, 150, { size: 16, color: C.teal, weight: 700, alpha: 1 - seg(p, 0.4, 0.5) });
+        M.text(ctx, 'Rusty locks', cx, cy - r - 30, { size: 16, color: C.rust, weight: 700, alpha: ease(seg(p, 0.3, 0.4)) });
+        const n = Math.floor(lerp(6, 36, seg(p, 0.3, 1)));
+        for (let i = 0; i < n; i++) M.glucose(ctx, 110 + rnd(i) * 380 + Math.sin(s + i) * 4, 120 + rnd(i + 4) * 320, 8);
+        M.gauge(ctx, 570, 500, 300, lerp(0.35, 0.9, seg(p, 0.3, 1)), { title: 'Blood sugar', valueText: p > 0.6 ? 'High' : '' });
       },
     },
     {
-      label: 'Why it matters',
-      caption: 'Over many years, high sugar can damage small and large blood vessels in your eyes, kidneys, nerves, and heart.',
-      draw: S.bodyHotspots([
-        { at: 'eye', label: 'Eyes', side: 'right' },
-        { at: 'heart', label: 'Heart & blood vessels', side: 'left' },
-        { at: 'kidney', label: 'Kidneys', side: 'right' },
-        { at: 'feet', label: 'Nerves in the feet', side: 'left' },
-      ]),
-    },
-    {
-      label: 'How it is treated',
-      caption: 'Medicines like metformin help your liver release less sugar. Other medicines help insulin work better or remove extra sugar.',
+      label: 'Sugar travels everywhere',
+      caption: 'That sugary blood reaches every organ, and over the years it slowly damages blood vessels and nerves.',
       draw(ctx, p, s) {
-        const eff = ease(seg(p, 0.3, 0.6));
-        liverOutput(ctx, s, eff);
-        const pa = ease(seg(p, 0.1, 0.32));
-        M.capsule(ctx, 250, lerp(70, 245, pa), 1.3, s * 2, C.purple, '#fff', 1 - seg(p, 0.32, 0.4));
-        M.text(ctx, 'Metformin', 330, lerp(70, 245, pa), { size: 16, align: 'left', color: C.purple, alpha: 1 - seg(p, 0.32, 0.4) });
-        M.pill(ctx, 'Less sugar released', 250, 170, { bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: ease(seg(p, 0.5, 0.58)) });
-        M.gauge(ctx, 560, 410, 300, lerp(0.85, 0.42, eff), { title: 'Blood sugar', valueText: eff > 0.7 ? 'Improving' : 'High' });
-        const extras = ['Help insulin work', 'Remove sugar in urine', 'Boost insulin release'];
-        M.text(ctx, 'Other medicines can also:', 140, 440, { size: 15, align: 'left', color: C.muted, alpha: ease(seg(p, 0.7, 0.76)) });
-        extras.forEach((t, i) => M.pill(ctx, t, 140 + [0, 152, 336][i], 478, { align: 'left', size: 14, bg: '#eef3fb', border: '#c8d6ee', alpha: ease(seg(p, 0.74 + i * 0.06, 0.8 + i * 0.06)) }));
+        const pts = S.bodyWithBlood(ctx, 480, 300, 118, s);
+        [['eye', 'Eyes', 'right'], ['kidney', 'Kidneys', 'right'], ['heart', 'Heart & brain', 'left'], ['feet', 'Nerves in feet', 'left']].forEach(([at, label, side], i) => {
+          const [x, y] = pts[at];
+          M.hotspot(ctx, x, y, ease(seg(p, 0.25 + i * 0.15, 0.35 + i * 0.15)), { t: s + i * 0.3, label, side, reach: 170 });
+        });
+        M.glucose(ctx, 700, 480, 8); M.text(ctx, '= sugar in the blood', 716, 480, { size: 16, align: 'left', color: C.muted });
       },
     },
     {
-      label: 'What you can do',
-      caption: 'Walking, balanced meals, taking your medicines every day, and checking your A1C help keep your sugar in a healthy range.',
-      draw: S.iconRow([
-        { icon: '🚶', label: 'Move about 30 minutes most days' },
-        { icon: '🥗', label: 'Half your plate vegetables' },
-        { icon: '💊', label: 'Take medicines every day' },
-        { icon: '🩸', label: 'Check your A1C and sugar' },
-      ], { title: 'Small steps add up', footer: 'Your care team will set your personal A1C goal.' }),
+      label: 'Eyes',
+      caption: 'In the eyes, tiny vessels weaken, bulge, and leak, which can blur your vision or even cause blindness.',
+      draw: S.organZoom({ at: 'eye', paths: 'eye', title: 'Eyes', zoom: eyeZoom, symptom: 'Blurry vision · dark spots · vision loss' }),
     },
     {
-      label: 'When to get help',
-      caption: 'Call your doctor for very high or very low sugar, confusion, extreme thirst, or a foot sore that will not heal.',
-      draw: S.warningCard('Call your doctor if you have…', [
-        'Very low sugar: shaky, sweaty, confused',
-        'Very high sugar with extreme thirst or peeing a lot',
-        'Vomiting and cannot keep fluids down',
-        'A foot sore or cut that will not heal',
-      ], 'If someone passes out or cannot wake up, call 911.'),
+      label: 'Kidneys',
+      caption: 'In the kidneys, sugar damages the tiny filters, so protein leaks out and waste builds up.',
+      draw: S.organZoom({ at: 'kidney', paths: 'kidney', title: 'Kidneys', zoom: kidneyZoom, symptom: 'Often no symptoms early · a urine test finds it' }),
+    },
+    {
+      label: 'Nerves',
+      caption: 'In the feet, damaged nerves cause tingling or numbness. You may not feel a cut until it becomes a serious sore.',
+      draw: S.organZoom({ at: 'feet', paths: 'feet', title: 'Nerves in the feet', zoom: nerveZoom, symptom: 'Tingling · numbness · sores you don’t feel' }),
+    },
+    {
+      label: 'Heart & brain',
+      caption: 'In large arteries, sugar helps fatty plaque build up. A clot can then block blood flow, causing a heart attack or stroke.',
+      draw: S.organZoom({ at: 'heart', paths: 'brain', title: 'Heart & brain', zoom: arteryZoom, symptom: 'About twice the risk of heart attack and stroke' }),
+    },
+    {
+      label: 'Protect your body',
+      caption: 'The good news: keeping your sugar, blood pressure, and cholesterol in range protects every one of these organs.',
+      draw(ctx, p, s) {
+        const k = ease(seg(p, 0.08, 0.55));
+        const pts = S.bodyWithBlood(ctx, 250, 300, 112, s, { density: lerp(1, 0.25, k) });
+        ['eye', 'kidney', 'feet', 'heart'].forEach((at, i) => {
+          const [x, y] = pts[at];
+          M.hotspot(ctx, x, y, 1, { t: s + i * 0.3, color: M.mix(C.red, C.green, k) });
+        });
+        M.gauge(ctx, 520, 120, 380, lerp(0.88, 0.4, k), { title: 'Blood sugar', valueText: k > 0.7 ? 'In range ✓' : 'High' });
+        ['💊  Take medicines every day', '🥗  Eat well and move daily', '👁️  Dilated eye exam every year', '🧪  Urine & kidney test every year', '🦶  Look at your feet every day'].forEach((t, i) =>
+          M.pill(ctx, t, 520, 200 + i * 60, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 18, alpha: ease(seg(p, 0.25 + i * 0.1, 0.33 + i * 0.1)) }));
+      },
     },
   ];
 
@@ -782,9 +922,16 @@
         'What should I do if my sugar goes too low?',
         'When should I get my eyes, kidneys, and feet checked?',
       ],
+      redFlags: [
+        'Very low sugar: shaky, sweaty, confused',
+        'Very high sugar with extreme thirst or peeing a lot',
+        'Sudden vision changes',
+        'A foot sore or cut that will not heal',
+        'Chest pain, or face drooping / weakness on one side: call 911',
+      ],
       quiz: [
         { q: 'In the animation, what does insulin act like?', options: ['A key that opens cells', 'A wall that blocks sugar', 'A type of sugar'], answer: 0, explain: 'Insulin works like a key that lets sugar move from your blood into your cells.' },
-        { q: 'Why does sugar build up in type 2 diabetes?', options: ['You eat too little', 'Cells do not respond well to insulin', 'Your kidneys make sugar'], answer: 1, explain: 'The "locks" on cells get rusty (insulin resistance), so sugar stays in the blood.' },
+        { q: 'Over years, which parts of the body can high blood sugar damage?', options: ['Only the stomach', 'Eyes, kidneys, nerves, heart, and brain', 'Only the skin'], answer: 1, explain: 'Sugary blood reaches every organ. The tiny vessels in the eyes and kidneys, the nerves in the feet, and the large arteries to the heart and brain are most at risk.' },
         { q: 'Which of these is a reason to call your doctor?', options: ['Feeling hungry before lunch', 'A foot sore that will not heal', 'Walking after dinner'], answer: 1, explain: 'Foot sores can get infected quickly when you have diabetes. Get them checked early.' },
       ],
     },

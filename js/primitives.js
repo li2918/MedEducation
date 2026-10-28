@@ -14,6 +14,8 @@
   const lerp = (a, b, t) => a + (b - a) * t;
   const ease = (t) => { t = clamp(t); return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2; };
   const seg = (p, a, b) => clamp((p - a) / (b - a));
+  // Ease-out with a small overshoot, for "pop in" motions.
+  const back = (t) => { t = clamp(t); const c = 1.70158; return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2); };
   // Deterministic pseudo-random so scrubbing the timeline always shows the same frame.
   const rnd = (i) => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
   const hex = (c) => { const n = parseInt(c.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; };
@@ -608,7 +610,7 @@
   }
 
   window.M = {
-    C, FONT, TAU, clamp, lerp, ease, seg, rnd, mix, rr, text, wrap, pill, card, arrow, cross, emoji,
+    C, FONT, TAU, clamp, lerp, ease, seg, back, rnd, mix, rr, text, wrap, pill, card, arrow, cross, emoji,
     glucose, dot, rbc, salt, drop, drug, capsule, key, lock, cell, vessel, pressureArrows,
     heart, heartSection, kidney, liver, pancreas, brain, stomach, lungs, fundus, glomerulus, neuron,
     person, hotspot, gauge, bpMonitor, node,
