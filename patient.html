@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedMotion — Patient portal</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="patient.html"><span class="logo">◐</span> MedMotion</a>
+    <span class="portal-tag">Patient portal</span>
+    <nav class="user">
+      <a id="to-clinician" href="clinician.html" hidden>Clinician view</a>
+      <button class="linklike" id="signout" type="button">Sign out</button>
+    </nav>
+  </header>
+
+  <main class="container">
+    <section class="search-hero">
+      <h1>Understand your diagnosis</h1>
+      <p class="lead">Type the name of a condition your doctor mentioned.</p>
+      <div class="search" id="search"></div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section id="result" hidden>
+      <div class="result-head">
+        <div>
+          <h2 id="d-name"></h2>
+          <p class="tagline" id="d-tagline"></p>
+        </div>
+        <div class="meta">
+          <span class="badge draft">Draft · pending clinical review</span>
+          <span class="badge" id="d-icd"></span>
+        </div>
+      </div>
+      <div class="grid-main">
+        <div id="player"></div>
+        <aside class="panel">
+          <h3>Key points</h3>
+          <ul id="d-points" class="points"></ul>
+          <h3>Questions to ask your doctor</h3>
+          <ul id="d-questions" class="checklist"></ul>
+        </aside>
+      </div>
+      <section class="panel quiz" id="quiz">
+        <h3>Check your understanding</h3>
+        <p class="muted">Three quick questions. There's no score — it's just to help the ideas stick.</p>
+        <div id="quiz-body"></div>
+      </section>
+    </section>
+
+    <section id="soon" class="panel soon" hidden>
+      <h2 id="soon-name"></h2>
+      <p>We're still making this animation. Tell us you need it and we'll prioritize it.</p>
+      <button class="btn primary" id="soon-btn" type="button">Request this topic</button>
+      <p class="muted" id="soon-msg" hidden>Thanks — your request was noted.</p>
+    </section>
+
+    <p class="disclaimer">This is health education, not medical advice. Always follow the plan from your own care team. In an emergency, call 911.</p>
+  </main>
+
+  <script src="js/auth.js"></script>
+  <script src="js/primitives.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/registry.js"></script>
+  <script src="js/diseases/diabetes.js"></script>
+  <script src="js/diseases/hypertension.js"></script>
+  <script src="js/search-box.js"></script>
+  <script src="js/patient.js"></script>
+</body>
+</html>

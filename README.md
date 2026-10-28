@@ -1,2 +1,54 @@
-# MedEducation
-An AI-powered medical visualization platform that transforms complex diseases, pathophysiology, and medication mechanisms into engaging, interactive animations for patient education and clinical training.
+# MedMotion
+
+A medical visualization platform that turns complex diseases, pathophysiology, and drug mechanisms into short, narrated animations: 30–60 s for patients, and modular organ-by-organ animations for clinicians.
+
+This is a static prototype for the US market (English). It uses no build step and has no dependencies.
+
+## Run it
+
+Open `index.html` in Chrome or Edge. That's it.
+
+- **Patient portal**: sign in with any email.
+- **Clinician portal**: use the demo NPI `1234567893` (it passes the NPI check digit), or a `.edu` email.
+- Deep links: `patient.html#t2d`, `clinician.html#htn/pharm/raas`, `clinician.html#t2d/patho/kidney`.
+
+Narration uses the browser's built-in text-to-speech (Web Speech API). On Windows, Edge offers the most natural voices.
+
+## What's in it
+
+| | Patient portal | Clinician portal |
+|---|---|---|
+| Animation | One ~60 s, 7-chapter story per condition | 1–3 scenes per organ and per drug class |
+| Extras | Key points, questions for your doctor, 3-question teach-back quiz | Body map with stage slider, findings by stage, PD/PK/AE/contraindications/monitoring, references |
+| Conditions | Type 2 diabetes, hypertension | Same (8 organs + 4 drug classes for T2D; 5 organs + 3 drug classes for HTN) |
+
+Search handles lay terms, abbreviations, ICD-10 codes, and typos (`diabetis`, `HTN`, `E11`, `high bp`). Roadmap conditions show up as "coming soon" with a request button.
+
+## How it works
+
+All animation is drawn programmatically on a 960×540 canvas. Nothing is pre-rendered video.
+
+```
+js/primitives.js   Drawing kit: cells, keys/locks, vessels, organs, glomerulus, fundus, neurons, gauges…
+js/engine.js       Player: timeline, scrubbing, chapters, captions, TTS narration, fullscreen
+js/scenes.js       Reusable scene templates (icon rows, red-flag card, body hotspots, pathways, tubule…)
+js/registry.js     Condition registry + fuzzy search
+js/diseases/*.js   Content: one file per condition (patient script + clinician organs/drugs)
+js/bodymap.js      Clickable SVG body map
+js/patient.js      Patient portal page logic
+js/clinician.js    Clinician portal page logic
+```
+
+A scene is `{ label, caption, draw(ctx, p, s) }`. `p` is progress (0–1) through the scene and `s` is seconds elapsed. Scene length stretches automatically so the narration can finish. Randomness is seeded, so scrubbing always shows the same frame.
+
+### Adding a condition
+
+1. Create `js/diseases/<name>.js` and call `MedData.register({ id, name, icd10, aliases, patient, clinician })`. Use `diabetes.js` as the template.
+2. Add a `<script>` tag for it to `patient.html` and `clinician.html`.
+3. Remove it from the `comingSoon` list in `js/registry.js`.
+
+## Important limitations
+
+- **Content is AI-drafted and has not been clinically reviewed.** Every page shows a "Draft · pending clinical review" badge. A licensed clinician must review the content before any real use.
+- Sign-in is simulated and stored only in the browser. Production needs a backend, real identity verification (for example, an NPPES NPI lookup), and access control.
+- This is for education only: no diagnosis and no individualized dosing.

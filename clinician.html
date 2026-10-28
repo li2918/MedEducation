@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedMotion — Clinician portal</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="clinician-body">
+  <header class="topbar">
+    <a class="brand" href="clinician.html"><span class="logo">◐</span> MedMotion</a>
+    <span class="portal-tag pro">Clinician portal</span>
+    <nav class="user">
+      <span id="who"></span>
+      <a href="patient.html">Patient view</a>
+      <button class="linklike" id="signout" type="button">Sign out</button>
+    </nav>
+  </header>
+
+  <main class="container wide">
+    <section class="search-row">
+      <div class="search" id="search"></div>
+      <div class="chips" id="chips"></div>
+    </section>
+
+    <section id="workspace" hidden>
+      <div class="result-head">
+        <div>
+          <h2 id="d-name"></h2>
+          <p class="overview" id="d-overview"></p>
+        </div>
+        <div class="meta">
+          <span class="badge draft">Draft · pending clinical review</span>
+          <span class="badge" id="d-icd"></span>
+        </div>
+      </div>
+
+      <div class="tabs" role="tablist">
+        <button role="tab" class="tab" data-tab="patho" aria-selected="true">Pathophysiology</button>
+        <button role="tab" class="tab" data-tab="pharm" aria-selected="false">Pharmacology</button>
+      </div>
+
+      <div class="grid-clin">
+        <aside class="panel map-panel">
+          <div id="bodymap"></div>
+          <div id="stage-ctl" class="stage-ctl">
+            <label for="stage">Disease stage</label>
+            <input id="stage" type="range" min="0" max="2" step="1" value="1">
+            <div class="stage-name" id="stage-name"></div>
+          </div>
+          <div class="legend" id="legend"></div>
+        </aside>
+
+        <div class="work">
+          <div class="chips selector" id="selector"></div>
+          <div id="player"></div>
+          <div class="panel detail" id="detail"></div>
+        </div>
+      </div>
+
+      <details class="panel refs">
+        <summary>References</summary>
+        <ol id="refs"></ol>
+      </details>
+    </section>
+
+    <section id="soon" class="panel soon" hidden>
+      <h2 id="soon-name"></h2>
+      <p>This module is on the roadmap. Requests help us prioritize.</p>
+      <button class="btn primary" id="soon-btn" type="button">Request this module</button>
+      <p class="muted" id="soon-msg" hidden>Request noted.</p>
+    </section>
+
+    <p class="disclaimer">For professional education. Verify against current guidelines and prescribing information before clinical use.</p>
+  </main>
+
+  <script src="js/auth.js"></script>
+  <script src="js/primitives.js"></script>
+  <script src="js/engine.js"></script>
+  <script src="js/scenes.js"></script>
+  <script src="js/registry.js"></script>
+  <script src="js/diseases/diabetes.js"></script>
+  <script src="js/diseases/hypertension.js"></script>
+  <script src="js/bodymap.js"></script>
+  <script src="js/search-box.js"></script>
+  <script src="js/clinician.js"></script>
+</body>
+</html>
