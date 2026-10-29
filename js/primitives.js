@@ -128,13 +128,102 @@
   }
 
   // ---- Particles -----------------------------------------------------------
+  // Glucose: a bright gold hexagon; large ones (r >= 9) glow so they catch the eye.
   function glucose(ctx, x, y, r = 7, alpha = 1) {
     ctx.save(); ctx.globalAlpha *= clamp(alpha);
-    ctx.beginPath();
-    for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i + Math.PI / 6; ctx.lineTo(x + r * Math.cos(a), y + r * Math.sin(a)); }
-    ctx.closePath(); ctx.fillStyle = C.amber; ctx.fill();
-    ctx.strokeStyle = C.white; ctx.lineWidth = 1.5; ctx.stroke();
+    const hexPath = (rr) => {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i + Math.PI / 6; ctx.lineTo(x + rr * Math.cos(a), y + rr * Math.sin(a)); }
+      ctx.closePath();
+    };
+    if (r >= 9) { ctx.shadowColor = 'rgba(255,140,0,0.85)'; ctx.shadowBlur = r * 1.6; }
+    hexPath(r); ctx.fillStyle = '#ffb703'; ctx.fill();
+    ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#e8590c'; ctx.lineWidth = Math.max(1.5, r * 0.18); ctx.stroke();
+    if (r >= 6) { hexPath(r * 0.42); ctx.fillStyle = 'rgba(255,240,170,0.9)'; ctx.fill(); }
     ctx.restore();
+  }
+
+  // Protein: a folded chain of blue beads, clearly different from sugar.
+  function protein(ctx, x, y, r = 12, alpha = 1, rot = 0) {
+    const beads = [[-0.85, -0.15], [-0.4, -0.7], [0.25, -0.62], [0.78, -0.1], [0.4, 0.5], [-0.25, 0.55]];
+    ctx.save(); ctx.globalAlpha *= clamp(alpha);
+    ctx.translate(x, y); ctx.rotate(rot);
+    ctx.strokeStyle = '#1c3a9e'; ctx.lineWidth = r * 0.22; ctx.lineJoin = 'round';
+    ctx.beginPath(); beads.forEach(([u, v], i) => (i ? ctx.lineTo(u * r, v * r) : ctx.moveTo(u * r, v * r))); ctx.stroke();
+    beads.forEach(([u, v]) => {
+      ctx.beginPath(); ctx.arc(u * r, v * r, r * 0.38, 0, TAU); ctx.fillStyle = '#3d63e0'; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = '#1c3a9e'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(u * r - r * 0.12, v * r - r * 0.12, r * 0.13, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.6)'; ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // ---- Cartoon helpers (patient videos) ------------------------------------
+  // Face for an organ character. mood: 1 happy … 0 sick; t drives blinking.
+  function face(ctx, x, y, s, mood = 1, t = 0, o = {}) {
+    mood = clamp(mood);
+    const ink = '#2b2233', blink = (t + (o.seed || 0) * 1.3) % 3.1 < 0.13 ? 0.12 : 1, sad = clamp((0.6 - mood) / 0.6);
+    ctx.save();
+    if (o.alpha != null) ctx.globalAlpha *= clamp(o.alpha);
+    ctx.strokeStyle = ink; ctx.lineCap = 'round';
+    [-1, 1].forEach((d) => {
+      const ex = x + d * 0.3 * s, ey = y - 0.08 * s;
+      if (o.dizzy) {
+        ctx.lineWidth = 0.06 * s; ctx.beginPath();
+        ctx.moveTo(ex - 0.09 * s, ey - 0.09 * s); ctx.lineTo(ex + 0.09 * s, ey + 0.09 * s);
+        ctx.moveTo(ex + 0.09 * s, ey - 0.09 * s); ctx.lineTo(ex - 0.09 * s, ey + 0.09 * s); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.ellipse(ex, ey, 0.11 * s, 0.14 * s * blink, 0, 0, TAU); ctx.fillStyle = ink; ctx.fill();
+        if (blink > 0.5) { ctx.beginPath(); ctx.arc(ex + 0.035 * s, ey - 0.05 * s, 0.04 * s, 0, TAU); ctx.fillStyle = '#fff'; ctx.fill(); }
+      }
+      if (sad > 0) {
+        ctx.lineWidth = 0.06 * s; ctx.beginPath();
+        ctx.moveTo(x + d * 0.17 * s, ey - 0.22 * s - 0.07 * s * sad); ctx.lineTo(x + d * 0.43 * s, ey - 0.2 * s + 0.03 * s * sad); ctx.stroke();
+      }
+    });
+    const my = y + 0.24 * s, bend = lerp(-0.2, 0.28, mood) * s;
+    ctx.lineWidth = 0.07 * s;
+    ctx.beginPath(); ctx.moveTo(x - 0.18 * s, my); ctx.quadraticCurveTo(x, my + bend, x + 0.18 * s, my); ctx.stroke();
+    if (mood > 0.55) [-1, 1].forEach((d) => { ctx.beginPath(); ctx.ellipse(x + d * 0.47 * s, y + 0.12 * s, 0.1 * s, 0.06 * s, 0, 0, TAU); ctx.fillStyle = `rgba(255,110,130,${(mood - 0.55) * 1.2})`; ctx.fill(); });
+    ctx.restore();
+    if (mood < 0.4) drop(ctx, x + 0.52 * s, y - 0.28 * s + ((t * 0.6) % 1) * 0.2 * s, 0.09 * s, (0.4 - mood) * 2.2, '#6cb8f2');
+  }
+
+  function heartShape(ctx, x, y, r) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + r);
+    ctx.bezierCurveTo(x - r * 1.7, y - r * 0.1, x - r * 0.7, y - r * 1.4, x, y - r * 0.45);
+    ctx.bezierCurveTo(x + r * 0.7, y - r * 1.4, x + r * 1.7, y - r * 0.1, x, y + r);
+    ctx.closePath();
+  }
+
+  // Game-style health bar with a heart icon; v in 0..1.
+  function healthBar(ctx, x, y, w, v, o = {}) {
+    v = clamp(v);
+    const col = v > 0.66 ? C.green : v > 0.36 ? C.amber : C.red;
+    ctx.save();
+    if (o.alpha != null) ctx.globalAlpha *= clamp(o.alpha);
+    heartShape(ctx, x + 12, y, 11); ctx.fillStyle = col; ctx.fill();
+    rr(ctx, x + 30, y - 10, w - 30, 20, 10); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    if (v > 0.02) { rr(ctx, x + 32, y - 8, (w - 34) * v, 16, 8); ctx.fillStyle = col; ctx.fill(); }
+    ctx.restore();
+    if (o.label) text(ctx, o.label, x + 30, y - 24, { size: 15, align: 'left', color: C.muted, weight: 700, alpha: o.alpha });
+    if (o.right) text(ctx, o.right, x + w, y - 24, { size: 15, align: 'right', color: col, weight: 800, alpha: o.alpha });
+  }
+
+  // Speech bubble below (tail up) a character; '\n' splits lines.
+  function say(ctx, str, x, y, a = 1, col = C.ink) {
+    if (a <= 0) return;
+    const lines = str.split('\n');
+    ctx.save(); ctx.globalAlpha *= clamp(a);
+    ctx.font = `800 15px ${FONT}`;
+    const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 22, h = lines.length * 19 + 12;
+    ctx.beginPath(); ctx.moveTo(x - 8, y + 1); ctx.lineTo(x, y - 10); ctx.lineTo(x + 8, y + 1);
+    rr(ctx, x - w / 2, y, w, h, 12);
+    ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+    ctx.restore();
+    lines.forEach((l, i) => text(ctx, l, x, y + 16 + i * 19, { size: 15, weight: 800, color: col, alpha: a }));
   }
 
   function dot(ctx, x, y, r, color, alpha = 1) {
@@ -611,7 +700,7 @@
 
   window.M = {
     C, FONT, TAU, clamp, lerp, ease, seg, back, rnd, mix, rr, text, wrap, pill, card, arrow, cross, emoji,
-    glucose, dot, rbc, salt, drop, drug, capsule, key, lock, cell, vessel, pressureArrows,
+    glucose, protein, face, heartShape, healthBar, say, dot, rbc, salt, drop, drug, capsule, key, lock, cell, vessel, pressureArrows,
     heart, heartSection, kidney, liver, pancreas, brain, stomach, lungs, fundus, glomerulus, neuron,
     person, hotspot, gauge, bpMonitor, node,
   };

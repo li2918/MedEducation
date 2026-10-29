@@ -162,10 +162,10 @@
       ctx.lineWidth = on ? 5 : 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
       ctx.beginPath(); path.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke();
       ctx.restore();
-      const n = Math.round((on ? 8 : 3) * dens);
+      const n = Math.round((on ? 8 : 3) * dens), sr = o.sugarR || 5.5;
       for (let i = 0; i < n; i++) {
         const [px, py] = along(path, (t * 0.25 + i / n + M.rnd(i + k.length) * 0.05) % 1);
-        M.glucose(ctx, px, py, on ? 5.5 : 4, on ? 1 : 0.5);
+        M.glucose(ctx, px, py, on ? sr : sr * 0.75, on ? 1 : 0.5);
       }
     });
     M.heart(ctx, x + 0.15 * s, y - 0.78 * s, s * 0.17, { beat: Math.max(0, Math.sin(t * 6.5)) });
@@ -181,40 +181,29 @@
     M.pill(ctx, cur[1], x, y, { bg: 'rgba(255,255,255,0.95)', border: col, color: col, size: 16, alpha: a });
   }
 
-  // Body on the left; a magnifying lens pops out of one organ to show close-up damage.
-  // o: { at, paths, title, zoom(ctx, cx, cy, R, p, s), symptom, color }
-  function organZoom(o) {
+  // Two cards side by side: normal (left) vs. disease (right). o.panel(ctx, p, s, sick, W, H)
+  // draws in card-local coordinates and returns that card's health (0..1) for its health bar.
+  // o: { title, panel, left, right, bar }
+  const VS = { W: 440, H: 420, y: 100, xs: [20, 500] };
+  function versus(o) {
     return (ctx, p, s) => {
-      const pts = bodyWithBlood(ctx, 200, 322, 98, s, { highlight: o.paths });
-      const [ox, oy] = pts[o.at];
-      M.text(ctx, o.title, 40, 84, { size: 30, weight: 800, align: 'left' });
-      const g = M.back(seg(p, 0.02, 0.14)), cx = 640, cy = 262, R = 205;
-      if (g > 0) {
-        const r = R * g, d = Math.hypot(ox - cx, oy - cy), b = Math.atan2(oy - cy, ox - cx), w = Math.acos(Math.min(1, r / d));
+      if (o.title) M.text(ctx, o.title, 480, 42, { size: 30, weight: 800 });
+      [false, true].forEach((sick, i) => {
+        const pop = M.back(seg(p, i * 0.04, 0.1 + i * 0.04));
+        if (pop <= 0) return;
         ctx.save();
-        ctx.beginPath(); ctx.moveTo(ox, oy);
-        ctx.lineTo(cx + r * Math.cos(b + w), cy + r * Math.sin(b + w));
-        ctx.lineTo(cx + r * Math.cos(b - w), cy + r * Math.sin(b - w));
-        ctx.closePath(); ctx.fillStyle = 'rgba(47,111,222,0.10)'; ctx.fill();
+        ctx.translate(VS.xs[i] + VS.W / 2, VS.y + VS.H / 2); ctx.scale(pop, pop); ctx.translate(-VS.W / 2, -VS.H / 2);
+        M.card(ctx, 0, 0, VS.W, VS.H, { fill: sick ? '#fff7f6' : '#f6fcf8', border: sick ? '#f3b5ae' : '#b8e3c9', r: 26 });
+        ctx.save(); M.rr(ctx, 0, 0, VS.W, VS.H, 26); ctx.clip();
+        const hp = o.panel(ctx, p, s, sick, VS.W, VS.H);
         ctx.restore();
-        ctx.save();
-        ctx.shadowColor = 'rgba(30,50,80,0.25)'; ctx.shadowBlur = 30; ctx.shadowOffsetY = 8;
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
+        if (hp != null) M.healthBar(ctx, 30, VS.H - 28, VS.W - 60, hp, { label: o.bar || 'Health', right: hp > 0.66 ? 'Strong' : hp > 0.36 ? 'Getting hurt' : 'Damaged' });
+        M.pill(ctx, sick ? '⚠  ' + (o.right || 'Too much sugar') : '✓  ' + (o.left || 'Normal sugar'), VS.W / 2, 0,
+          { bg: sick ? '#fdecea' : '#e9f7ef', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', size: 18 });
         ctx.restore();
-        ctx.save();
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.clip();
-        ctx.translate(cx, cy); ctx.scale(g, g); ctx.translate(-cx, -cy);
-        o.zoom(ctx, cx, cy, R, p, s);
-        ctx.restore();
-        ctx.save();
-        ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.lineWidth = 9; ctx.strokeStyle = '#ffffff'; ctx.stroke();
-        ctx.beginPath(); ctx.arc(cx, cy, r + 5, 0, M.TAU); ctx.lineWidth = 2; ctx.strokeStyle = '#b8cdf4'; ctx.stroke();
-        ctx.restore();
-      }
-      M.hotspot(ctx, ox, oy, 1, { t: s, color: o.color || C.red });
-      if (o.symptom) M.pill(ctx, o.symptom, 640, 507, { bg: '#fdecea', border: C.red, color: '#a3261f', size: 17, alpha: ease(seg(p, 0.6, 0.7)) });
+      });
     };
   }
 
-  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, organZoom };
+  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, versus };
 })();

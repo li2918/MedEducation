@@ -190,253 +190,404 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~60 s): sugar builds up, travels the body, and
-  // each organ is shown up close through a magnifying lens.
+  // Patient portal script (~60 s), simple enough for a 10-year-old. Every scene
+  // puts two cards side by side, normal sugar vs. too much sugar. Organs are
+  // characters with faces and a health bar, and each card acts out the organ's
+  // job and how sugar breaks it. Panels draw in card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
+  const SUGAR = 11; // sugar molecules in the patient video are big and glowing
+  const wrapX = (v, w) => ((v % w) + w) % w;
+  const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
 
-  // Eye: retinal capillaries weaken, bulge, leak; then "what you might see".
-  function eyeZoom(ctx, cx, cy, R, p, s) {
-    const g = ctx.createRadialGradient(cx + 40, cy, 20, cx, cy, R);
-    g.addColorStop(0, '#f6a676'); g.addColorStop(1, '#c4492e');
-    ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    const coat = ease(seg(p, 0.12, 0.35));
-    const curve = (k, x) => cy + [-95, 5, 100][k] + Math.sin(x * 0.02 + k * 2) * 20;
-    for (let k = 0; k < 3; k++) {
+  function heartBuddy(ctx, x, y, r, mood, s, o = {}) {
+    const beat = 1 + Math.max(0, Math.sin(s * (o.rate || 6.5))) * 0.08;
+    ctx.save(); ctx.translate(x, y); ctx.scale(beat, beat);
+    M.heartShape(ctx, 0, 0, r); ctx.fillStyle = o.color || '#e5484d'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-r * 0.62, -r * 0.5, r * 0.16, r * 0.24, -0.6, 0, M.TAU); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
+    ctx.restore();
+    M.face(ctx, x, y - r * 0.12, r * 0.85, mood, s, o);
+  }
+
+  function kidneyBuddy(ctx, x, y, r, mood, s, hurt) {
+    M.kidney(ctx, x, y + Math.sin(s * 2) * 3, r, { color: M.mix('#d9776b', '#9c7366', hurt) });
+    M.face(ctx, x - r * 0.2, y + Math.sin(s * 2) * 3, r * 0.55, mood, s, { seed: 2 });
+  }
+
+  function brainBuddy(ctx, x, y, r, mood, s, o = {}) {
+    M.brain(ctx, x, y + Math.sin(s * 1.8) * 3, r);
+    M.face(ctx, x, y + r * 0.05 + Math.sin(s * 1.8) * 3, r * 0.6, mood, s, Object.assign({ seed: 3 }, o));
+  }
+
+  // Cartoon eyeball that looks around; when hurt it gets red and droopy.
+  function eyeball(ctx, x, y, r, hurt, s) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#c9d3e2'; ctx.stroke(); ctx.clip();
+    if (hurt > 0) {
+      ctx.strokeStyle = `rgba(214,60,60,${0.85 * hurt})`; ctx.lineWidth = 2;
+      for (let k = 0; k < 7; k++) {
+        const a = k * 0.9 + 0.3; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+        ctx.quadraticCurveTo(x + Math.cos(a + 0.2) * r * 0.8, y + Math.sin(a + 0.2) * r * 0.8, x + Math.cos(a - 0.1) * r * 0.58, y + Math.sin(a - 0.1) * r * 0.58); ctx.stroke();
+      }
+    }
+    const gx = Math.sin(s * 0.9) * r * 0.18, gy = Math.cos(s * 0.7) * r * 0.08;
+    M.dot(ctx, x + gx, y + gy, r * 0.46, '#4f8ff7');
+    M.dot(ctx, x + gx, y + gy, r * 0.22, '#1b2440');
+    M.dot(ctx, x + gx - r * 0.12, y + gy - r * 0.14, r * 0.09, '#fff');
+    const lid = (s % 3.3) < 0.14 ? 1 : lerp(0.04, 0.45, hurt);
+    ctx.fillStyle = '#f2c8a8'; ctx.fillRect(x - r, y - r, 2 * r, 2 * r * lid);
+    ctx.strokeStyle = '#c98f6b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - r, y - r + 2 * r * lid); ctx.lineTo(x + r, y - r + 2 * r * lid); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Little picture of "what you see": sharp when healthy, blurry and spotted when hurt.
+  function viewFrame(ctx, x, y, w, h, hurt, spots) {
+    ctx.save(); M.rr(ctx, x, y, w, h, 14); ctx.clip();
+    if (hurt > 0) ctx.filter = `blur(${7 * hurt}px)`;
+    ctx.fillStyle = '#a7d6f7'; ctx.fillRect(x, y, w, h * 0.65);
+    ctx.fillStyle = '#93cf7e'; ctx.fillRect(x, y + h * 0.65, w, h * 0.35);
+    M.dot(ctx, x + w * 0.82, y + h * 0.2, 18, '#ffd75e');
+    ctx.fillStyle = '#f4e1c1'; ctx.fillRect(x + w * 0.18, y + h * 0.42, w * 0.32, h * 0.36);
+    ctx.fillStyle = '#d9534f'; ctx.beginPath(); ctx.moveTo(x + w * 0.13, y + h * 0.42); ctx.lineTo(x + w * 0.34, y + h * 0.18); ctx.lineTo(x + w * 0.55, y + h * 0.42); ctx.fill();
+    ctx.fillStyle = '#8a5a3b'; ctx.fillRect(x + w * 0.3, y + h * 0.58, w * 0.08, h * 0.2);
+    ctx.fillStyle = '#7a5230'; ctx.fillRect(x + w * 0.72, y + h * 0.45, 8, h * 0.33);
+    M.dot(ctx, x + w * 0.74, y + h * 0.42, 24, '#4f9e4a');
+    ctx.filter = 'none';
+    [[0.3, 0.3, 34], [0.65, 0.6, 28], [0.15, 0.75, 30], [0.85, 0.85, 24]].forEach(([u, v, r], i) => {
+      const a = seg(spots, i * 0.15, i * 0.15 + 0.4);
+      if (a <= 0) return;
+      const gr = ctx.createRadialGradient(x + u * w, y + v * h, 2, x + u * w, y + v * h, r * a);
+      gr.addColorStop(0, 'rgba(25,18,18,0.85)'); gr.addColorStop(1, 'rgba(25,18,18,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x + u * w, y + v * h, r * a, 0, M.TAU); ctx.fill();
+    });
+    ctx.restore();
+    ctx.save(); M.rr(ctx, x, y, w, h, 14); ctx.lineWidth = 4; ctx.strokeStyle = '#3b4a5e'; ctx.stroke(); ctx.restore();
+  }
+
+  // Scene 1: insulin is a key that opens the cell's door so sugar (food) can go in.
+  function cellPanel(ctx, p, s, sick, W) {
+    const cx = 275, cy = 190, r = 88, dx = cx - r;
+    const eat = sick ? 0 : ease(seg(p, 0.4, 0.8)), hunger = sick ? ease(seg(p, 0.45, 0.85)) : 0;
+    M.cell(ctx, cx, cy + Math.sin(s * 2) * 2, r, { nucleus: false, glow: eat * 0.8, fill: M.mix('#dbe7fb', '#e4dfe6', hunger) });
+    M.face(ctx, cx + 12, cy + 4, r * 0.72, sick ? 1 - 0.95 * hunger : 0.8 + 0.2 * eat, s, { seed: sick ? 1 : 0 });
+    // door in the cell wall
+    const open = sick ? 0 : ease(seg(p, 0.3, 0.4)), dw = 30 * (1 - 0.8 * open);
+    M.rr(ctx, dx - dw / 2, cy - 27, dw, 54, 6); ctx.fillStyle = sick ? '#9a5a32' : '#14a38b'; ctx.fill();
+    if (open < 0.5) M.dot(ctx, dx, cy, 4, '#1d2b3a');
+    if (sick) [[-6, -16], [5, -6], [-4, 12], [6, 18]].forEach(([u, v]) => M.dot(ctx, dx + u, cy + v, 2.5, 'rgba(90,40,15,0.8)'));
+    // the insulin key flies in
+    const kin = ease(seg(p, 0.06, 0.28));
+    let kx = lerp(-40, dx - 46, kin), ky = lerp(70, cy, kin), ka = 1;
+    if (sick) {
+      const w = seg(p, 0.28, 0.46); if (w > 0 && w < 1) kx += Math.sin(s * 35) * 4;
+      ky += ease(seg(p, 0.48, 0.62)) * 130; ka = 1 - seg(p, 0.55, 0.65);
+    } else ka = 1 - seg(p, 0.42, 0.5);
+    M.key(ctx, kx, ky, 1.7, 0, C.teal, ka);
+    M.text(ctx, 'Insulin key', kx, ky - 30, { size: 15, weight: 800, color: C.teal, alpha: ka * (1 - seg(p, 0.3, 0.38)) });
+    // sugar = food: it goes in through the open door, or piles up outside
+    const n = sick ? Math.floor(lerp(8, 26, seg(p, 0.3, 1))) : 8;
+    for (let i = 0; i < n; i++) {
+      let x = 30 + rnd(i) * (W - 60), y = 62 + rnd(i + 4) * 236;
+      const d = Math.hypot(x - cx, y - cy);
+      if (d < r + 24) { x = cx + (x - cx) / d * (r + 24); y = cy + (y - cy) / d * (r + 24); }
+      let a = 1;
+      if (!sick && p > 0.38) {
+        const ph = (s * 0.4 + rnd(i + 8)) % 1, k1 = ease(seg(ph, 0, 0.55)), k2 = ease(seg(ph, 0.55, 0.85));
+        x = lerp(lerp(x, dx - 6, k1), cx + (rnd(i + 2) - 0.5) * 60, k2); y = lerp(lerp(y, cy, k1), cy + (rnd(i + 3) - 0.5) * 60, k2);
+        a = 1 - seg(ph, 0.85, 1);
+      }
+      M.glucose(ctx, x + Math.sin(s * 1.6 + i) * 4, y + Math.cos(s * 1.3 + i) * 4, SUGAR, a);
+    }
+    if (sick) {
+      M.say(ctx, 'Stuck!', dx - 10, cy + 40, ease(seg(p, 0.3, 0.36)) * (1 - seg(p, 0.58, 0.64)), C.red);
+      M.say(ctx, "I'm hungry...", cx + 10, cy + r + 18, seg(p, 0.6, 0.67), C.red);
+    } else {
+      M.say(ctx, 'Yum! Energy!', cx + 10, cy + r + 18, seg(p, 0.55, 0.62), '#1d7a4c');
+    }
+    M.glucose(ctx, 34, 36, 9); M.text(ctx, '= sugar', 50, 36, { size: 14, align: 'left', color: C.muted, weight: 700 });
+    return sick ? 1 - 0.85 * hunger : 0.7 + 0.3 * eat;
+  }
+
+  // Scene 2: blood carries the sugar to every organ.
+  const BADGES = [['eye', 'Eyes', '#5b8def'], ['heart', 'Heart', '#e5484d'], ['kidney', 'Kidneys', '#c0655a'], ['feet', 'Nerves', '#8a6bc9']];
+  function bodyPanel(ctx, p, s, sick) {
+    const pts = S.bodyWithBlood(ctx, 130, 212, 84, s, { density: sick ? 1.3 : 0.3, sugarR: 9 });
+    BADGES.forEach(([at, label, col], i) => {
+      const bx = 300, by = 70 + i * 78, hurt = sick ? ease(seg(p, 0.25 + i * 0.13, 0.42 + i * 0.13)) : 0;
+      ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 0.55; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
+      ctx.beginPath(); ctx.moveTo(pts[at][0], pts[at][1]); ctx.lineTo(bx - 28, by); ctx.stroke(); ctx.restore();
+      M.dot(ctx, pts[at][0], pts[at][1], 6, col);
+      const wob = hurt > 0 && hurt < 1 ? Math.sin(s * 25) * 3 : 0;
+      M.dot(ctx, bx + wob, by, 27, M.mix(col, '#8b8f99', hurt * 0.45));
+      M.face(ctx, bx + wob, by + 2, 25, 1 - hurt * 0.95, s, { seed: i });
+      M.text(ctx, label, bx + 36, by, { size: 17, weight: 800, align: 'left' });
+    });
+    return sick ? 1 - 0.8 * ease(seg(p, 0.25, 0.85)) : 1;
+  }
+
+  // Scene 3: tiny blood pipes in the eye swell and leak, so the picture you see gets blurry.
+  function eyePanel(ctx, p, s, sick, W) {
+    const hurt = hurtOf(p, sick);
+    eyeball(ctx, 80, 118, 54, hurt, s);
+    M.text(ctx, 'Your eye', 80, 190, { size: 15, weight: 800, color: C.muted });
+    M.arrow(ctx, 145, 118, 188, 118, { color: '#9fb0c6', width: 4 });
+    M.text(ctx, 'What you see', 310, 34, { size: 15, weight: 800, color: C.muted });
+    viewFrame(ctx, 200, 50, 220, 140, hurt, sick ? seg(p, 0.5, 0.85) : 0);
+    if (p > 0.7) M.pill(ctx, sick ? 'Blurry & spotty!' : 'Clear!', 310, 178, { size: 15, bg: '#fff', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', alpha: seg(p, 0.7, 0.76) });
+    // close-up strip of the tiny pipes at the back of the eye
+    const sx = 25, sy = 226, sw = W - 50, sh = 118;
+    M.text(ctx, 'Tiny blood pipes inside your eye', W / 2, sy - 14, { size: 14, weight: 800, color: C.muted });
+    ctx.save(); M.rr(ctx, sx, sy, sw, sh, 16); ctx.clip();
+    const g = ctx.createLinearGradient(0, sy, 0, sy + sh); g.addColorStop(0, '#f39a6b'); g.addColorStop(1, '#d4613f');
+    ctx.fillStyle = g; ctx.fillRect(sx, sy, sw, sh);
+    const swell = hurtOf(p, sick, 0.12, 0.35), curve = (k, x) => sy + [36, 84][k] + Math.sin(x * 0.03 + k * 2) * 9;
+    for (let k = 0; k < 2; k++) {
       ctx.save(); ctx.lineCap = 'round';
-      [[16, M.mix('#9e2a22', '#b07a2a', coat * 0.7)], [9, '#e0574a']].forEach(([w, col]) => {
+      [[lerp(14, 20, swell), M.mix('#9e2a22', '#b07a2a', swell * 0.7)], [lerp(8, 12, swell), '#e0574a']].forEach(([w, col]) => {
         ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath();
-        for (let x = cx - R; x <= cx + R; x += 6) (x === cx - R ? ctx.moveTo(x, curve(k, x)) : ctx.lineTo(x, curve(k, x)));
+        for (let x = sx; x <= sx + sw; x += 6) (x === sx ? ctx.moveTo(x, curve(k, x)) : ctx.lineTo(x, curve(k, x)));
         ctx.stroke();
       });
       ctx.restore();
-      for (let i = 0; i < 6; i++) { const x = cx - R + ((rnd(k * 9 + i) * 2 * R + s * 55) % (2 * R)); M.glucose(ctx, x, curve(k, x), 5); }
+      for (let i = 0; i < (sick ? 6 : 2); i++) { const x = sx + wrapX(rnd(k * 9 + i) * sw + s * 50, sw); M.glucose(ctx, x, curve(k, x), 9); }
     }
-    const spots = [[0, 0.32], [0, 0.7], [1, 0.48], [2, 0.28], [2, 0.66]];
-    spots.forEach(([k, f], i) => {
-      const x = cx - R + f * 2 * R, y = curve(k, x);
-      const leak = ease(seg(p, 0.5 + i * 0.03, 0.72 + i * 0.03));
-      if (leak > 0) {
-        let gr = ctx.createRadialGradient(x + 8, y + 14, 2, x + 8, y + 14, 46 * leak);
-        gr.addColorStop(0, 'rgba(255,224,110,0.85)'); gr.addColorStop(1, 'rgba(255,224,110,0)');
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x + 8, y + 14, 46 * leak, 0, M.TAU); ctx.fill();
-        gr = ctx.createRadialGradient(x, y, 2, x, y, 34 * leak);
-        gr.addColorStop(0, 'rgba(120,8,8,0.9)'); gr.addColorStop(1, 'rgba(120,8,8,0)');
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, 34 * leak, 0, M.TAU); ctx.fill();
+    if (sick) {
+      [[0, 0.22], [1, 0.42], [0, 0.62], [1, 0.82]].forEach(([k, f], i) => {
+        const x = sx + f * sw, y = curve(k, x);
+        const leak = ease(seg(p, 0.5 + i * 0.04, 0.72 + i * 0.04));
+        if (leak > 0) {
+          const gr = ctx.createRadialGradient(x, y + 6, 2, x, y + 6, 36 * leak);
+          gr.addColorStop(0, 'rgba(120,8,8,0.9)'); gr.addColorStop(1, 'rgba(120,8,8,0)');
+          ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y + 6, 36 * leak, 0, M.TAU); ctx.fill();
+          for (let j = 0; j < 2; j++) M.drop(ctx, x + (j - 0.5) * 10, y + 12 + wrapX(s * 30 + j * 17, 34), 4, leak, '#8f1010');
+        }
+        const bulge = M.back(seg(p, 0.3 + i * 0.05, 0.45 + i * 0.05));
+        if (bulge > 0) { M.dot(ctx, x, y - 6, 15 * bulge, '#b3261c'); M.dot(ctx, x - 4, y - 11, 4 * bulge, 'rgba(255,255,255,0.45)'); }
+      });
+      S.phasePill(ctx, W / 2, sy + sh - 18, p, [[0.15, 'Sugar hurts the pipes'], [0.3, 'They swell like balloons'], [0.5, 'Then they leak!']]);
+    } else S.phasePill(ctx, W / 2, sy + sh - 18, p, [[0.15, 'Pipes stay strong', C.green]]);
+    ctx.restore();
+    return 1 - 0.85 * hurt;
+  }
+
+  // Scene 4: the kidney's tiny strainers clean the blood. Sugar sticks to them, the holes
+  // tear so protein falls into the pee, and finally they clog so trash stays in the blood.
+  function kidneyPanel(ctx, p, s, sick) {
+    const hurt = hurtOf(p, sick, 0.12, 0.8);
+    const coat = hurtOf(p, sick, 0.12, 0.35), tear = hurtOf(p, sick, 0.36, 0.6), clog = hurtOf(p, sick, 0.62, 0.85);
+    kidneyBuddy(ctx, 70, 92, 56, 1 - 0.95 * hurt, s, hurt);
+    M.text(ctx, 'Kidney', 64, 156, { size: 15, weight: 800, color: C.muted });
+    const msg = !sick ? 'I keep the\ngood stuff!' : p < 0.36 ? 'Yuck, sticky\nsugar!' : p < 0.62 ? 'My holes\nare tearing!' : "I'm so\ntired...";
+    M.say(ctx, msg, 68, 178, seg(p, 0.12, 0.18), sick ? C.red : '#1d7a4c');
+    // zoom lines from the kidney into its strainer
+    ctx.save(); ctx.strokeStyle = 'rgba(47,111,222,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.moveTo(98, 70); ctx.lineTo(140, 40); ctx.moveTo(98, 112); ctx.lineTo(140, 175); ctx.stroke(); ctx.restore();
+    const ax = 140, aw = 285, top = 40, fy = 172, jx = 192, jw = 180, jt = 222, jb = 345, lvl = 282;
+    M.rr(ctx, ax, top, aw, fy - top, 16); ctx.fillStyle = '#fde3de'; ctx.fill();
+    M.text(ctx, 'Blood', ax + 30, top + 16, { size: 14, weight: 800, color: '#b3453c' });
+    // pee cup
+    M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.fillStyle = 'rgba(225,236,250,0.7)'; ctx.fill();
+    ctx.save(); M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.clip(); ctx.fillStyle = '#fbe7a1'; ctx.fillRect(jx, lvl, jw, jb - lvl); ctx.restore();
+    M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 3; ctx.stroke();
+    M.text(ctx, 'Pee', jx + jw + 22, lvl + 20, { size: 15, weight: 800, color: '#a07a00' });
+    // the strainer
+    const nH = 6, gap = aw / nH, bandH = 18 + coat * 12, hw = lerp(10, 26, tear);
+    const holes = [];
+    for (let i = 0; i < nH; i++) holes.push({ x: ax + gap * (i + 0.5), blocked: [1, 3, 4].includes(i) && clog > 0.5 });
+    ctx.fillStyle = M.mix('#9b7bd1', '#b98a3a', coat * 0.7);
+    let prev = ax;
+    holes.forEach((h) => { M.rr(ctx, prev, fy - bandH / 2, h.x - hw / 2 - prev, bandH, 6); ctx.fill(); prev = h.x + hw / 2; });
+    M.rr(ctx, prev, fy - bandH / 2, ax + aw - prev, bandH, 6); ctx.fill();
+    holes.forEach((h) => { if (h.blocked) { M.rr(ctx, h.x - hw / 2 - 1, fy - bandH / 2, hw + 2, bandH, 4); ctx.fillStyle = '#6f6577'; ctx.fill(); } });
+    M.text(ctx, 'Strainer', ax + aw - 40, fy - bandH / 2 - 12, { size: 13, weight: 800, color: '#6a4fb0' });
+    const open = holes.filter((h) => !h.blocked);
+    // something falling through a hole and into the cup: ph 0..1 → [x, y], or null while waiting above
+    const fall = (h, ph, i, rest) => {
+      if (ph < 0.35) return [lerp(ax + 20 + rnd(i + 70) * (aw - 40), h.x, ease(ph / 0.35)), lerp(top + 30 + rnd(i + 71) * 60, fy, ease(ph / 0.35))];
+      const k = (ph - 0.35) / 0.65, ex = jx + 25 + rnd(i + 72) * (jw - 50), ey = rest || jb - 14 - rnd(i + 73) * 30;
+      const k2 = Math.min(1, k * 1.3); return [lerp(h.x, ex, k2), lerp(fy, ey, k2)];
+    };
+    for (let i = 0; i < 4; i++) M.rbc(ctx, ax + wrapX(rnd(i + 60) * aw + s * 40, aw), top + 30 + rnd(i + 61) * 40, 10);
+    // trash: falls into the pee (good); stays stuck in the blood once the strainer clogs
+    for (let i = 0; i < 10; i++) {
+      const stuck = rnd(i + 80) < clog * 0.8;
+      const [x, y] = stuck ? [ax + 30 + rnd(i + 81) * (aw - 60), fy - bandH / 2 - 6 - rnd(i + 82) * 40] : fall(open[i % open.length], (s * 0.3 + rnd(i)) % 1, i);
+      M.dot(ctx, x, y, 5.5, '#7d6248');
+    }
+    // protein: bounces on a healthy strainer, falls through the torn holes
+    for (let i = 0; i < 5; i++) {
+      const rot = s * 0.8 + i;
+      if (rnd(i + 200) < tear * 0.9) {
+        const [x, y] = fall(open[(i * 2 + 1) % open.length], Math.min(1, (s * 0.25 + rnd(i + 30)) % 1.4), i + 20, lvl + 14 + rnd(i + 9) * 40);
+        M.protein(ctx, x, y, 15, 1, rot);
+      } else {
+        M.protein(ctx, ax + 40 + (i + 0.5) / 5 * (aw - 80), fy - bandH / 2 - 22 - Math.abs(Math.sin(s * 2.2 + i)) * 70, 15, 1, rot);
       }
-      const bulge = M.back(seg(p, 0.3 + i * 0.04, 0.45 + i * 0.04));
-      if (bulge > 0) { M.dot(ctx, x, y - 8, 14 * bulge, '#b3261c'); M.dot(ctx, x - 4, y - 12, 4 * bulge, 'rgba(255,255,255,0.4)'); }
+    }
+    // sugar in the blood; with too much, it sticks to the strainer and spills into the pee
+    for (let i = 0; i < (sick ? 9 : 3); i++) {
+      const dir = rnd(i + 301) > 0.5 ? 1 : -1;
+      M.glucose(ctx, ax + wrapX(rnd(i + 300) * aw + dir * s * 30, aw), top + 40 + rnd(i + 302) * 70 + Math.sin(s * 2 + i) * 6, 10);
+    }
+    for (let i = 0; i < 10 * sick; i++) {
+      const j = 1 + (i % 5), tx = ax + gap * j + (i < 5 ? -9 : 9), ty = fy - bandH / 2 - 8;
+      const a = ease(seg(p, 0.12 + i * 0.018, 0.2 + i * 0.018));
+      if (a > 0) M.glucose(ctx, lerp(tx + (rnd(i + 500) - 0.5) * 120, tx, a), lerp(top + 30, ty, a), 10);
+    }
+    for (let i = 0; i < 3 * sick; i++) {
+      const [x, y] = fall(open[(i * 2) % open.length], (s * 0.28 + rnd(i + 400)) % 1, i + 40);
+      M.glucose(ctx, x, y, 9, seg(p, 0.25, 0.32));
+    }
+    // foamy pee when protein leaks
+    for (let i = 0; i < Math.floor(tear * 10); i++) {
+      const x = jx + 14 + rnd(i + 120) * (jw - 28), y = lvl - 2 - wrapX(s * 8 + rnd(i + 121) * 10, 10);
+      ctx.beginPath(); ctx.arc(x, y, 6 + rnd(i) * 5, 0, M.TAU); ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(200,180,120,0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    // legend
+    M.protein(ctx, 26, 262, 10); M.text(ctx, 'Protein (keep!)', 42, 262, { size: 13, weight: 800, align: 'left', color: '#1c3a9e' });
+    M.dot(ctx, 26, 290, 5.5, '#7d6248'); M.text(ctx, 'Trash', 42, 290, { size: 13, weight: 800, align: 'left', color: '#7d6248' });
+    M.glucose(ctx, 26, 318, 9); M.text(ctx, 'Sugar', 42, 318, { size: 13, weight: 800, align: 'left', color: '#c2410c' });
+    return 1 - 0.85 * hurt;
+  }
+
+  function foot(ctx, x, y, k) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    ctx.fillStyle = '#f2c8a8';
+    ctx.fillRect(-120, -80, 62, 130);
+    ctx.beginPath();
+    ctx.moveTo(-120, 40); ctx.lineTo(-112, 112);
+    ctx.quadraticCurveTo(-112, 140, -72, 140); ctx.lineTo(110, 140);
+    ctx.quadraticCurveTo(150, 140, 146, 116); ctx.quadraticCurveTo(132, 92, 40, 80);
+    ctx.quadraticCurveTo(-40, 70, -58, 40); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
+
+  // Scene 5: nerves are wires that carry an "ouch!" message from the foot to the brain.
+  function nervePanel(ctx, p, s, sick) {
+    const hurt = hurtOf(p, sick, 0.12, 0.85), dmg = hurtOf(p, sick, 0.12, 0.5);
+    const lift = sick ? 0 : 30 * ease(seg(p, 0.42, 0.5));
+    // tack and floor
+    ctx.fillStyle = '#c9d3e2'; ctx.fillRect(0, 350, 440, 8);
+    ctx.fillStyle = '#8796ab'; ctx.beginPath(); ctx.moveTo(312, 350); ctx.lineTo(320, 330); ctx.lineTo(328, 350); ctx.fill();
+    foot(ctx, 300, 245 - lift, 0.65);
+    if (sick) {
+      const sore = ease(seg(p, 0.55, 0.9));
+      if (sore > 0) {
+        const gr = ctx.createRadialGradient(320, 334, 1, 320, 334, 30 * sore);
+        gr.addColorStop(0, 'rgba(140,20,20,0.95)'); gr.addColorStop(0.5, 'rgba(214,70,60,0.8)'); gr.addColorStop(1, 'rgba(214,70,60,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(320, 334, 34 * sore, 12 * sore, 0, 0, M.TAU); ctx.fill();
+      }
+      M.say(ctx, 'Cut gets\nworse!', 380, 262, seg(p, 0.7, 0.76), C.red);
+    } else M.say(ctx, 'Safe!', 385, 262, seg(p, 0.5, 0.56), '#1d7a4c');
+    // the nerve wire, from the leg up to the brain
+    const P0 = [242, 215 - lift], P1 = [250, 60], P2 = [140, 85];
+    const B = (t) => [lerp(lerp(P0[0], P1[0], t), lerp(P1[0], P2[0], t), t), lerp(lerp(P0[1], P1[1], t), lerp(P1[1], P2[1], t), t)];
+    const tb = dmg * 0.75;
+    ctx.save(); ctx.lineWidth = 6; ctx.lineCap = 'round';
+    for (let i = 0; i < 40; i++) {
+      const a = B(i / 40), b = B((i + 1) / 40);
+      ctx.strokeStyle = i / 40 < tb ? 'rgba(138,107,201,0.35)' : '#8a6bc9';
+      ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke();
+    }
+    ctx.restore();
+    for (let t = 0.06; t < 0.95; t += 0.11) {
+      const [x, y] = B(t), lost = t < tb;
+      ctx.save(); ctx.translate(x, y); ctx.rotate(Math.atan2(B(t + 0.01)[1] - y, B(t + 0.01)[0] - x));
+      M.rr(ctx, -13, -8, 26, 16, 8); ctx.fillStyle = lost ? 'rgba(220,200,150,0.3)' : '#f6d98a'; ctx.fill(); ctx.restore();
+      if (lost) M.glucose(ctx, x + 10, y - 10, 9);
+    }
+    M.text(ctx, 'Nerve (a wire)', 268, 140, { size: 13, weight: 800, color: '#6a4fb0', align: 'left' });
+    // the "ouch!" message runs up the wire; on damaged wire it fades away
+    const ph = (s * 0.55) % 1, [mx, my] = B(ph);
+    const ma = sick && dmg > 0.25 ? 1 - seg(ph, tb * 0.4, tb) : 1;
+    if (!(lift > 25 && ph < 0.1)) M.pill(ctx, 'ouch!', mx, my, { size: 13, bg: '#ffe066', border: '#f59f00', color: '#7a4b00', alpha: ma });
+    // the brain reacts, or never hears it
+    brainBuddy(ctx, 85, 85, 56, sick ? 1 - 0.75 * dmg : 1, s, {});
+    if (sick) M.say(ctx, '...?\nI feel nothing', 88, 135, seg(p, 0.42, 0.5), C.red);
+    else M.say(ctx, 'OUCH!\nMove foot!', 88, 135, seg(p, 0.32, 0.38), '#1d7a4c');
+    return 1 - 0.85 * hurt;
+  }
+
+  // Scene 6: a blood pipe feeding the heart. Sugar makes it sticky, gunk builds up, a clot blocks it.
+  function heartPanel(ctx, p, s, sick, W) {
+    const coat = hurtOf(p, sick, 0.08, 0.3), gunk = hurtOf(p, sick, 0.2, 0.62), clot = sick ? M.back(seg(p, 0.62, 0.72)) : 0;
+    const hurt = hurtOf(p, sick, 0.66, 0.8);
+    const sClot = p > 0 ? 0.68 * s / p : s, tEff = !sick || s < sClot ? s : sClot + (s - sClot) * 0.06;
+    M.vessel(ctx, 20, 45, W - 40, 120, {
+      t: tEff, wall: 18, wallColor: M.mix('#f2b8ae', '#e3b04f', coat * 0.8), plaque: gunk * 0.85, plaqueX: 0.55,
+      items: [{ kind: 'rbc', n: 13, speed: 90, r: 10 }, { kind: 'glucose', n: sick ? 9 : 2, speed: 70, r: SUGAR }],
     });
-    const vis = ease(seg(p, 0.76, 0.88));
-    if (vis > 0) {
-      ctx.save(); ctx.globalAlpha = vis; ctx.filter = `blur(${3 * vis}px)`;
-      ctx.fillStyle = '#a7d6f7'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R * 0.62);
-      ctx.fillStyle = '#93cf7e'; ctx.fillRect(cx - R, cy - R + 2 * R * 0.62, 2 * R, 2 * R);
-      M.dot(ctx, cx + 95, cy - 100, 32, '#ffd75e');
-      ctx.fillStyle = '#f4e1c1'; ctx.fillRect(cx - 110, cy - 20, 120, 90);
-      ctx.fillStyle = '#d9534f'; ctx.beginPath(); ctx.moveTo(cx - 125, cy - 20); ctx.lineTo(cx - 50, cy - 80); ctx.lineTo(cx + 25, cy - 20); ctx.fill();
-      ctx.fillStyle = '#8a5a3b'; ctx.fillRect(cx - 62, cy + 20, 26, 50);
-      ctx.fillStyle = '#7a5230'; ctx.fillRect(cx + 82, cy + 10, 12, 60);
-      M.dot(ctx, cx + 88, cy - 5, 38, '#4f9e4a');
-      ctx.filter = 'none';
-      [[-60, -70, 46], [40, 20, 38], [-10, 110, 42], [120, 60, 30]].forEach(([dx, dy, r]) => {
-        const gr = ctx.createRadialGradient(cx + dx, cy + dy, 2, cx + dx, cy + dy, r);
-        gr.addColorStop(0, 'rgba(25,18,18,0.8)'); gr.addColorStop(1, 'rgba(25,18,18,0)');
-        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx + dx, cy + dy, r, 0, M.TAU); ctx.fill();
+    const px = 20 + (W - 40) * 0.55;
+    if (clot > 0) {
+      ctx.save(); ctx.beginPath(); ctx.ellipse(px, 105, 22 * clot, 38 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); ctx.restore();
+    }
+    M.text(ctx, 'Blood pipe', 70, 32, { size: 14, weight: 800, color: C.muted });
+    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Sugar makes the pipe sticky'], [0.25, 'Gunk builds up inside'], [0.62, 'A clot blocks the pipe!']]);
+    else S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Smooth pipe, blood zooms by', C.green]]);
+    // branch that feeds the heart muscle; blood stops when the pipe is blocked
+    const flow = 1 - seg(p, 0.66, 0.72) * sick;
+    ctx.fillStyle = '#f2b8ae'; ctx.fillRect(349, 165, 22, 70);
+    for (let i = 0; i < 3; i++) M.rbc(ctx, 360, 168 + wrapX(s * 60 * flow + i * 23, 66), 7, sick ? 1 - 0.7 * seg(p, 0.66, 0.72) : 1);
+    heartBuddy(ctx, 360, 290, 46, sick ? 1 - hurt : 1, s, { dizzy: hurt > 0.8, rate: sick && hurt > 0 ? 11 : 6.5 });
+    if (hurt > 0) {
+      ctx.save(); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 4; ctx.globalAlpha = hurt; ctx.lineJoin = 'round';
+      [[-1, 0], [1, 0]].forEach(([d]) => {
+        const bx = 360 + d * 66, by = 262 + Math.sin(s * 20) * 3;
+        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + d * 10, by + 14); ctx.lineTo(bx - d * 2, by + 18); ctx.lineTo(bx + d * 8, by + 34); ctx.stroke();
       });
       ctx.restore();
     }
-    S.phasePill(ctx, cx, cy - R + 42, p, [[0.12, 'Sugar weakens tiny vessels'], [0.32, 'Weak spots bulge'], [0.52, 'They leak blood and fluid'], [0.78, 'What you might see', C.blue]]);
-  }
-
-  // Kidney: the filter (sieve) gets coated, holes stretch so protein leaks, then scars and clogs.
-  function kidneyZoom(ctx, cx, cy, R, p, s) {
-    ctx.fillStyle = '#fde3de'; ctx.fillRect(cx - R, cy - R, 2 * R, R);
-    ctx.fillStyle = '#fff4cc'; ctx.fillRect(cx - R, cy, 2 * R, R);
-    M.text(ctx, 'Blood', cx - 140, cy - 105, { size: 16, color: '#b3453c' });
-    M.text(ctx, 'Urine', cx - 140, cy + 105, { size: 16, color: '#a07a00' });
-    const coat = ease(seg(p, 0.12, 0.35)), stretch = ease(seg(p, 0.35, 0.6)), scar = ease(seg(p, 0.66, 0.85));
-    const holes = [], nH = 8, gap = 2 * R / nH, bandH = 22 + coat * 10;
-    for (let i = 0; i < nH; i++) holes.push({ x: cx - R + gap * (i + 0.5), blocked: [1, 4, 6].includes(i) && scar > 0.5 });
-    const hw = lerp(8, 24, stretch);
-    ctx.fillStyle = M.mix('#9b7bd1', '#c79a3a', coat * 0.6);
-    let prev = cx - R;
-    holes.forEach((h) => { ctx.fillRect(prev, cy - bandH / 2, h.x - hw / 2 - prev, bandH); prev = h.x + hw / 2; });
-    ctx.fillRect(prev, cy - bandH / 2, cx + R - prev, bandH);
-    holes.forEach((h) => { if (h.blocked) { ctx.fillStyle = '#6f6577'; ctx.fillRect(h.x - hw / 2 - 1, cy - bandH / 2, hw + 2, bandH); } });
-    M.text(ctx, 'Filter', cx + 150, cy - bandH / 2 - 14, { size: 14, color: '#6a4fb0', weight: 700 });
-    const open = holes.filter((h) => !h.blocked);
-    // waste passes through the filter as it should
-    for (let i = 0; i < 18; i++) {
-      const h = open[i % open.length], ph = (s * 0.3 + rnd(i)) % 1, y = lerp(cy - 170, cy + 170, ph);
-      const x = h.x + (rnd(i + 5) - 0.5) * 70 * Math.min(1, Math.abs(y - cy) / 90);
-      M.dot(ctx, x, y, 4, '#7d8f5a');
-    }
-    // proteins: kept in the blood until the holes stretch
-    for (let i = 0; i < 10; i++) {
-      const leaks = rnd(i + 200) < stretch * 0.8;
-      if (leaks) {
-        const h = open[(i * 3) % open.length], ph = (s * 0.25 + rnd(i + 30)) % 1, y = lerp(cy - 160, cy + 170, ph);
-        M.dot(ctx, h.x + (rnd(i + 7) - 0.5) * 60 * Math.min(1, Math.abs(y - cy) / 90), y, 9, C.blue);
-      } else {
-        M.dot(ctx, cx - R + 40 + rnd(i + 40) * (2 * R - 80), cy - 40 - Math.abs(Math.sin(s * 2 + i)) * 90, 9, C.blue);
-      }
-    }
-    for (let i = 0; i < 6; i++) M.rbc(ctx, cx - R + ((rnd(i + 60) * 2 * R + s * 40) % (2 * R)), cy - 110 - rnd(i + 61) * 50, 9);
-    // waste piles up once filters scar
-    for (let i = 0; i < Math.floor(scar * 22); i++) M.dot(ctx, cx - 170 + rnd(i + 90) * 340, cy - 22 - rnd(i + 91) * 60, 4, '#7d8f5a');
-    // foam in the urine when protein leaks
-    for (let i = 0; i < Math.floor(stretch * 14); i++) {
-      const x = cx - 150 + rnd(i + 120) * 300, y = cy + 150 - ((s * 12 + rnd(i + 121) * 30) % 30);
-      ctx.beginPath(); ctx.arc(x, y, 6 + rnd(i) * 6, 0, M.TAU); ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.fill();
-      ctx.strokeStyle = 'rgba(200,180,120,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
-    }
-    M.dot(ctx, cx + 60, cy + 112, 9, C.blue); M.text(ctx, 'protein', cx + 74, cy + 112, { size: 14, align: 'left', color: C.muted, alpha: stretch });
-    S.phasePill(ctx, cx, cy - R + 42, p, [[0.12, 'Sugar coats the tiny filters'], [0.36, 'Holes stretch, protein leaks out'], [0.66, 'Scarred filters: waste builds up']]);
-  }
-
-  // Nerve: insulation and blood supply fail from the foot end; signals stop; an unfelt sore grows.
-  function nerveZoom(ctx, cx, cy, R, p, s) {
-    ctx.fillStyle = '#fcefe8'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    const ny = cy - 70, dmg = ease(seg(p, 0.12, 0.5)), brk = cx + R - dmg * R * 1.3;
-    ctx.save(); ctx.strokeStyle = '#d65a50'; ctx.lineWidth = lerp(7, 2, dmg); ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(cx - R, ny + 34); ctx.lineTo(cx + R, ny + 34); ctx.stroke(); ctx.restore();
-    for (let i = 0; i < 8; i++) M.glucose(ctx, cx - R + ((rnd(i + 3) * 2 * R + s * 50) % (2 * R)), ny + 34, 5);
-    ctx.save(); ctx.strokeStyle = '#8a6bc9'; ctx.lineWidth = 6;
-    ctx.beginPath(); ctx.moveTo(cx - R, ny); ctx.lineTo(brk, ny); ctx.stroke();
-    ctx.setLineDash([6, 10]); ctx.strokeStyle = 'rgba(138,107,201,0.35)';
-    ctx.beginPath(); ctx.moveTo(brk, ny); ctx.lineTo(cx + R, ny); ctx.stroke(); ctx.restore();
-    for (let x = cx - R + 10; x < cx + R; x += 58) {
-      const lost = x > brk;
-      M.rr(ctx, x, ny - 12, 44, 24, 12);
-      ctx.fillStyle = lost ? 'rgba(220,200,150,0.35)' : '#f6d98a'; ctx.fill();
-      if (lost) M.cross(ctx, x + 22, ny, 6, { color: 'rgba(160,120,90,0.6)', width: 3 });
-    }
-    const reach = 1 - seg(dmg, 0.35, 0.8);
-    for (let i = 0; i < 3; i++) {
-      const x = cx + R - ((s * 140 + i * 140) % (2 * R));
-      const a = x > brk ? 0.25 + 0.25 * Math.sin(s * 20 + i) : reach;
-      if (a > 0.02) { M.dot(ctx, x, ny, 13, `rgba(255,200,60,${0.45 * a})`); M.dot(ctx, x, ny, 6, `rgba(255,190,40,${a})`); }
-    }
-    M.text(ctx, '← to brain', cx - R + 70, ny - 34, { size: 14, color: C.muted });
-    M.text(ctx, 'from foot', cx + R - 70, ny - 34, { size: 14, color: C.muted });
-    // foot stepping on a tack
-    const fy = cy + 20;
-    ctx.fillStyle = '#f2c8a8';
-    ctx.fillRect(cx - 120, fy - 10, 62, 60);
-    ctx.beginPath();
-    ctx.moveTo(cx - 120, fy + 40); ctx.lineTo(cx - 112, fy + 112);
-    ctx.quadraticCurveTo(cx - 112, fy + 140, cx - 72, fy + 140); ctx.lineTo(cx + 110, fy + 140);
-    ctx.quadraticCurveTo(cx + 150, fy + 140, cx + 146, fy + 116); ctx.quadraticCurveTo(cx + 132, fy + 92, cx + 40, fy + 80);
-    ctx.quadraticCurveTo(cx - 40, fy + 70, cx - 58, fy + 40); ctx.closePath(); ctx.fill();
-    ctx.fillStyle = '#9aa7b8'; ctx.beginPath(); ctx.moveTo(cx + 20, fy + 162); ctx.lineTo(cx + 30, fy + 140); ctx.lineTo(cx + 40, fy + 162); ctx.fill();
-    ctx.fillStyle = '#c9d3e2'; ctx.fillRect(cx - R, fy + 162, 2 * R, 6);
-    const sore = ease(seg(p, 0.55, 0.9));
-    if (sore > 0) {
-      const gr = ctx.createRadialGradient(cx + 30, fy + 134, 1, cx + 30, fy + 134, 34 * sore);
-      gr.addColorStop(0, 'rgba(140,20,20,0.95)'); gr.addColorStop(0.5, 'rgba(214,70,60,0.8)'); gr.addColorStop(1, 'rgba(214,70,60,0)');
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(cx + 30, fy + 134, 40 * sore, 16 * sore, 0, 0, M.TAU); ctx.fill();
-      M.pill(ctx, "Can't feel it", cx + 100, fy + 40, { size: 14, bg: '#fff', border: C.red, color: '#a3261f', alpha: seg(p, 0.65, 0.72) });
-    }
-    S.phasePill(ctx, cx, cy - R + 42, p, [[0.12, 'Sugar damages nerve insulation'], [0.38, 'Signals fade: tingling, numbness'], [0.6, 'A small cut can go unnoticed']]);
-  }
-
-  // Large artery: sticky walls collect fatty plaque, a clot blocks flow → heart attack or stroke.
-  function arteryZoom(ctx, cx, cy, R, p, s) {
-    ctx.fillStyle = '#fff2ef'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    const coat = ease(seg(p, 0.08, 0.3)), plq = ease(seg(p, 0.25, 0.62)) * 0.8, clot = M.back(seg(p, 0.62, 0.74));
-    // blood slows to a crawl once the clot forms
-    const sClot = p > 0 ? 0.68 * s / p : s, tEff = s < sClot ? s : sClot + (s - sClot) * 0.08;
-    M.vessel(ctx, cx - R, cy - 110, 2 * R, 190, {
-      t: tEff, wall: 26, wallColor: M.mix('#f2b8ae', '#e3b04f', coat * 0.75), plaque: plq,
-      items: [{ kind: 'rbc', n: 18, speed: 90 }, { kind: 'glucose', n: 14, speed: 70 }, { kind: 'dot', n: 8, speed: 60, color: '#e8c547', r: 5 }],
-    });
-    if (clot > 0) {
-      ctx.save(); ctx.beginPath(); ctx.ellipse(cx, cy - 15, 26 * clot, 42 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill();
-      ctx.strokeStyle = 'rgba(255,190,190,0.5)'; ctx.lineWidth = 2;
-      for (let i = -1; i <= 1; i++) { ctx.beginPath(); ctx.moveTo(cx - 20 * clot, cy - 15 + i * 14 * clot); ctx.lineTo(cx + 20 * clot, cy - 10 + i * 12 * clot); ctx.stroke(); }
-      ctx.restore();
-    }
-    const out = ease(seg(p, 0.78, 0.9));
-    if (out > 0) {
-      const beat = Math.max(0, Math.sin(s * 6.5)) * (1 - out * 0.8);
-      M.heart(ctx, cx - 70, cy + 124, 32, { beat, alpha: out });
-      ctx.save(); ctx.globalAlpha = out; ctx.beginPath(); ctx.ellipse(cx - 58, cy + 134, 11, 8, 0.5, 0, M.TAU); ctx.fillStyle = '#4a1010'; ctx.fill(); ctx.restore();
-      M.brain(ctx, cx + 75, cy + 124, 40, { alpha: out });
-      ctx.save(); ctx.globalAlpha = out; ctx.beginPath(); ctx.ellipse(cx + 85, cy + 116, 11, 8, 0, 0, M.TAU); ctx.fillStyle = '#4a1010'; ctx.fill(); ctx.restore();
-      M.text(ctx, 'Heart attack', cx - 70, cy + 166, { size: 14, weight: 700, color: '#a3261f', alpha: out });
-      M.text(ctx, 'Stroke', cx + 75, cy + 166, { size: 14, weight: 700, color: '#a3261f', alpha: out });
-    }
-    S.phasePill(ctx, cx, cy - R + 42, p, [[0.08, 'Sugar makes artery walls sticky'], [0.28, 'Fatty plaque builds up'], [0.62, 'A clot can block blood flow']]);
+    M.say(ctx, sick ? (hurt > 0.3 ? 'Ouch! No blood\nis getting in!' : 'Ugh, my pipe\nis sticky...') : 'Lots of blood,\nI feel great!', 140, 248, seg(p, 0.14, 0.2), sick ? C.red : '#1d7a4c');
+    if (sick) M.pill(ctx, 'Heart attack!', 140, 325, { size: 16, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.74, 0.8) });
+    return 1 - 0.9 * hurtOf(p, sick, 0.1, 0.8);
   }
 
   const patientScenes = [
     {
-      label: 'Sugar builds up',
-      caption: "With type 2 diabetes, insulin can't unlock your cells very well, so extra sugar stays in your blood.",
-      draw(ctx, p, s) {
-        const cx = 720, cy = 290, r = 120;
-        const angles = [Math.PI, Math.PI * 0.84, Math.PI * 1.16];
-        M.cell(ctx, cx, cy, r, { receptors: angles.map((a) => ({ a, rust: 1 })), label: 'Body cell' });
-        angles.forEach((a, i) => {
-          const app = ease(seg(p, 0.05 + i * 0.05, 0.32 + i * 0.05));
-          const jig = seg(p, 0.34, 0.5) > 0 && seg(p, 0.34, 0.5) < 1 ? Math.sin(s * 30 + i) * 3 : 0;
-          const extra = (1 - app) * 260 + ease(seg(p, 0.5, 0.66)) * 60;
-          const [x, y] = keyDock(cx, cy, r, a, extra);
-          M.key(ctx, x + jig, y, 1.4, a + Math.PI, C.teal, 1 - 0.4 * seg(p, 0.55, 0.75));
-          if (p > 0.46) M.cross(ctx, cx + Math.cos(a) * (r + 30), cy + Math.sin(a) * (r + 30) - 30, 9, { alpha: ease(seg(p, 0.46, 0.54)) });
-        });
-        M.text(ctx, 'Insulin (key)', 460, 150, { size: 16, color: C.teal, weight: 700, alpha: 1 - seg(p, 0.4, 0.5) });
-        M.text(ctx, 'Rusty locks', cx, cy - r - 30, { size: 16, color: C.rust, weight: 700, alpha: ease(seg(p, 0.3, 0.4)) });
-        const n = Math.floor(lerp(6, 36, seg(p, 0.3, 1)));
-        for (let i = 0; i < n; i++) M.glucose(ctx, 110 + rnd(i) * 380 + Math.sin(s + i) * 4, 120 + rnd(i + 4) * 320, 8);
-        M.gauge(ctx, 570, 500, 300, lerp(0.35, 0.9, seg(p, 0.3, 1)), { title: 'Blood sugar', valueText: p > 0.6 ? 'High' : '' });
-      },
+      label: 'Sugar is food for cells',
+      caption: "Sugar is food for your cells, and insulin is the key. With diabetes, the doors get stuck, so sugar piles up.",
+      draw: S.versus({ panel: cellPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Cell energy' }),
     },
     {
-      label: 'Sugar travels everywhere',
-      caption: "And that sugary blood goes everywhere. Over the years, it quietly wears down your blood vessels and nerves.",
-      draw(ctx, p, s) {
-        const pts = S.bodyWithBlood(ctx, 480, 300, 118, s);
-        [['eye', 'Eyes', 'right'], ['kidney', 'Kidneys', 'right'], ['heart', 'Heart & brain', 'left'], ['feet', 'Nerves in feet', 'left']].forEach(([at, label, side], i) => {
-          const [x, y] = pts[at];
-          M.hotspot(ctx, x, y, ease(seg(p, 0.25 + i * 0.15, 0.35 + i * 0.15)), { t: s + i * 0.3, label, side, reach: 170 });
-        });
-        M.glucose(ctx, 700, 480, 8); M.text(ctx, '= sugar in the blood', 716, 480, { size: 16, align: 'left', color: C.muted });
-      },
+      label: 'Sugar goes everywhere',
+      caption: "All that extra sugar makes your blood sticky, like syrup. It flows everywhere and slowly hurts your body.",
+      draw: S.versus({ panel: bodyPanel, bar: 'Body health' }),
     },
     {
       label: 'Eyes',
-      caption: "Let's start with your eyes. Tiny blood vessels weaken, bulge, and leak, and that can blur your vision.",
-      draw: S.organZoom({ at: 'eye', paths: 'eye', title: 'Eyes', zoom: eyeZoom, symptom: 'Blurry vision · dark spots · vision loss' }),
+      caption: "In your eyes, tiny blood pipes swell and leak. Then the picture you see gets blurry.",
+      draw: S.versus({ title: 'Eyes', panel: eyePanel, bar: 'Eye health' }),
     },
     {
       label: 'Kidneys',
-      caption: "Your kidneys are filters. Sugar wears them down, so protein slips out and waste piles up.",
-      draw: S.organZoom({ at: 'kidney', paths: 'kidney', title: 'Kidneys', zoom: kidneyZoom, symptom: 'Often no symptoms early · a urine test finds it' }),
+      caption: "Your kidneys are strainers that clean your blood. Sugar clogs and tears them, so good protein falls into your pee.",
+      draw: S.versus({ title: 'Kidneys', panel: kidneyPanel, bar: 'Kidney health' }),
     },
     {
       label: 'Nerves',
-      caption: "In your feet, the nerves stop sending signals. You might feel tingling, or miss a cut until it's a sore.",
-      draw: S.organZoom({ at: 'feet', paths: 'feet', title: 'Nerves in the feet', zoom: nerveZoom, symptom: 'Tingling · numbness · sores you don’t feel' }),
+      caption: "Nerves are wires to your brain. Sugar damages them, so the ouch message never arrives, and cuts get worse.",
+      draw: S.versus({ title: 'Nerves', panel: nervePanel, bar: 'Nerve health' }),
     },
     {
-      label: 'Heart & brain',
-      caption: "In bigger arteries, sugar helps plaque build up. If a clot forms, it can cause a heart attack or stroke.",
-      draw: S.organZoom({ at: 'heart', paths: 'brain', title: 'Heart & brain', zoom: arteryZoom, symptom: 'About twice the risk of heart attack and stroke' }),
+      label: 'Heart',
+      caption: "Sticky sugar helps gunk build up in your blood pipes. If a pipe gets blocked, your heart gets hurt.",
+      draw: S.versus({ title: 'Heart', panel: heartPanel, bar: 'Heart health' }),
     },
     {
       label: 'Protect your body',
-      caption: "Now, the good news. Keeping your sugar, blood pressure, and cholesterol in range protects all of these organs.",
+      caption: "The good news? Medicine, healthy food, and moving every day keep sugar in range, and keep your body happy.",
       draw(ctx, p, s) {
         const k = ease(seg(p, 0.08, 0.55));
-        const pts = S.bodyWithBlood(ctx, 250, 300, 112, s, { density: lerp(1, 0.25, k) });
-        ['eye', 'kidney', 'feet', 'heart'].forEach((at, i) => {
+        const pts = S.bodyWithBlood(ctx, 230, 300, 105, s, { density: lerp(1.3, 0.3, k), sugarR: 9 });
+        BADGES.forEach(([at, , col], i) => {
           const [x, y] = pts[at];
-          M.hotspot(ctx, x, y, 1, { t: s + i * 0.3, color: M.mix(C.red, C.green, k) });
+          M.dot(ctx, x, y, 19, M.mix('#8b8f99', col, k));
+          M.face(ctx, x, y + 1, 18, lerp(0.1, 1, k), s, { seed: i });
         });
-        M.gauge(ctx, 520, 120, 380, lerp(0.88, 0.4, k), { title: 'Blood sugar', valueText: k > 0.7 ? 'In range ✓' : 'High' });
-        ['💊  Take medicines every day', '🥗  Eat well and move daily', '👁️  Dilated eye exam every year', '🧪  Urine & kidney test every year', '🦶  Look at your feet every day'].forEach((t, i) =>
-          M.pill(ctx, t, 520, 200 + i * 60, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 18, alpha: ease(seg(p, 0.25 + i * 0.1, 0.33 + i * 0.1)) }));
+        M.healthBar(ctx, 470, 120, 420, lerp(0.25, 1, k), { label: 'Body health', right: k > 0.7 ? 'Strong!' : 'Getting hurt' });
+        ['💊  Take your medicine', '🥗  Eat colorful, healthy food', '⚽  Move and play every day', '🩺  Go to your checkups', '🦶  Check your feet every day'].forEach((t, i) =>
+          M.pill(ctx, t, 470, 195 + i * 62, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(p, 0.25 + i * 0.1, 0.33 + i * 0.1)) }));
       },
     },
   ];
