@@ -16,14 +16,37 @@
     return `${m}:${String(s).padStart(2, '0')}`;
   }
 
-  let cachedVoice = null;
-  function pickVoice() {
-    if (cachedVoice || !('speechSynthesis' in window)) return cachedVoice;
-    const voices = speechSynthesis.getVoices().filter((v) => /^en(-|_)US/i.test(v.lang));
-    cachedVoice = voices.find((v) => /natural|aria|jenny|samantha|google us/i.test(v.name)) || voices[0] || null;
-    return cachedVoice;
+  // Most human-sounding voices first: Edge's neural "Natural" voices, Google's online voice,
+  // then Apple's enhanced/premium voices. Plain local voices (e.g. David, Zira) sound robotic.
+  const VOICE_RANK = [
+    /(Ava|Andrew|Emma|Brian|Jenny|Aria|Michelle|Guy).*Natural/i,
+    /Natural/i,
+    /Online/i,
+    /Google US English/i,
+    /Premium|Enhanced/i,
+    /Samantha|Allison|Evan|Zoe|Ava/i,
+  ];
+  const VOICE_KEY = 'medmotion.voice';
+
+  function englishVoices() {
+    if (!('speechSynthesis' in window)) return [];
+    const rank = (v) => { const i = VOICE_RANK.findIndex((r) => r.test(v.name)); return i < 0 ? VOICE_RANK.length : i; };
+    const en = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
+    const us = en.filter((v) => /US/i.test(v.lang));
+    // Keep the picker short: US English voices when available, best-sounding first.
+    return (us.length ? us : en).sort((a, b) => rank(a) - rank(b)).slice(0, 12);
   }
-  if ('speechSynthesis' in window) speechSynthesis.onvoiceschanged = () => { cachedVoice = null; pickVoice(); };
+
+  function pickVoice() {
+    const voices = englishVoices();
+    let saved = null;
+    try { saved = localStorage.getItem(VOICE_KEY); } catch (e) { /* storage unavailable */ }
+    return voices.find((v) => v.name === saved) || voices[0] || null;
+  }
+
+  // "Microsoft Ava Online (Natural) - English (United States)" → "Ava (Natural)"
+  const voiceLabel = (v) => v.name.replace(/^Microsoft\s+/, '').replace(/\s+Online/, '').replace(/\s*-\s*English.*$/, '')
+    + (/US/i.test(v.lang) ? '' : ` · ${v.lang}`);
 
   function Player(root, opts = {}) {
     this.opts = opts;
@@ -39,6 +62,7 @@
           <input class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
           <span class="time">0:00 / 0:00</span>
           <button class="btn-voice" type="button" title="Narration">Voice</button>
+          <select class="voice-pick" aria-label="Narrator voice" title="Narrator voice" hidden></select>
           <button class="btn-cc" type="button" title="Captions">CC</button>
           <button class="btn-full" type="button" title="Full screen">⛶</button>
         </div>
@@ -80,7 +104,17 @@
       if (document.fullscreenElement) document.exitFullscreen();
       else if (this.el.requestFullscreen) this.el.requestFullscreen();
     };
-    if (!('speechSynthesis' in window)) this.btnVoice.disabled = true;
+    this.voiceSel = root.querySelector('.voice-pick');
+    this.voiceSel.onchange = () => {
+      try { localStorage.setItem(VOICE_KEY, this.voiceSel.value); } catch (e) { /* storage unavailable */ }
+      if (this.playing && this.voice && this.cur >= 0) this._speak(this.scenes[this.cur].caption);
+    };
+    if ('speechSynthesis' in window) {
+      this._fillVoices();
+      speechSynthesis.addEventListener('voiceschanged', () => this._fillVoices());
+    } else {
+      this.btnVoice.disabled = true;
+    }
     this._resize();
     window.addEventListener('resize', () => this._resize());
     document.addEventListener('fullscreenchange', () => this._resize());
@@ -145,6 +179,16 @@
     const dt = Math.min(0.1, (now - this._last) / 1000);
     this._last = now;
     this.t += dt;
+    // Hold on the last frame of a scene until the narrator finishes the sentence (max 6 s),
+    // so a slower voice is never cut off mid-word by the next scene.
+    const sc = this.scenes[this.cur];
+    if (this.voice && this._speaking && sc && this.t >= sc.start + sc.dur - 0.02) {
+      this.t = sc.start + sc.dur - 0.02;
+      this._held = (this._held || 0) + dt;
+      if (this._held > 6) this._speaking = false;
+    } else {
+      this._held = 0;
+    }
     if (this.t >= this.total) {
       this.t = this.total;
       this.playing = false;
@@ -199,14 +243,27 @@
     this._stopSpeech();
     const u = new SpeechSynthesisUtterance(textStr.replace(/[↑↓]/g, ''));
     const v = pickVoice();
-    if (v) u.voice = v;
-    u.lang = 'en-US';
-    u.rate = this.opts.rate || 1;
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+    // Slightly slower than default reads as calmer and more conversational.
+    u.rate = this.opts.rate || 0.95;
+    u.pitch = 1;
+    u.onend = u.onerror = () => { if (this._utter === u) this._speaking = false; };
+    this._utter = u;
+    this._speaking = true;
     speechSynthesis.speak(u);
   };
 
   Player.prototype._stopSpeech = function () {
+    this._speaking = false;
+    this._utter = null;
     if ('speechSynthesis' in window) speechSynthesis.cancel();
+  };
+
+  Player.prototype._fillVoices = function () {
+    const voices = englishVoices(), cur = pickVoice();
+    this.voiceSel.hidden = voices.length < 2;
+    this.voiceSel.innerHTML = voices.map((v) =>
+      `<option value="${v.name.replace(/"/g, '&quot;')}"${cur && v.name === cur.name ? ' selected' : ''}>${voiceLabel(v)}</option>`).join('');
   };
 
   Player.prototype._syncButtons = function () {

@@ -372,7 +372,7 @@
   const patientScenes = [
     {
       label: 'Sugar builds up',
-      caption: 'With type 2 diabetes, insulin cannot unlock your cells well, so extra sugar stays in your blood.',
+      caption: "With type 2 diabetes, insulin can't unlock your cells very well, so extra sugar stays in your blood.",
       draw(ctx, p, s) {
         const cx = 720, cy = 290, r = 120;
         const angles = [Math.PI, Math.PI * 0.84, Math.PI * 1.16];
@@ -394,7 +394,7 @@
     },
     {
       label: 'Sugar travels everywhere',
-      caption: 'That sugary blood reaches every organ, and over the years it slowly damages blood vessels and nerves.',
+      caption: "And that sugary blood goes everywhere. Over the years, it quietly wears down your blood vessels and nerves.",
       draw(ctx, p, s) {
         const pts = S.bodyWithBlood(ctx, 480, 300, 118, s);
         [['eye', 'Eyes', 'right'], ['kidney', 'Kidneys', 'right'], ['heart', 'Heart & brain', 'left'], ['feet', 'Nerves in feet', 'left']].forEach(([at, label, side], i) => {
@@ -406,27 +406,27 @@
     },
     {
       label: 'Eyes',
-      caption: 'In the eyes, tiny vessels weaken, bulge, and leak, which can blur your vision or even cause blindness.',
+      caption: "Let's start with your eyes. Tiny blood vessels weaken, bulge, and leak, and that can blur your vision.",
       draw: S.organZoom({ at: 'eye', paths: 'eye', title: 'Eyes', zoom: eyeZoom, symptom: 'Blurry vision · dark spots · vision loss' }),
     },
     {
       label: 'Kidneys',
-      caption: 'In the kidneys, sugar damages the tiny filters, so protein leaks out and waste builds up.',
+      caption: "Your kidneys are filters. Sugar wears them down, so protein slips out and waste piles up.",
       draw: S.organZoom({ at: 'kidney', paths: 'kidney', title: 'Kidneys', zoom: kidneyZoom, symptom: 'Often no symptoms early · a urine test finds it' }),
     },
     {
       label: 'Nerves',
-      caption: 'In the feet, damaged nerves cause tingling or numbness. You may not feel a cut until it becomes a serious sore.',
+      caption: "In your feet, the nerves stop sending signals. You might feel tingling, or miss a cut until it's a sore.",
       draw: S.organZoom({ at: 'feet', paths: 'feet', title: 'Nerves in the feet', zoom: nerveZoom, symptom: 'Tingling · numbness · sores you don’t feel' }),
     },
     {
       label: 'Heart & brain',
-      caption: 'In large arteries, sugar helps fatty plaque build up. A clot can then block blood flow, causing a heart attack or stroke.',
+      caption: "In bigger arteries, sugar helps plaque build up. If a clot forms, it can cause a heart attack or stroke.",
       draw: S.organZoom({ at: 'heart', paths: 'brain', title: 'Heart & brain', zoom: arteryZoom, symptom: 'About twice the risk of heart attack and stroke' }),
     },
     {
       label: 'Protect your body',
-      caption: 'The good news: keeping your sugar, blood pressure, and cholesterol in range protects every one of these organs.',
+      caption: "Now, the good news. Keeping your sugar, blood pressure, and cholesterol in range protects all of these organs.",
       draw(ctx, p, s) {
         const k = ease(seg(p, 0.08, 0.55));
         const pts = S.bodyWithBlood(ctx, 250, 300, 112, s, { density: lerp(1, 0.25, k) });

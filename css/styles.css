@@ -146,6 +146,7 @@ a { color: var(--blue); }
 .controls button.on { background: #e8f0fd; border-color: #b8cdf4; color: var(--blue-dark); }
 .controls .btn-play { min-width: 44px; }
 .scrub { flex: 1; accent-color: var(--blue); }
+.voice-pick { font: inherit; font-size: 0.82rem; max-width: 160px; padding: 6px 8px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); }
 .time { font-variant-numeric: tabular-nums; font-size: 0.85rem; color: var(--muted); min-width: 84px; text-align: center; }
 .chapters { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 10px 14px 14px; }
 .chapters button { font: inherit; font-size: 0.82rem; border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 5px 12px 5px 5px; cursor: pointer; display: flex; align-items: center; gap: 6px; color: var(--ink); }
