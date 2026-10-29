@@ -67,12 +67,8 @@ a { color: var(--blue); }
 .portal-card { background: var(--card); border-radius: 22px; padding: 32px; box-shadow: var(--shadow); border: 2px solid transparent; }
 .portal-card.highlight { border-color: var(--blue); }
 .portal-card.clinician .btn.primary { background: var(--pro); }
+.portal-card .btn { display: inline-block; margin-top: 18px; text-decoration: none; }
 .portal-icon { font-size: 2.4rem; }
-.signin { display: grid; gap: 14px; margin-top: 18px; }
-.signin label { display: grid; gap: 6px; font-weight: 600; font-size: 0.9rem; }
-.signin input, .signin select { font: inherit; padding: 11px 14px; border: 1px solid var(--line); border-radius: 10px; background: #fbfcfe; }
-.hint { font-size: 0.85rem; color: var(--muted); margin: 0; }
-.form-error { color: var(--red); margin: 0; font-size: 0.9rem; }
 .disclaimer { margin-top: 40px; font-size: 0.85rem; color: var(--muted); text-align: center; max-width: 760px; margin-inline: auto; }
 
 /* ---------- Search ---------- */

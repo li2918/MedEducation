@@ -8,8 +8,7 @@ This is a static prototype for the US market (English). It uses no build step an
 
 Open `index.html` in Chrome or Edge. That's it.
 
-- **Patient portal**: sign in with any email.
-- **Clinician portal**: use the demo NPI `1234567893` (it passes the NPI check digit), or a `.edu` email.
+- On the home page, choose **patient** or **healthcare provider**. There is no sign-in.
 - Deep links: `patient.html#t2d`, `clinician.html#htn/pharm/raas`, `clinician.html#t2d/patho/kidney`.
 
 Narration uses the browser's built-in text-to-speech (Web Speech API). On Windows, Edge offers the most natural voices.
@@ -50,5 +49,5 @@ A scene is `{ label, caption, draw(ctx, p, s) }`. `p` is progress (0–1) throug
 ## Important limitations
 
 - **Content is AI-drafted and has not been clinically reviewed.** Every page shows a "Draft · pending clinical review" badge. A licensed clinician must review the content before any real use.
-- Sign-in is simulated and stored only in the browser. Production needs a backend, real identity verification (for example, an NPPES NPI lookup), and access control.
+- There is no sign-in: anyone can open either portal. A production build would need real identity verification (for example, an NPPES NPI lookup) before granting provider access.
 - This is for education only: no diagnosis and no individualized dosing.

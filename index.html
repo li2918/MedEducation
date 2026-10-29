@@ -15,7 +15,7 @@
   <main class="container">
     <section class="hero">
       <h1>Understand a diagnosis in 60 seconds.</h1>
-      <p class="lead">Short, narrated animations that turn complex disease mechanisms into something you can see. Pick the portal that fits you.</p>
+      <p class="lead">Short, narrated animations that turn complex disease mechanisms into something you can see. Who are you?</p>
     </section>
 
     <section class="portals">
@@ -23,58 +23,18 @@
         <div class="portal-icon">🙂</div>
         <h2>Patients &amp; families</h2>
         <p>Plain-language animations about your diagnosis, what it means for your body, and what you can do.</p>
-        <form id="form-patient" class="signin" autocomplete="on">
-          <label>Email <input type="email" name="email" required placeholder="you@example.com"></label>
-          <button class="btn primary" type="submit">Continue as patient</button>
-        </form>
+        <a class="btn primary" href="patient.html">I'm a patient</a>
       </article>
 
       <article class="portal-card clinician" id="card-clinician">
         <div class="portal-icon">🩺</div>
         <h2>Healthcare professionals</h2>
         <p>Organ-by-organ pathophysiology, disease staging, and drug mechanisms for clinical teaching.</p>
-        <form id="form-clinician" class="signin" autocomplete="on">
-          <label>Full name <input type="text" name="name" required placeholder="Dr. Jordan Lee"></label>
-          <label>Role
-            <select name="role">
-              <option>Physician</option><option>Nurse practitioner</option><option>Physician assistant</option>
-              <option>Registered nurse</option><option>Pharmacist</option><option>Medical / nursing student</option>
-            </select>
-          </label>
-          <label>NPI number <input type="text" name="npi" required placeholder="10-digit NPI or school email"></label>
-          <p class="hint">Demo: try <button type="button" class="linklike" id="demo-npi">1234567893</button>. Students can enter a school email instead.</p>
-          <p class="form-error" id="npi-error" hidden>Enter a valid 10-digit NPI or a .edu school email.</p>
-          <button class="btn primary" type="submit">Continue as clinician</button>
-        </form>
+        <a class="btn primary" href="clinician.html">I'm a healthcare provider</a>
       </article>
     </section>
 
     <p class="disclaimer">MedMotion is for education only and is not a substitute for professional medical advice, diagnosis, or treatment. Content in this prototype is AI-drafted and has not yet completed clinical review.</p>
   </main>
-
-  <script src="js/auth.js"></script>
-  <script>
-    const params = new URLSearchParams(location.search);
-    if (params.get('portal')) document.getElementById('card-' + params.get('portal'))?.classList.add('highlight');
-
-    document.getElementById('form-patient').addEventListener('submit', (e) => {
-      e.preventDefault();
-      Auth.save({ role: 'patient', email: e.target.email.value });
-      location.href = 'patient.html';
-    });
-
-    const npiInput = document.querySelector('#form-clinician [name=npi]');
-    document.getElementById('demo-npi').onclick = () => { npiInput.value = '1234567893'; };
-    document.getElementById('form-clinician').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const f = e.target, npi = f.npi.value.trim();
-      const isStudentEmail = /@[^@\s]+\.edu$/i.test(npi);
-      const ok = Auth.validNPI(npi) || isStudentEmail;
-      document.getElementById('npi-error').hidden = ok;
-      if (!ok) return;
-      Auth.save({ role: 'clinician', name: f.name.value, title: f.role.value, npi });
-      location.href = 'clinician.html';
-    });
-  </script>
 </body>
 </html>

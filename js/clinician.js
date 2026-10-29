@@ -1,10 +1,6 @@
 // Clinician portal: body map with staging, organ pathophysiology, and drug mechanisms.
 (function () {
-  const session = Auth.require('clinician');
-  if (!session) return;
   const $ = (id) => document.getElementById(id);
-  $('who').textContent = `${session.name} · ${session.title}`;
-  $('signout').onclick = Auth.signOut;
 
   const SEV_COLOR = ['', '#ffd8a8', '#ff9f6e', '#e0524a'];
   const SEV_LABEL = ['Not typically affected', 'Mild', 'Moderate', 'Severe'];

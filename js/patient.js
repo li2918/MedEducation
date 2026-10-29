@@ -1,10 +1,6 @@
 // Patient portal: search → narrated animation → key points → teach-back quiz.
 (function () {
-  const session = Auth.require('patient');
-  if (!session) return;
   const $ = (id) => document.getElementById(id);
-  if (session.role === 'clinician') $('to-clinician').hidden = false;
-  $('signout').onclick = Auth.signOut;
 
   const player = new Player($('player'), {
     voice: true,
