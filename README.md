@@ -50,7 +50,7 @@ pip install edge-tts
 python tools/make-narration.py
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261030i`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261030j`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
 
 **Download video:** the `⬇ Video` button plays the video once in real time while recording it, then saves an MP4 (or WebM) with the narration and burned-in captions. Keep the tab visible while it records. The narration is only captured from the website (http/https), not from a page opened as a local file.
 

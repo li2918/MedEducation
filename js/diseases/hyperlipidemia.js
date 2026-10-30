@@ -521,7 +521,7 @@
     // inside: liver, bile duct, gut, and blood
     const bind = ease(seg(s, TF.bind, TF.bind + 1.5)), wk = ease(seg(s, TF.remove, TF.remove + 3));
     liverBuddy(ctx, 392, 300, 72, 1, s);
-    M.text(ctx, 'Liver', 350, 362, { size: 15, weight: 800, color: '#a4523f' });
+    M.text(ctx, "Liver", 330, 356, { size: 15, weight: 800, color: '#a4523f' });
     M.text(ctx, 'Gut', 516, 96, { size: 15, weight: 800, color: C.muted });
     M.rr(ctx, 500, 106, 430, 84, 40); ctx.fillStyle = '#f6c9b8'; ctx.fill();
     M.rr(ctx, 512, 118, 406, 60, 30); ctx.fillStyle = '#fde9e1'; ctx.fill();
@@ -537,7 +537,7 @@
       ctx.save(); ctx.globalAlpha *= 0.55 * fa; ctx.strokeStyle = '#7fc79a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
       for (let i = 0; i < 4; i++) { const x0 = 600 + i * 80; ctx.beginPath(); for (let k = 0; k <= 10; k++) { const x = x0 + k * 6; ctx.lineTo(x, 148 + Math.sin(k * 0.9 + s * 2 + i) * 12); } ctx.stroke(); }
       ctx.restore();
-      M.text(ctx, 'Soluble fiber', 700, 206, { size: 13, weight: 800, color: '#1d7a4c', alpha: fa });
+      M.text(ctx, "Soluble fiber", 690, 96, { size: 13, weight: 800, color: '#1d7a4c', alpha: fa });
     }
     // bile acids: down the duct into the gut; without fiber most return to the liver,
     // with fiber some are carried out of the body
@@ -550,25 +550,40 @@
       else { pt = quad(...BACK, (q - 0.6) / 0.4); a = 1 - seg(q, 0.92, 1); }
       bileAcid(ctx, pt[0], pt[1], a);
     }
-    M.text(ctx, 'out of the body →', 870, 206, { size: 13, weight: 800, color: '#1d7a4c', alpha: seg(s, TF.bind, TF.bind + 0.5) });
-    // the liver makes new bile acids from cholesterol, and pulls more LDL in from the blood
-    const la = seg(s, TF.liver, TF.liver + 0.5);
-    if (la > 0) {
-      const q = wrapX(s * 0.5, 1);
-      M.cholesterol(ctx, lerp(370, 430, q), 300 - Math.sin(q * Math.PI) * 18, 7, la * (1 - seg(q, 0.8, 1)), s);
-      M.text(ctx, 'Cholesterol →', 350, 384, { size: 13, weight: 800, color: '#a4523f', alpha: la });
-      M.text(ctx, 'new bile acids', 350, 402, { size: 13, weight: 800, color: '#a4523f', alpha: la });
+    // The chain, numbered so cause and effect are easy to follow: 1 fiber carries bile acids
+    // out; 2 the liver makes new ones from cholesterol; 3 to get that cholesterol it pulls more
+    // LDL in from the blood; 4 less LDL stays in the blood. The current step is filled in.
+    const step = (n, t, x, y, at, col) => {
+      const a = seg(s, at, at + 0.5), on = s < at + 4;
+      if (a > 0) M.pill(ctx, `${n}  ${t}`, x, y, { size: 14, bg: on ? col : '#fff', border: col, color: on ? '#fff' : col, alpha: a });
+    };
+    // 3: a stream of LDL from the blood into the liver, growing stronger
+    const pull = ease(seg(s, TF.remove - 1.2, TF.remove + 1)), IN = [[506, 446], [506, 360], [452, 322]];
+    if (pull > 0) {
+      ctx.save(); ctx.globalAlpha *= pull; ctx.lineCap = 'round'; ctx.strokeStyle = '#f6cfc8'; ctx.lineWidth = 22;
+      ctx.beginPath(); ctx.moveTo(...IN[0]); ctx.quadraticCurveTo(...IN[1], ...IN[2]); ctx.stroke(); ctx.restore();
+      const nIn = lerp(1, 4, pull);
+      for (let i = 0; i < nIn; i++) { const q = wrapX(s * 0.35 + i / 4, 1), [x, y] = quad(...IN, q); lipo(ctx, x, y, 'ldl', s, fadeIn(nIn, i) * pull * (1 - seg(q, 0.85, 1)), 0.7); }
     }
-    M.text(ctx, 'Bad cholesterol (LDL) in the blood', 610, 412, { size: 14, weight: 800, color: '#b3453c' });
+    // 2: inside the liver, cholesterol becomes new bile acids that head up the duct
+    const la = seg(s, TF.liver, TF.liver + 0.5);
+    if (la > 0) for (let i = 0; i < 2; i++) {
+      const q = wrapX(s * 0.45 + i / 2, 1);
+      if (q < 0.5) M.cholesterol(ctx, lerp(404, 428, q / 0.5), 312 - 24 * q, 7, la, s + i);
+      else bileAcid(ctx, ...quad([428, 296], [432, 280], [436, 262], (q - 0.5) / 0.5), la);
+    }
+    M.text(ctx, 'Bad cholesterol (LDL) in the blood', 640, 412, { size: 14, weight: 800, color: '#b3453c' });
     M.vessel(ctx, 470, 424, 460, 86, { t: s, wall: 12, items: [{ kind: 'rbc', n: 5, speed: 50, r: 7 }] });
     const nL = lerp(7, 4, wk);
     for (let i = 0; i < nL; i++) {
-      const q = wrapX(s * 0.08 + i / 7, 1), into = wk > 0.05 && i % 3 === 0;
-      const x = 920 - q * 440, y = 452 + (i % 2) * 28;
-      lipo(ctx, into && q > 0.85 ? lerp(480, 440, seg(q, 0.85, 1)) : x, into && q > 0.85 ? lerp(y, 360, seg(q, 0.85, 1)) : y, 'ldl', s, fadeIn(nL, i) * (1 - seg(q, 0.95, 1)));
+      const q = wrapX(s * 0.08 + i / 7, 1);
+      lipo(ctx, 920 - q * 420, 452 + (i % 2) * 28, 'ldl', s, fadeIn(nL, i) * (1 - seg(q, 0.92, 1)));
     }
-    M.arrow(ctx, 470, 430, 430, 376, { color: '#a4523f', width: 3, head: 8, alpha: seg(s, TF.remove, TF.remove + 0.5) });
-    M.text(ctx, 'Bad cholesterol slowly goes down over weeks', 700, 528, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TF.remove + 1, TF.remove + 1.6) });
+    step(1, 'Fiber carries bile acids out →', 790, 214, TF.bind, '#2e9e62');
+    step(2, 'Liver uses cholesterol', 380, 384, TF.liver, '#a4523f');
+    M.text(ctx, 'to make new bile acids', 380, 406, { size: 13, weight: 800, color: '#a4523f', alpha: seg(s, TF.liver, TF.liver + 0.5) });
+    step(3, 'Liver pulls in more bad cholesterol', 660, 378, TF.remove, '#c0392b');
+    step(4, 'Less bad cholesterol in the blood, over weeks', 700, 528, TF.remove + 2, '#1f4fa8');
   }
 
   // 2. Regular exercise improves blood fats, triglycerides most clearly (bad cholesterol usually
