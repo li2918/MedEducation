@@ -19,7 +19,7 @@ Narration uses the browser's built-in text-to-speech (Web Speech API). On Window
 |---|---|---|
 | Animation | One ~60 s, 7-chapter story per condition | 1–3 scenes per organ and per drug class |
 | Extras | Key points, questions for your doctor, 3-question teach-back quiz | Body map with stage slider, findings by stage, PD/PK/AE/contraindications/monitoring, references |
-| Conditions | Type 2 diabetes, hypertension, high cholesterol | T2D (8 organs + 4 drug classes), HTN (5 organs + 3 drug classes); high cholesterol coming soon |
+| Conditions | Type 2 diabetes, hypertension, high cholesterol, COPD | T2D (8 organs + 4 drug classes), HTN (5 organs + 3 drug classes); high cholesterol and COPD coming soon |
 
 Search handles lay terms, abbreviations, ICD-10 codes, and typos (`diabetis`, `HTN`, `E11`, `high bp`). Roadmap conditions show up as "coming soon" with a request button.
 
