@@ -8,7 +8,7 @@
   // ---------------------------------------------------------------------------
   // Patient portal: three videos in the MedMotion cartoon style, accurate underneath.
   // Part 1 answers "What is high cholesterol?"; Part 2 "How does it change your arteries?";
-  // Part 3 "How can I improve my cholesterol?". Cholesterol is a yellow blob. LDL and HDL are lipoprotein particles (a shell
+  // Part 3 "How can I protect my arteries?". Triglycerides ride in purple carriers (VLDL-like). Cholesterol is a yellow blob. LDL and HDL are lipoprotein particles (a shell
   // of beads carrying cholesterol), not kinds of cholesterol: orange LDL is bigger, green HDL
   // is smaller. Plaque is shown growing inside the artery wall, under the inner lining.
   // Animation cues use s (seconds since the narration started), matched to the words.
@@ -180,6 +180,70 @@
     M.text(ctx, '← back to the liver', 250, 446, { size: 16, weight: 800, color: '#1d7a4c', alpha: ha });
   }
 
+  // Triglycerides are a different blood fat (not cholesterol) used for energy. They ride as
+  // cargo inside their own carrier particles (purple, VLDL-like), never as loose fat. trig() is
+  // one triglyceride: a round head with three fatty tails.
+  function trig(ctx, x, y, r, alpha = 1) {
+    if (alpha <= 0) return;
+    ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = '#e0901f'; ctx.lineWidth = Math.max(1.5, r * 0.3); ctx.lineCap = 'round';
+    for (let k = -1; k <= 1; k++) {
+      const yy = y + k * r * 0.55;
+      ctx.beginPath(); ctx.moveTo(x - r * 0.2, yy); ctx.bezierCurveTo(x + r * 0.4, yy - r * 0.3, x + r * 0.8, yy + r * 0.3, x + r * 1.3, yy); ctx.stroke();
+    }
+    ctx.restore();
+    M.dot(ctx, x - r * 0.45, y, r * 0.55, '#f2b544', alpha);
+  }
+  // cargo 0..1: how full of triglycerides it still is (it unloads them at muscles and fat cells).
+  function tgCarrier(ctx, x, y, t, alpha = 1, k = 1, cargo = 1) {
+    const r = 18 * k;
+    if (alpha <= 0) return;
+    ctx.save(); ctx.globalAlpha *= alpha;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fillStyle = '#efe4ff'; ctx.fill();
+    for (let i = 0; i < 14; i++) { const a = i / 14 * M.TAU + t * 0.3; M.dot(ctx, x + Math.cos(a) * r, y + Math.sin(a) * r, Math.max(1.6, r * 0.13), '#8a63d2'); }
+    ctx.restore();
+    const n = 4 * cargo;
+    for (let i = 0; i < n; i++) { const a = i / 4 * M.TAU + 0.4; trig(ctx, x - r * 0.12 + Math.cos(a) * r * 0.42, y + Math.sin(a) * r * 0.42, r * 0.2, alpha * Math.min(1, n - i)); }
+  }
+
+  // 2b. Triglycerides: not cholesterol, a different fat used for energy. Their carriers bring
+  //     them from meals and the liver to muscles (energy) or fat cells (storage).
+  const TT = { also: 0.8, not: 3.2, energy: 6.8, ride: 8.4, muscle: 12.9, store: 15 };
+  function triglycerides(ctx, p, s) {
+    M.text(ctx, 'Triglycerides: a different blood fat', 480, 50, { size: 30, weight: 800 });
+    const a0 = ease(seg(s, TT.also, TT.also + 0.6)), na = ease(seg(s, TT.not, TT.not + 0.6));
+    tgCarrier(ctx, 250, 166, s, a0, 2.8);
+    M.text(ctx, 'Triglycerides ride in their own carrier', 250, 246, { size: 16, weight: 800, color: '#6a46b8', alpha: a0 });
+    M.card(ctx, 520, 92, 380, 150, { alpha: na, r: 18, border: '#d7e0ec' });
+    trig(ctx, 566, 134, 15, na);
+    M.text(ctx, 'Triglyceride: a fat used for energy', 596, 134, { size: 15, weight: 800, align: 'left', alpha: seg(s, TT.energy, TT.energy + 0.5) });
+    M.cholesterol(ctx, 568, 184, 11, na, s);
+    M.text(ctx, 'Cholesterol: helps build cells', 596, 184, { size: 15, weight: 800, align: 'left', alpha: na });
+    M.pill(ctx, 'Not the same thing', 710, 226, { size: 14, bg: '#f4eeff', border: '#8a63d2', color: '#6a46b8', alpha: na });
+    // the trip: from meals and the liver, through the blood, to muscles and fat cells
+    const ra = ease(seg(s, TT.ride - 0.4, TT.ride + 0.2));
+    if (ra <= 0) return;
+    ctx.save(); ctx.globalAlpha *= ra;
+    M.food(ctx, 'bread', 84, 318, 46, s); M.text(ctx, 'Meals', 84, 352, { size: 14, weight: 800, color: C.muted });
+    liverBuddy(ctx, 90, 440, 50, 1, s);
+    M.vessel(ctx, 160, 340, 560, 110, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 60, r: 8 }] });
+    ctx.strokeStyle = '#f2b8ae'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(712, 372); ctx.lineTo(790, 330); ctx.moveTo(712, 420); ctx.lineTo(790, 460); ctx.stroke();
+    ctx.restore();
+    for (let i = 0; i < 5; i++) {
+      const q = wrapX(s * 0.14 + i / 5, 1);
+      tgCarrier(ctx, 180 + q * 520, 372 + (i % 2) * 48, s, ra * (1 - seg(q, 0.94, 1)), 1, 1 - 0.75 * seg(q, 0.78, 0.94));
+    }
+    const ma = ease(seg(s, TT.muscle, TT.muscle + 0.6)), fa = ease(seg(s, TT.store, TT.store + 0.6));
+    M.rr(ctx, 790, 300, 130, 62, 26); ctx.save(); ctx.globalAlpha *= ma; ctx.fillStyle = '#e57b70'; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
+    for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(806, 314 + i * 12); ctx.lineTo(904, 314 + i * 12); ctx.stroke(); }
+    ctx.restore();
+    M.emoji(ctx, '⚡', 900, 296, 24, ma * (0.6 + 0.4 * Math.abs(Math.sin(s * 4))));
+    M.text(ctx, 'Muscles: energy', 855, 380, { size: 14, weight: 800, color: '#a3261f', alpha: ma });
+    M.dot(ctx, 850, 462, 36, '#fff3c4', fa); M.dot(ctx, 850, 462, 20, '#f6d77a', fa);
+    M.text(ctx, 'Fat cells: stored', 850, 514, { size: 14, weight: 800, color: '#8a5a00', alpha: fa });
+  }
+
   // 3. Why LDL can be high: genes, the liver (making and clearing LDL), and food over time.
   function whyHigh(ctx, p, s) {
     M.text(ctx, 'Why can LDL get high?', 480, 52, { size: 30, weight: 800 });
@@ -246,13 +310,14 @@
   }
 
   // 5. You usually feel fine; a blood test shows your levels.
+  const TL = { test: 3.4, panel: 4.5, rows: [5.9, 7.2, 8.3, 9.6], fine: 10.9 };
   function checkIt(ctx, p, s) {
     M.text(ctx, 'Why testing matters', 480, 56, { size: 30, weight: 800 });
     const ground = 430;
     ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, ground, 340, 12);
     S.runner(ctx, 230, ground, s * 5, 0.45, 0.05, 1, s);
     M.pill(ctx, '"I feel fine!"', 230, 150, { size: 19, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.5, 1.1) });
-    const ta = ease(seg(s, 3.8, 4.4));
+    const ta = ease(seg(s, TL.test, TL.test + 0.6));
     if (ta > 0) {
       ctx.save(); ctx.globalAlpha *= ta;
       M.rr(ctx, 500, 196, 40, 136, 20); ctx.fillStyle = 'rgba(225,236,250,0.9)'; ctx.fill();
@@ -262,22 +327,22 @@
       ctx.restore();
       M.text(ctx, 'Blood test', 520, 360, { size: 17, weight: 800, color: C.muted, alpha: ta });
     }
-    const ra = ease(seg(s, 5.4, 6));
+    const ra = ease(seg(s, TL.panel, TL.panel + 0.6));
     if (ra > 0) {
-      M.card(ctx, 600, 168, 280, 214, { alpha: ra, border: '#c8d6ee', r: 18 });
-      M.text(ctx, 'Cholesterol test', 740, 198, { size: 19, weight: 800, alpha: ra });
-      [['LDL', 0.8, C.red, 'High'], ['HDL', 0.55, C.green, 'OK']].forEach(([name, v, col, word], i) => {
-        const y = 252 + i * 54, f = ease(seg(s, 5.8 + i * 0.5, 6.8 + i * 0.5));
-        M.text(ctx, name, 628, y, { size: 17, weight: 800, align: 'left', alpha: ra });
+      M.card(ctx, 590, 150, 320, 290, { alpha: ra, border: '#c8d6ee', r: 18 });
+      M.text(ctx, 'Lipid panel', 750, 180, { size: 19, weight: 800, alpha: ra });
+      [['Total', 0.7, C.amber, 'High'], ['LDL', 0.8, C.red, 'High'], ['HDL', 0.55, C.green, 'OK'], ['TG', 0.5, C.green, 'OK']].forEach(([name, v, col, word], i) => {
+        const y = 226 + i * 46, f = ease(seg(s, TL.rows[i], TL.rows[i] + 0.8));
+        M.text(ctx, name, 612, y, { size: 17, weight: 800, align: 'left', alpha: ra });
         ctx.save(); ctx.globalAlpha *= ra;
         M.rr(ctx, 680, y - 8, 120, 16, 8); ctx.fillStyle = '#e3e9f2'; ctx.fill();
         if (f > 0.02) { M.rr(ctx, 680, y - 8, 120 * v * f, 16, 8); ctx.fillStyle = col; ctx.fill(); }
         ctx.restore();
-        M.text(ctx, word, 846, y, { size: 16, weight: 800, color: col, alpha: ra * seg(f, 0.8, 1) });
+        M.text(ctx, word, 852, y, { size: 16, weight: 800, color: col, alpha: ra * seg(f, 0.8, 1) });
       });
-      M.text(ctx, 'Example results', 740, 362, { size: 13, color: C.muted, alpha: ra });
+      M.text(ctx, 'Example results', 750, 420, { size: 13, color: C.muted, alpha: ra });
     }
-    M.pill(ctx, 'Feeling fine does not mean your LDL is fine', 480, 494, { size: 19, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, 8.4, 9) });
+    M.pill(ctx, 'Feeling fine does not mean your numbers are fine', 480, 494, { size: 19, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, TL.fine, TL.fine + 0.6) });
   }
 
   // ---- Part 2: how high cholesterol changes your arteries ---------------------
@@ -419,150 +484,225 @@
     }
   }
 
-  // 5. Over years: lower LDL slows future plaque growth and lowers future risk; plaque that is
-  //    already there does not vanish overnight, so the managed side keeps its early plaque.
-  const HABITS = [['🥗 Heart-healthy food', 0.3], ['🌾 More soluble fiber', 0.7], ['🫒 Healthier fats', 1.1], ['🏃 Regular movement', 1.6], ['🚭 No tobacco', 2.2], ['🩺 Your care plan', 3.6]];
-  function managePanel(ctx, p, s, high, W) {
-    const yr = ease(seg(s, 0.5, 9.5));
-    timeline(ctx, 60, 44, W - 120, yr, 'Over the years', high ? C.amber : C.green);
-    arteryCross(ctx, W / 2, 138, 66, s, { plaque: 0.3 + (high ? 0.5 : 0.08) * yr, inflam: high ? 0.4 * yr : 0, flow: high ? 1 - 0.5 * yr : 1 });
-    if (high) S.phasePill(ctx, W / 2, 246, s, [[0.3, 'LDL stays high', '#b86a00'], [7.4, 'Plaque keeps growing']]);
-    else S.phasePill(ctx, W / 2, 246, s, [[0.3, 'LDL lower', C.green], [8.6, 'Plaque grows more slowly', C.green]]);
-    if (high) M.text(ctx, 'Higher future risk', W / 2, 300, { size: 17, weight: 800, color: '#a3261f', alpha: seg(s, 10.4, 11) });
-    else HABITS.forEach(([t, at], i) => M.pill(ctx, t, 116 + (i % 2) * 208, 282 + Math.floor(i / 2) * 30, { size: 13, bg: '#fff', border: '#bfe3cf', alpha: seg(s, at, at + 0.5) }));
-    if (!high) M.text(ctx, "Plaque already there won't vanish overnight", W / 2, 222, { size: 13, weight: 800, color: C.muted, alpha: seg(s, 12, 12.6) });
-    return high ? 0.7 - 0.45 * yr : 0.78 - 0.06 * yr;
-  }
-
-  // 6. Takeaway: no warning signs; knowing your numbers and managing risk protect the heart and brain.
-  function takeaway(ctx, p, s) {
-    const manage = ease(seg(s, 4.3, 7.5)), yr = ease(seg(s, 0.5, 8));
-    [[250, 'Risk managed', C.green, '#e9f7ef', '#1d7a4c'], [710, 'Risk not managed', C.amber, '#fff4e0', '#8a5a00']].forEach(([x, label, col, bg, ink], i) => {
-      const dens = i ? 1.1 : lerp(0.9, 0.4, manage);
-      S.bodyWithBlood(ctx, x, 340, 82, s, { density: dens, highlight: ['brain', 'feet', 'hands'], item: (c, px, py, on) => lipo(c, px, py, 'ldl', s, on ? 1 : 0.5, on ? 0.5 : 0.4) });
-      M.pill(ctx, label, x, 140, { size: 18, bg, border: col, color: ink });
-      riskBar(ctx, x - 110, 500, 220, i ? lerp(0.5, 0.75, yr) : lerp(0.5, 0.3, manage));
-    });
-    const na = ease(seg(s, 2.9, 3.5));
-    if (na > 0) {
-      M.card(ctx, 400, 196, 160, 92, { alpha: na, r: 16, border: '#c8d6ee' });
-      M.text(ctx, 'Your numbers', 480, 222, { size: 15, weight: 800, color: C.muted, alpha: na });
-      M.text(ctx, 'LDL  ✓', 480, 258, { size: 22, weight: 800, color: M.C.blue, alpha: na });
-    }
-    M.wrap(ctx, 'Know your numbers. Manage your risk.', 480, 340, 180, { size: 22, weight: 800, color: M.C.blue, alpha: seg(s, 8, 8.6) });
-  }
-
-  // ---- Part 3: How can I improve my cholesterol? ---------------------------------------
-  // Each scene shows one step and what it changes inside: food (less saturated fat, fiber
-  // that carries some cholesterol out through the gut), movement (more HDL helpers taking
-  // extra cholesterol back to the liver), and medicine as prescribed (no names, no doses).
-  // Changes build over weeks, never instantly.
+  // ---- Part 3: How can I protect my arteries? ---------------------------------------------
+  // Five connected scenes that show what each step changes inside the body: food (healthier
+  // fats and soluble fiber, which carries bile acids out so the liver pulls in more LDL),
+  // movement (modest changes in blood fats, a stronger heart; no plaque wash-out), knowing
+  // your numbers (a test informs the plan; it does not lower cholesterol), long-term artery
+  // protection (two arteries with the same early plaque over years), and keeping going.
+  // Measured lipids change over weeks; cardiovascular risk changes over years. Gauges and
+  // results are labeled as examples, never as the viewer's own numbers.
   const fadeIn = (n, i) => Math.min(1, n - i); // item i of a fractional count n
-  // A blood vessel with LDL (and optional HDL) particles; fractional counts fade in and out.
-  function bloodLipids(ctx, x, y, w, h, s, nLdl, nHdl = 0) {
-    M.vessel(ctx, x, y, w, h, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 60, r: 8 }] });
-    for (let i = 0; i < nLdl; i++) lipo(ctx, x + 14 + wrapX(rnd(i + 60) * (w - 28) + s * 55, w - 28), y + 26 + rnd(i + 61) * (h - 52), 'ldl', s, fadeIn(nLdl, i));
-    for (let i = 0; i < nHdl; i++) lipo(ctx, x + w - 14 - wrapX(rnd(i + 80) * (w - 28) + s * 45, w - 28), y + 26 + rnd(i + 81) * (h - 52), 'hdl', s, fadeIn(nHdl, i));
-  }
-  const ldlGauge = (ctx, x, y, w, v, text, alpha = 1) => M.gauge(ctx, x, y, w, v, { title: 'LDL level', valueText: text, alpha });
+  const bileAcid = (ctx, x, y, a = 1) => { M.dot(ctx, x, y, 6, '#8bc34a', a); M.dot(ctx, x - 2, y - 2, 2, '#ffffff', a * 0.7); };
+  // Point along a quadratic curve a -> c (control b) at q.
+  const quad = (a, b, c, q) => [lerp(lerp(a[0], b[0], q), lerp(b[0], c[0], q), q), lerp(lerp(a[1], b[1], q), lerp(b[1], c[1], q), q)];
 
-  // 1. Food: swap foods high in saturated fat for fiber-rich foods. In the gut, fiber catches
-  //    some cholesterol and carries it out, so less gets into the blood; LDL slowly falls.
-  const TF = { greasy: 2, swap: 6.9, fiber: 8.5, catch: 12.9, out: 15.1, weeks: 16.7 };
+  // 1. Healthy food. Swaps add up. In the gut, soluble fiber carries some bile acids out; the
+  //    liver then uses cholesterol to make new ones and pulls more LDL in from the blood.
+  //    Fiber never grabs LDL from the bloodstream.
+  const TF = { fiber: 2.2, fats: 5.6, bind: 10.5, liver: 14.6, remove: 17.6, tg: 21.1 };
   function foodScene(ctx, p, s) {
-    M.text(ctx, 'Healthy food: what changes inside', 480, 46, { size: 28, weight: 800 });
-    // the swap
-    M.card(ctx, 30, 84, 270, 236, { r: 22 });
-    M.text(ctx, 'Swap', 165, 110, { size: 17, weight: 800, color: C.muted });
-    const ga = seg(s, TF.greasy, TF.greasy + 0.5), sw = ease(seg(s, TF.swap, TF.swap + 0.8)), fa = seg(s, TF.fiber, TF.fiber + 0.6);
-    M.food(ctx, 'burger', 104, 172, 60, s, ga * (1 - 0.6 * sw)); M.food(ctx, 'fries', 172, 174, 54, s, ga * (1 - 0.6 * sw));
-    if (sw > 0) { ctx.save(); ctx.strokeStyle = C.red; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.globalAlpha *= sw; ctx.beginPath(); ctx.moveTo(74, 150); ctx.lineTo(206, 196); ctx.stroke(); ctx.restore(); }
-    M.text(ctx, 'Less saturated fat', 140, 222, { size: 14, weight: 800, color: '#a3261f', alpha: ga });
-    M.emoji(ctx, '🥣', 74, 272, 34, fa); M.emoji(ctx, '🫘', 122, 272, 30, fa);
-    M.food(ctx, 'apple', 170, 272, 36, s, fa); M.food(ctx, 'broccoli', 218, 270, 40, s, fa); M.food(ctx, 'carrot', 262, 272, 36, s, fa);
-    M.text(ctx, 'More fiber', 165, 304, { size: 14, weight: 800, color: '#1d7a4c', alpha: fa });
-    // the gut: cholesterol either soaks up into the blood or is caught by fiber and leaves
-    const gx = 330, gy = 150, gw = 600, gh = 92, fib = ease(seg(s, TF.catch, TF.catch + 1.5));
-    M.text(ctx, 'In your gut', gx + 60, gy - 16, { size: 15, weight: 800, color: C.muted });
-    M.rr(ctx, gx, gy, gw, gh, 40); ctx.fillStyle = '#f6c9b8'; ctx.fill();
-    M.rr(ctx, gx + 12, gy + 12, gw - 24, gh - 24, 30); ctx.fillStyle = '#fde9e1'; ctx.fill();
-    for (let i = 0; i < 7; i++) {
-      const q = wrapX(s * 0.12 + i / 7, 1), x = gx + 30 + q * (gw - 60), y = gy + gh / 2 + Math.sin(i * 2.3) * 16;
-      const caught = i < 4 * fib, up = !caught && q > 0.3 ? seg(q, 0.3, 0.6) : 0;
-      if (caught && fa > 0) {
-        ctx.save(); ctx.strokeStyle = '#3aa76d'; ctx.lineWidth = 3; ctx.globalAlpha *= Math.min(1, 4 * fib - i);
-        ctx.beginPath(); for (let k = 0; k <= 8; k++) { const a = k / 8 * M.TAU; ctx.lineTo(x + Math.cos(a) * 15, y + Math.sin(a) * 15 + Math.sin(a * 3 + s * 3) * 2); } ctx.stroke(); ctx.restore();
-      }
-      M.cholesterol(ctx, x, lerp(y, gy + 6, up), 8, 1 - up, s + i);
-      if (up > 0) M.cholesterol(ctx, x, lerp(gy + 6, 348, up), 8, up * (1 - seg(up, 0.85, 1)), s + i);
+    M.text(ctx, 'Healthy food', 480, 44, { size: 28, weight: 800 });
+    // small swaps
+    M.card(ctx, 22, 74, 266, 312, { r: 20 });
+    M.text(ctx, 'Small swaps', 155, 98, { size: 16, weight: 800, color: C.muted });
+    const fa = seg(s, TF.fiber, TF.fiber + 0.6), ua = seg(s, TF.fats, TF.fats + 0.6), da = seg(s, TF.tg, TF.tg + 0.6);
+    M.emoji(ctx, '🥣', 54, 140, 30, fa); M.emoji(ctx, '🫘', 98, 140, 28, fa);
+    M.food(ctx, 'apple', 144, 140, 32, s, fa); M.food(ctx, 'broccoli', 192, 138, 36, s, fa); M.food(ctx, 'carrot', 238, 140, 32, s, fa);
+    M.text(ctx, 'More oats, beans, fruits, vegetables', 155, 174, { size: 13, weight: 800, color: '#1d7a4c', alpha: fa });
+    M.emoji(ctx, '🧈', 74, 222, 30, ua); M.arrow(ctx, 100, 222, 132, 222, { color: '#9fb0c6', width: 3, head: 7, alpha: ua });
+    M.emoji(ctx, '🫒', 164, 222, 30, ua); M.emoji(ctx, '🥜', 208, 222, 28, ua);
+    M.text(ctx, 'Some saturated fat for healthier fats', 155, 256, { size: 13, weight: 800, color: '#1d7a4c', alpha: ua });
+    M.food(ctx, 'soda', 74, 306, 34, s, da); M.arrow(ctx, 100, 306, 132, 306, { color: '#9fb0c6', width: 3, head: 7, alpha: da });
+    M.emoji(ctx, '💧', 164, 306, 28, da); M.food(ctx, 'fish', 214, 308, 36, s, da);
+    M.text(ctx, 'Fewer sugary drinks and refined carbs', 155, 342, { size: 13, weight: 800, color: '#6a46b8', alpha: da });
+    M.text(ctx, '→ can lower triglycerides', 155, 362, { size: 13, weight: 800, color: '#6a46b8', alpha: da });
+    // inside: liver, bile duct, gut, and blood
+    const bind = ease(seg(s, TF.bind, TF.bind + 1.5)), wk = ease(seg(s, TF.remove, TF.remove + 3));
+    liverBuddy(ctx, 392, 300, 72, 1, s);
+    M.text(ctx, 'Liver', 350, 362, { size: 15, weight: 800, color: '#a4523f' });
+    M.text(ctx, 'Gut', 516, 96, { size: 15, weight: 800, color: C.muted });
+    M.rr(ctx, 500, 106, 430, 84, 40); ctx.fillStyle = '#f6c9b8'; ctx.fill();
+    M.rr(ctx, 512, 118, 406, 60, 30); ctx.fillStyle = '#fde9e1'; ctx.fill();
+    const DUCT = [[436, 262], [470, 200], [560, 168]], BACK = [[760, 176], [700, 300], [440, 312]];
+    ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#b9dc8f'; ctx.lineWidth = 9;
+    ctx.beginPath(); ctx.moveTo(...DUCT[0]); ctx.quadraticCurveTo(...DUCT[1], ...DUCT[2]); ctx.stroke();
+    ctx.setLineDash([6, 7]); ctx.strokeStyle = '#9bbf74'; ctx.lineWidth = 2.5; ctx.globalAlpha *= 1 - 0.6 * bind;
+    ctx.beginPath(); ctx.moveTo(...BACK[0]); ctx.quadraticCurveTo(...BACK[1], ...BACK[2]); ctx.stroke(); ctx.restore();
+    M.text(ctx, 'reused', 712, 262, { size: 13, weight: 800, color: '#6f9a46', alpha: 1 - 0.6 * bind });
+    bileAcid(ctx, 846, 96, 1); M.text(ctx, '= bile acids', 858, 96, { size: 13, weight: 800, color: C.muted, align: 'left' });
+    // soluble fiber: soft gel strands in the gut
+    if (fa > 0) {
+      ctx.save(); ctx.globalAlpha *= 0.55 * fa; ctx.strokeStyle = '#7fc79a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+      for (let i = 0; i < 4; i++) { const x0 = 600 + i * 80; ctx.beginPath(); for (let k = 0; k <= 10; k++) { const x = x0 + k * 6; ctx.lineTo(x, 148 + Math.sin(k * 0.9 + s * 2 + i) * 12); } ctx.stroke(); }
+      ctx.restore();
+      M.text(ctx, 'Soluble fiber', 700, 206, { size: 13, weight: 800, color: '#1d7a4c', alpha: fa });
     }
-    M.text(ctx, 'out of the body →', gx + gw - 80, gy + gh + 18, { size: 14, weight: 800, color: '#1d7a4c', alpha: seg(s, TF.out, TF.out + 0.5) });
-    M.text(ctx, 'Fiber catches some cholesterol', gx + gw / 2, gy + gh + 18, { size: 14, weight: 800, color: '#1d7a4c', alpha: seg(s, TF.catch, TF.catch + 0.5) });
-    // the blood: LDL slowly falls over weeks
-    const wk = ease(seg(s, TF.weeks, TF.weeks + 3));
-    M.text(ctx, 'In your blood', 400, 350, { size: 15, weight: 800, color: '#b3453c' });
-    bloodLipids(ctx, 330, 364, 360, 110, s, lerp(8, 4, wk), 2);
-    ldlGauge(ctx, 712, 410, 220, lerp(0.8, 0.55, wk), wk > 0.5 ? 'Going down' : 'High');
-    M.text(ctx, 'Over weeks, not overnight', 825, 470, { size: 14, weight: 800, color: C.muted, alpha: seg(s, TF.weeks, TF.weeks + 0.6) });
+    // bile acids: down the duct into the gut; without fiber most return to the liver,
+    // with fiber some are carried out of the body
+    for (let i = 0; i < 8; i++) {
+      const q = wrapX(s * 0.1 + i / 8, 1), out = i % 2 === 0 && i < 8 * bind;
+      let pt, a = 1;
+      if (q < 0.25) pt = quad(...DUCT, q / 0.25);
+      else if (q < 0.6) pt = [lerp(560, 760, (q - 0.25) / 0.35), 150 + Math.sin(i) * 12];
+      else if (out) { pt = [lerp(760, 925, (q - 0.6) / 0.4), 150 + Math.sin(i) * 12]; a = 1 - seg(q, 0.9, 1); }
+      else { pt = quad(...BACK, (q - 0.6) / 0.4); a = 1 - seg(q, 0.92, 1); }
+      bileAcid(ctx, pt[0], pt[1], a);
+    }
+    M.text(ctx, 'out of the body →', 870, 206, { size: 13, weight: 800, color: '#1d7a4c', alpha: seg(s, TF.bind, TF.bind + 0.5) });
+    // the liver makes new bile acids from cholesterol, and pulls more LDL in from the blood
+    const la = seg(s, TF.liver, TF.liver + 0.5);
+    if (la > 0) {
+      const q = wrapX(s * 0.5, 1);
+      M.cholesterol(ctx, lerp(370, 430, q), 300 - Math.sin(q * Math.PI) * 18, 7, la * (1 - seg(q, 0.8, 1)), s);
+      M.text(ctx, 'Cholesterol →', 350, 384, { size: 13, weight: 800, color: '#a4523f', alpha: la });
+      M.text(ctx, 'new bile acids', 350, 402, { size: 13, weight: 800, color: '#a4523f', alpha: la });
+    }
+    M.text(ctx, 'LDL in the blood', 560, 412, { size: 14, weight: 800, color: '#b3453c' });
+    M.vessel(ctx, 470, 424, 460, 86, { t: s, wall: 12, items: [{ kind: 'rbc', n: 5, speed: 50, r: 7 }] });
+    const nL = lerp(7, 4, wk);
+    for (let i = 0; i < nL; i++) {
+      const q = wrapX(s * 0.08 + i / 7, 1), into = wk > 0.05 && i % 3 === 0;
+      const x = 920 - q * 440, y = 452 + (i % 2) * 28;
+      lipo(ctx, into && q > 0.85 ? lerp(480, 440, seg(q, 0.85, 1)) : x, into && q > 0.85 ? lerp(y, 360, seg(q, 0.85, 1)) : y, 'ldl', s, fadeIn(nL, i) * (1 - seg(q, 0.95, 1)));
+    }
+    M.arrow(ctx, 470, 430, 430, 376, { color: '#a4523f', width: 3, head: 8, alpha: seg(s, TF.remove, TF.remove + 0.5) });
+    M.text(ctx, 'LDL slowly goes down over weeks', 700, 528, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TF.remove + 1, TF.remove + 1.6) });
   }
 
-  // 2. Movement: being active most days can raise HDL, the helper that carries extra
-  //    cholesterol back to the liver, and keeps the heart and vessels strong.
-  const TE = { days: 0.9, hdl: 3.6, carry: 5.9, liver: 7.4, strong: 9.1 };
-  function exerciseScene(ctx, p, s) {
-    M.text(ctx, 'Moving more: what changes inside', 480, 46, { size: 28, weight: 800 });
-    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, 452, 260, 12);
-    S.runner(ctx, 170, 452, s * 8, 0.8, 0.12, 1, s);
-    const da = seg(s, TE.days, TE.days + 0.5);
-    ['M', 'T', 'W', 'T', 'F', 'S', 'S'].forEach((d, i) => {
-      const on = i !== 2 && i !== 6, x = 58 + i * 34, a = da * seg(s, TE.days + i * 0.15, TE.days + i * 0.15 + 0.3);
-      M.dot(ctx, x, 130, 14, on ? C.green : '#e3e9f2', a);
-      M.text(ctx, on ? '✓' : d, x, 131, { size: 13, weight: 900, color: on ? '#fff' : C.muted, alpha: a });
+  // 2. Regular movement: a stronger heart and vessels, and modest changes in blood fats. It
+  //    does not wash plaque away.
+  const TE = { heart: 0.4, fats: 3.9, plaque: 9.5, support: 11.8 };
+  function moveScene(ctx, p, s) {
+    M.text(ctx, 'Regular movement', 480, 44, { size: 28, weight: 800 });
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(30, 470, 250, 12);
+    S.runner(ctx, 150, 470, s * 8, 0.8, 0.12, 1, s);
+    const ha = ease(seg(s, TE.heart, TE.heart + 0.6)), k = ease(seg(s, TE.fats, TE.fats + 4));
+    ctx.save(); ctx.globalAlpha *= ha; ctx.strokeStyle = '#f2b8ae'; ctx.lineWidth = 16; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(430, 214); ctx.lineTo(430, 290); ctx.stroke(); ctx.restore();
+    S.heartBuddy(ctx, 430, 170, 50 * ha + 0.01, 1, s);
+    M.pill(ctx, 'Heart and vessels work well', 430, 96, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: ha });
+    M.vessel(ctx, 320, 290, 610, 110, { t: s, wall: 12, items: [{ kind: 'rbc', n: 8, speed: 80, r: 8 }], alpha: ha });
+    const nL = lerp(5, 4.3, k), nH = lerp(3, 3.4, k), nT = lerp(4, 3.2, k);
+    for (let i = 0; i < nL; i++) lipo(ctx, 330 + wrapX(rnd(i + 60) * 590 + s * 60, 590), 318 + (i % 3) * 26, 'ldl', s, ha * fadeIn(nL, i));
+    for (let i = 0; i < nH; i++) lipo(ctx, 330 + wrapX(rnd(i + 70) * 590 + s * 50, 590), 330 + (i % 2) * 40, 'hdl', s, ha * fadeIn(nH, i));
+    for (let i = 0; i < nT; i++) tgCarrier(ctx, 330 + wrapX(rnd(i + 80) * 590 + s * 55, 590), 340 + (i % 2) * 30, s, ha * fadeIn(nT, i), 0.8);
+    // modest changes, not big guaranteed ones
+    const fa = seg(s, TE.fats, TE.fats + 0.6);
+    M.card(ctx, 590, 78, 340, 190, { r: 18, alpha: fa });
+    M.text(ctx, 'May improve a little', 760, 102, { size: 15, weight: 800, color: C.muted, alpha: fa });
+    [['LDL', 0.62, 0.56, '#f08c00'], ['HDL', 0.45, 0.5, '#2fb380'], ['Triglycerides', 0.6, 0.52, '#8a63d2']].forEach(([t, a, b, col], i) => {
+      const y = 140 + i * 42, v = lerp(a, b, k);
+      M.text(ctx, t, 610, y, { size: 14, weight: 800, align: 'left', alpha: fa });
+      ctx.save(); ctx.globalAlpha *= fa; M.rr(ctx, 730, y - 7, 180, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+      M.rr(ctx, 730, y - 7, 180 * v, 14, 7); ctx.fillStyle = col; ctx.fill(); ctx.restore();
     });
-    M.text(ctx, 'Active most days', 160, 166, { size: 15, weight: 800, color: C.muted, alpha: da });
-    // HDL helpers increase and carry cholesterol from the vessel wall back to the liver
-    const more = ease(seg(s, TE.hdl, TE.hdl + 4));
-    liverBuddy(ctx, 860, 254, 70, lerp(0.75, 1, more), s);
-    M.text(ctx, 'Liver', 860, 318, { size: 15, weight: 800, color: '#a4523f' });
-    const vx = 340, vy = 196, vw = 440, vh = 120;
-    bloodLipids(ctx, vx, vy, vw, vh, s, 3, 0);
-    for (let i = 0; i < 6; i++) M.cholesterol(ctx, vx + 40 + i * 70, vy + vh - 18, 7, 1 - 0.7 * ease(seg(s, TE.carry + i * 0.4, TE.carry + i * 0.4 + 1)), s + i);
-    const nH = lerp(2, 6, more);
-    for (let i = 0; i < nH; i++) {
-      const q = wrapX(s * 0.16 + i / 6, 1), x = vx + 20 + q * (vw + 80), y = vy + vh / 2 + Math.sin(i * 1.7) * 26;
-      const a = fadeIn(nH, i) * (1 - seg(q, 0.9, 1));
-      lipo(ctx, x, y, 'hdl', s, a, 1.3);
-      if (s > TE.carry && q > 0.2) M.cholesterol(ctx, x, y, 5, a, s);
-    }
-    M.text(ctx, '→ back to the liver', vx + vw - 70, vy - 14, { size: 15, weight: 800, color: '#1d7a4c', alpha: seg(s, TE.liver, TE.liver + 0.5) });
-    M.gauge(ctx, 340, 410, 260, lerp(0.35, 0.62, more), { title: 'HDL helpers', valueText: more > 0.5 ? 'More' : 'Some', zones: [[0.3, C.red], [0.5, C.amber], [1, C.green]], alpha: seg(s, TE.hdl, TE.hdl + 0.5) });
-    M.pill(ctx, 'Heart and blood vessels stay stronger', 790, 440, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TE.strong, TE.strong + 0.5) });
+    // existing plaque stays: no instant wash-out
+    const pa = seg(s, TE.plaque, TE.plaque + 0.6);
+    ctx.save(); ctx.globalAlpha *= pa; arteryCross(ctx, 400, 470, 44, s, { plaque: 0.4, flow: 0.9 }); ctx.restore();
+    M.text(ctx, 'Plaque already there does not wash away', 460, 462, { size: 14, weight: 800, align: 'left', alpha: pa });
+    M.text(ctx, 'Movement supports heart health over time', 460, 486, { size: 14, weight: 800, align: 'left', color: '#1d7a4c', alpha: seg(s, TE.support, TE.support + 0.6) });
   }
 
-  // 3. Medicine if prescribed: taken every day as prescribed, it can lower LDL a lot over
-  //    weeks. No drug names, mechanisms, or doses; the care team decides.
-  const TM = { need: 0.6, daily: 7.1, fine: 10.2, lower: 11.8, team: 13.6 };
-  function medicineScene(ctx, p, s) {
-    M.text(ctx, 'Medicine, if prescribed', 480, 46, { size: 28, weight: 800 });
-    [['Genes', TM.need + 2.2], ['Overall heart risk', TM.need + 3.2]].forEach(([t, at], i) =>
-      M.pill(ctx, t, 140 + i * 170, 100, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: seg(s, at, at + 0.5) }));
-    // calendar: one check per day, filling in over two weeks
-    M.card(ctx, 40, 136, 380, 250, { r: 20 });
-    M.text(ctx, 'Every day, as prescribed', 230, 164, { size: 17, weight: 800, color: M.C.blue, alpha: seg(s, TM.daily, TM.daily + 0.5) });
-    const days = lerp(0, 14, ease(seg(s, TM.daily, TM.daily + 5)));
-    for (let i = 0; i < 14; i++) {
-      const x = 80 + (i % 7) * 50, y = 222 + Math.floor(i / 7) * 64, k = Math.max(0, Math.min(1, days - i));
-      M.rr(ctx, x - 20, y - 22, 40, 44, 8); ctx.fillStyle = '#f3f6fb'; ctx.fill();
-      M.dot(ctx, x, y, 14, C.green, k); M.text(ctx, '✓', x, y + 1, { size: 15, weight: 900, color: '#fff', alpha: k });
-    }
-    M.pill(ctx, 'Even when you feel fine', 230, 360, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TM.fine, TM.fine + 0.5) });
-    // what changes: LDL in the blood falls over weeks
-    const wk = ease(seg(s, TM.lower, TM.lower + 3));
-    M.text(ctx, 'In your blood', 520, 150, { size: 15, weight: 800, color: '#b3453c' });
-    bloodLipids(ctx, 450, 164, 480, 120, s, lerp(9, 2.5, wk), 2);
-    ldlGauge(ctx, 470, 360, 300, lerp(0.85, 0.4, wk), wk > 0.6 ? 'Much lower' : 'High', seg(s, TM.lower - 0.4, TM.lower));
-    M.text(ctx, 'Weeks later', 860, 360, { size: 15, weight: 800, color: C.muted, alpha: seg(s, TM.lower, TM.lower + 0.5) });
-    M.text(ctx, 'Your care team decides if you need it, and which one.', 480, 476, { size: 15, weight: 700, color: C.muted, alpha: seg(s, TM.team, TM.team + 0.6) });
+  // 3. Know your numbers: a blood test gives information, the care team reviews it with your
+  //    overall risk, sets or adjusts the plan, and a follow-up test shows if it is working.
+  //    Medicine is one possible part of a plan, on its own schedule. No names or doses.
+  const TN = { test: 3.6, ldl: 4.6, team: 5.4, risk: 8, working: 9.1, change: 11, medicine: 12.9 };
+  function numbersScene(ctx, p, s) {
+    M.text(ctx, 'Know your numbers', 480, 44, { size: 28, weight: 800 });
+    const st = (at) => ease(seg(s, at - 0.5, at + 0.1));
+    // 1 blood test
+    const a1 = st(TN.test);
+    M.card(ctx, 24, 78, 200, 250, { r: 18, alpha: a1 });
+    M.text(ctx, 'Blood test', 124, 104, { size: 16, weight: 800, alpha: a1 });
+    ctx.save(); ctx.globalAlpha *= a1;
+    M.rr(ctx, 104, 132, 40, 130, 20); ctx.fillStyle = 'rgba(225,236,250,0.95)'; ctx.fill();
+    ctx.save(); M.rr(ctx, 104, 132, 40, 130, 20); ctx.clip(); const fill = ease(seg(s, TN.test, TN.test + 2.5)); ctx.fillStyle = '#c62828'; ctx.fillRect(104, 262 - 110 * fill, 40, 120); ctx.restore();
+    M.rr(ctx, 104, 132, 40, 130, 20); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 3; ctx.stroke();
+    M.rr(ctx, 98, 120, 52, 20, 6); ctx.fillStyle = '#5b8def'; ctx.fill();
+    ctx.restore();
+    M.wrap(ctx, 'It gives information. It does not lower cholesterol by itself.', 124, 290, 180, { size: 12, weight: 700, color: C.muted, alpha: seg(s, TN.test + 1.2, TN.test + 1.8) });
+    // 2 example result
+    const a2 = st(TN.ldl);
+    M.card(ctx, 244, 78, 220, 250, { r: 18, alpha: a2 });
+    M.text(ctx, 'Lipid panel', 354, 104, { size: 16, weight: 800, alpha: a2 });
+    [['Total', 0.7], ['LDL', 0.82], ['HDL', 0.5], ['TG', 0.62]].forEach(([t, v], i) => {
+      const y = 146 + i * 40, hi = t === 'LDL';
+      if (hi) { M.rr(ctx, 254, y - 16, 200, 32, 10); ctx.save(); ctx.globalAlpha *= a2 * (0.7 + 0.3 * Math.sin(s * 4)); ctx.fillStyle = '#fff1dc'; ctx.fill(); ctx.restore(); }
+      M.text(ctx, t, 264, y, { size: 14, weight: 800, align: 'left', alpha: a2 });
+      ctx.save(); ctx.globalAlpha *= a2; M.rr(ctx, 320, y - 6, 120, 12, 6); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+      M.rr(ctx, 320, y - 6, 120 * v * ease(seg(s, TN.ldl, TN.ldl + 1)), 12, 6); ctx.fillStyle = hi ? '#f08c00' : '#9fb0c6'; ctx.fill(); ctx.restore();
+    });
+    M.text(ctx, 'Example result', 354, 310, { size: 12, color: C.muted, alpha: a2 });
+    // 3 care team reviews it with your overall risk
+    const a3 = st(TN.team);
+    M.card(ctx, 484, 78, 210, 250, { r: 18, alpha: a3 });
+    M.text(ctx, 'Your care team', 589, 104, { size: 16, weight: 800, alpha: a3 });
+    M.person(ctx, 589, 238, 40, { look: { shirt: '#ffffff', shirtShade: '#dbe4ef', pants: '#5a6f94', hair: '#2f2a28', skin: '#c99272', skinShade: '#b47e60' }, t: s, alpha: a3 });
+    ctx.save(); ctx.globalAlpha *= a3; ctx.strokeStyle = '#3b4a5e'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(578, 190); ctx.quadraticCurveTo(570, 222, 589, 228); ctx.quadraticCurveTo(608, 222, 600, 190); ctx.stroke(); M.dot(ctx, 589, 230, 4, '#3b4a5e'); ctx.restore();
+    M.pill(ctx, 'LDL + overall risk', 589, 312, { size: 13, bg: '#fff', border: '#c8d6ee', alpha: seg(s, TN.risk, TN.risk + 0.5) });
+    // 4 the plan
+    const a4 = st(TN.working);
+    M.card(ctx, 714, 78, 222, 250, { r: 18, alpha: a4 });
+    M.text(ctx, 'Your plan', 825, 104, { size: 16, weight: 800, alpha: a4 });
+    [['🥗', 'Food and movement', TN.working], ['💊', 'Medicine, if prescribed', TN.medicine], ['🩸', 'Next check', TN.working + 0.6]].forEach(([ic, t, at], i) => {
+      const a = seg(s, at, at + 0.5), y = 146 + i * 50;
+      M.emoji(ctx, ic, 742, y, 22, a); M.wrap(ctx, t, 834, y, 150, { size: 14, weight: 800, alpha: a });
+    });
+    M.wrap(ctx, 'Follow your specific schedule', 825, 302, 190, { size: 13, weight: 800, color: M.C.blue, alpha: seg(s, TN.medicine + 0.6, TN.medicine + 1.1) });
+    for (let i = 0; i < 3; i++) M.arrow(ctx, 226 + i * 240, 200, 242 + i * 240, 200, { color: '#9fb0c6', width: 3, head: 7, alpha: st([TN.ldl, TN.team, TN.working][i]) });
+    // follow-up: weeks later, a new test shows whether the plan is working; the plan can change
+    const a5 = ease(seg(s, TN.working - 0.3, TN.working + 0.4));
+    M.card(ctx, 244, 360, 300, 150, { r: 18, alpha: a5, border: C.green });
+    M.text(ctx, 'Follow-up test, weeks later', 394, 386, { size: 15, weight: 800, alpha: a5 });
+    M.text(ctx, 'LDL', 270, 430, { size: 14, weight: 800, align: 'left', alpha: a5 });
+    ctx.save(); ctx.globalAlpha *= a5; M.rr(ctx, 320, 424, 200, 12, 6); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    M.rr(ctx, 320, 424, 200 * lerp(0.82, 0.55, ease(seg(s, TN.working, TN.working + 2))), 12, 6); ctx.fillStyle = C.green; ctx.fill(); ctx.restore();
+    M.text(ctx, 'Is the plan working?', 394, 476, { size: 14, weight: 800, color: '#1d7a4c', alpha: a5 });
+    const a6 = seg(s, TN.change, TN.change + 0.6);
+    ctx.save(); ctx.globalAlpha *= a6; ctx.setLineDash([6, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(548, 436); ctx.quadraticCurveTo(700, 440, 760, 336); ctx.stroke(); ctx.restore();
+    M.pill(ctx, 'Plan changed when needed', 760, 440, { size: 15, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: a6 });
+  }
+
+  // 4. Long-term artery protection: two arteries start with the same early plaque. Over years,
+  //    keeping LDL lower tends to slow plaque growth and lower risk; LDL that stays high gives
+  //    plaque more chance to grow. Illustrative, not a promise: the lower-LDL artery keeps some
+  //    plaque, and neither side shows numbers.
+  const TA = { same: 1.3, years: 3.7, slow: 7.1, risk: 8.5, notclean: 11.3 };
+  function arteryPanel(ctx, p, s, high, W) {
+    const yr = ease(seg(s, TA.years, TA.years + 7));
+    timeline(ctx, 60, 44, W - 120, yr, 'Over many years', high ? C.amber : C.green);
+    M.text(ctx, 'Now', 60, 66, { size: 12, weight: 700, color: C.muted, align: 'left' });
+    M.text(ctx, 'Years later', W - 60, 66, { size: 12, weight: 700, color: C.muted, align: 'right' });
+    arteryCross(ctx, W / 2, 166, 82, s, { plaque: 0.3 + (high ? 0.42 : 0.06) * yr, inflam: high ? 0.35 * yr : 0.05, flow: high ? 1 - 0.4 * yr : 1 });
+    M.vessel(ctx, 30, 254, W - 60, 42, { t: s, wall: 8, items: [] });
+    const n = high ? 7 : 2.5;
+    for (let i = 0; i < n; i++) lipo(ctx, 44 + wrapX(rnd(i + 90) * (W - 88) + s * 45, W - 88), 275, 'ldl', s, fadeIn(n, i), 0.8);
+    M.text(ctx, high ? 'LDL stays high' : 'LDL kept lower', W / 2, 312, { size: 13, weight: 800, color: high ? '#b86a00' : '#1d7a4c' });
+    if (high) S.phasePill(ctx, W / 2, 336, s, [[TA.same, 'Same early plaque', '#8a5a00'], [TA.slow, 'Plaque may keep growing'], [TA.risk, 'Higher chance of heart attack or stroke']]);
+    else S.phasePill(ctx, W / 2, 336, s, [[TA.same, 'Same early plaque', '#8a5a00'], [TA.slow, 'Plaque grows more slowly', C.green], [TA.risk, 'Lower chance of heart attack or stroke', C.green], [TA.notclean, 'Lower risk, not a perfectly clean artery', C.green]]);
+    return high ? 0.7 - 0.4 * yr : 0.7 + 0.05 * yr;
+  }
+
+  // 5. Keep going: the four habits together protect the heart and brain over time.
+  const TK = { fine: 0.4, keep: 3.1, food: 4.7, checks: 5.9, treat: 7.1, protect: 8.6 };
+  function keepGoing(ctx, p, s) {
+    M.text(ctx, 'Keep going', 480, 44, { size: 28, weight: 800 });
+    const x = 230, y = 320, sc = 96, k = ease(seg(s, TK.food, TK.protect + 1));
+    const pts = S.bodyWithBlood(ctx, x, y, sc, s, { density: lerp(0.7, 0.4, k), item: (c, px, py, on) => lipo(c, px, py, 'ldl', s, on ? 0.9 : 0.5, 0.45) });
+    S.brainBuddy(ctx, x, y - 1.98 * sc - 10, 20, lerp(0.7, 1, k), s);
+    S.heartBuddy(ctx, pts.heart[0], pts.heart[1], 18, lerp(0.7, 1, k), s);
+    M.pill(ctx, 'Feel fine? Numbers better? Keep going.', 660, 96, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TK.fine, TK.fine + 0.5) });
+    [['🥗', 'Heart-healthy food', TK.food], ['🏃', 'Regular movement', TK.food + 0.5], ['🩸', 'Checking cholesterol', TK.checks], ['📋', 'Your treatment plan', TK.treat]].forEach(([ic, t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), cx = 545 + (i % 2) * 230, cy = 176 + Math.floor(i / 2) * 110;
+      M.card(ctx, cx - 100, cy - 40, 200, 84, { r: 18, alpha: a, border: '#bfe3cf' });
+      M.emoji(ctx, ic, cx - 64, cy + 2, 28, a);
+      M.wrap(ctx, t, cx + 22, cy + 2, 120, { size: 15, weight: 800, alpha: a });
+    });
+    M.healthBar(ctx, 450, 420, 440, lerp(0.55, 0.9, k), { label: 'Heart and brain protection', right: k > 0.6 ? 'Stronger over time' : 'Building' });
+    M.pill(ctx, 'Protect your heart and brain over time', 660, 494, { size: 18, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TK.protect, TK.protect + 0.5) });
   }
 
   const sides = { left: 'Healthy LDL level', right: 'LDL stays high' };
@@ -580,6 +720,11 @@
       draw: carriers,
     },
     {
+      label: 'Triglycerides',
+      caption: 'Your blood also carries triglycerides. They are not cholesterol. They are a different kind of fat that your body uses for energy. Triglycerides ride in their own carriers, from your meals and your liver to your muscles for energy, or to fat cells to be stored.',
+      draw: triglycerides,
+    },
+    {
       label: 'Why LDL gets high',
       caption: 'Your genes, your liver, and the foods you eat all affect cholesterol levels. Some people have high LDL even when they eat healthy foods.',
       draw: whyHigh,
@@ -591,7 +736,7 @@
     },
     {
       label: 'Why testing matters',
-      caption: 'High cholesterol usually does not make you feel sick. A blood test can show your cholesterol levels, even when you feel perfectly fine.',
+      caption: 'High cholesterol usually does not make you feel sick. A blood test called a lipid panel shows your total cholesterol, LDL, HDL, and triglycerides, even when you feel perfectly fine.',
       draw: checkIt,
     },
   ];
@@ -620,32 +765,32 @@
     },
   ];
 
-  // Part 3: How can I improve my cholesterol? Each step, then what the changes add up to.
+  // Part 3: How can I protect my arteries?
   const patientScenesC = [
     {
       label: 'Healthy food',
-      caption: 'Food choices can help. Eating less saturated fat, found in foods like fried foods and fatty meats, can lower LDL. Foods with fiber, like oats, beans, fruits, and vegetables, can catch some cholesterol in your gut and carry it out of your body. Over weeks, the LDL in your blood can go down.',
+      caption: 'Small food swaps add up. Choosing more oats, beans, fruits, and vegetables, and replacing some saturated fats with healthier fats, can help lower LDL. Soluble fiber helps carry some bile acids out of your gut. Your liver then uses cholesterol to replace them, which can help remove more LDL from the blood over time. Cutting back on sugary drinks and refined carbs can help lower triglycerides.',
       draw: foodScene,
     },
     {
-      label: 'Moving more',
-      caption: 'Moving your body most days helps too. Being active can raise HDL, the helper that carries extra cholesterol back to your liver. It also helps keep your heart and blood vessels strong.',
-      draw: exerciseScene,
+      label: 'Regular movement',
+      caption: 'Regular movement helps your heart and blood vessels work well. It may modestly improve LDL, HDL, and triglycerides. It does not instantly wash plaque away, but it supports your heart health over time.',
+      draw: moveScene,
     },
     {
-      label: 'Medicine, if prescribed',
-      caption: 'Some people also need cholesterol medicine, because of their genes or their overall heart risk. If your care team prescribes it, take it every day, exactly as prescribed, even when you feel fine. Over weeks, it can lower LDL a lot.',
-      draw: medicineScene,
+      label: 'Know your numbers',
+      caption: 'Because high cholesterol usually has no warning signs, blood tests are important. Your healthcare team can look at your LDL numbers and overall risk, see whether your plan is working, and make changes when needed. If medicine is prescribed, follow your specific schedule.',
+      draw: numbersScene,
     },
     {
-      label: 'What it adds up to',
-      caption: "Healthy food choices, regular movement, and the care plan you follow with your healthcare team can help lower cholesterol. Over the years, this slows plaque growth and lowers your future risk. Plaque that's already there won't vanish overnight, so keep going.",
-      draw: S.versus({ title: 'Over the years', panel: managePanel, left: 'Lower LDL over time', right: 'LDL stays high', bar: 'Artery health' }),
+      label: 'Protecting arteries',
+      caption: 'Picture two arteries starting with the same early plaque. Over many years, a plan that keeps LDL lower can slow plaque growth and reduce the chance of a heart attack or stroke. The difference is about lowering risk, not making every artery perfectly clean.',
+      draw: S.versus({ title: 'Over many years', panel: arteryPanel, left: 'LDL kept lower', right: 'LDL stays high', bar: 'Future risk', levels: ['Lower risk', 'Some risk', 'Higher risk'] }),
     },
     {
-      label: 'Key takeaway',
-      caption: 'High cholesterol often has no warning signs. Knowing your numbers and managing your risk can help protect your heart and brain for years to come.',
-      draw: takeaway,
+      label: 'Keep going',
+      caption: 'Even when you feel fine or your numbers improve, keep following your plan. Healthy choices, regular checks, and treatment when prescribed help protect your heart and brain over time.',
+      draw: keepGoing,
     },
   ];
 
@@ -659,16 +804,17 @@
       // Three shorter videos, each around one question. length: seconds (scenes stretch to a
       // calmer pace); audio: recorded narration from tools/make-narration.py.
       videos: [
-        { title: 'What is high cholesterol?', length: 68, audio: 'audio/hyperlipidemia-a/', scenes: patientScenesA },
+        { title: 'What is high cholesterol?', length: 84, audio: 'audio/hyperlipidemia-a/', scenes: patientScenesA },
         { title: 'How high cholesterol changes your arteries', length: 56, audio: 'audio/hyperlipidemia-b/', scenes: patientScenesB },
-        { title: 'How can I lower it?', length: 100, audio: 'audio/hyperlipidemia-c/', scenes: patientScenesC },
+        { title: 'How can I protect my arteries?', length: 88, audio: 'audio/hyperlipidemia-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your body needs cholesterol. Your liver makes most of it, and lipoprotein particles such as LDL and HDL carry it in the blood.',
         'Genes, your liver, and food all affect LDL. Some people have high LDL even when they eat healthy foods.',
         'When LDL stays high for years, it can enter artery walls and slowly build up as plaque, often starting when people are young. Plaque can narrow an artery or trigger a blood clot.',
         'High cholesterol usually has no symptoms. A blood test shows your levels. Managing your risk lowers, but does not remove, the chance of a heart attack or stroke.',
-        'These videos focus on LDL. Triglycerides are a different blood fat that your care team may also check.',
+        'Triglycerides are not cholesterol. They are a different blood fat used for energy. A lipid panel checks total cholesterol, LDL, HDL, and triglycerides.',
+        'Healthy food swaps, regular movement, regular checks, and your treatment plan help keep LDL lower over years, which lowers, but does not remove, future risk.',
       ],
       questions: [
         'What are my LDL and other cholesterol numbers, and what should they be?',
@@ -682,13 +828,14 @@
         'Leg pain when walking that goes away with rest',
       ],
       quiz: [
+        { q: 'What are triglycerides?', options: ['A type of cholesterol', 'A type of fat in the blood used for energy, different from cholesterol', 'A kind of plaque'], answer: 1, explain: 'Triglycerides are a separate blood fat your body uses for energy. They ride in their own carriers, different from LDL and HDL.' },
         { q: 'Why can LDL be high?', options: ['Only from eating greasy food', 'Genes, the liver, and food can all play a part', 'Only from not exercising'], answer: 1, explain: 'LDL levels depend on your genes, how your liver makes and clears LDL, and food over time. Some people have high LDL even with healthy eating.' },
         { q: 'Where does plaque form?', options: ['Floating loose in the blood', 'Inside the artery wall', 'In the stomach'], answer: 1, explain: 'LDL particles can enter the artery wall. The body reacts, and cholesterol and immune cells build up there as plaque.' },
-        { q: 'Why get your cholesterol tested even if you feel fine?', options: ['High cholesterol usually has no symptoms', 'Tests lower your LDL', 'Only people who feel sick need tests'], answer: 0, explain: 'High cholesterol usually does not make you feel sick, so a blood test is the way to know your levels.' },
-        { q: 'How can fiber-rich foods like oats and beans help?', options: ['They turn into HDL', 'Fiber can catch some cholesterol in the gut and carry it out of the body', 'They clear plaque right away'], answer: 1, explain: 'Fiber holds on to some cholesterol so less of it gets into your blood. Over weeks, that can help lower LDL.' },
-        { q: 'Why take cholesterol medicine every day, even when you feel fine?', options: ['High LDL has no symptoms, and taking it as prescribed keeps LDL lower day after day', 'You only need it on days you feel sick', 'One dose fixes cholesterol for good'], answer: 0, explain: 'LDL harms arteries quietly over years. Keeping it lower every day, as your care team prescribed, is what lowers your risk.' },
-        { q: 'Your cholesterol number got better. Why keep up your plan?', options: ['Plaque builds over many years, and staying on track keeps lowering your future risk', 'Once the number is good, plaque is gone', 'There is no reason to keep going'], answer: 0, explain: 'Lower LDL slows new plaque, but plaque already there does not vanish overnight. Keeping LDL down for years is what lowers the risk.' },
-        { q: 'What can long-term management do?', options: ['Remove all plaque right away', 'Lower the risk of heart attack and stroke over time', 'Guarantee you never have a problem'], answer: 1, explain: 'Healthy habits and your care plan can lower LDL and slow plaque growth, which lowers your risk over time. It is risk reduction, not a guarantee.' },
+        { q: 'How can healthy food choices help LDL?', options: ['More soluble fiber, and healthier fats in place of some saturated fat, can help lower LDL over time', 'Fiber pulls LDL straight out of the blood', 'One healthy meal clears plaque'], answer: 0, explain: 'Fiber carries some bile acids out of the gut, so the liver uses cholesterol to make more and takes up more LDL from the blood. Changes show up over weeks.' },
+        { q: 'Why is moving your body worth it, even if HDL barely changes?', options: ['It helps your heart and blood vessels work well and may modestly improve blood fats', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise supports heart health in many ways. A big HDL change is not needed for it to help.' },
+        { q: 'Why get your cholesterol checked, even if you feel fine?', options: ['High cholesterol usually has no symptoms, and results show whether your plan is working', 'The test itself lowers cholesterol', 'Only people who feel sick need tests'], answer: 0, explain: 'A test gives information. Your care team uses it, with your overall risk, to set or change your plan.' },
+        { q: 'If medicine is prescribed, why follow your specific schedule?', options: ['It works as intended only when taken the way your care team prescribed', 'You can take it only when you remember', 'Taking extra works faster'], answer: 0, explain: 'Each plan is personal. Following your schedule keeps LDL where your care team is aiming, over time.' },
+        { q: 'Why does keeping LDL lower for years matter?', options: ['It removes all plaque right away', 'Less LDL over time tends to slow plaque growth and lower the chance of a heart attack or stroke', 'It guarantees you will never have a problem'], answer: 1, explain: 'It is about lowering risk over many years, not a perfectly clean artery or a guarantee.' },
       ],
     },
   });
