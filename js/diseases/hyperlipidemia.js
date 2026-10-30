@@ -182,7 +182,8 @@
 
   // Triglycerides are a different blood fat (not cholesterol) used for energy. They ride as
   // cargo inside their own carrier particles (purple, VLDL-like), never as loose fat. trig() is
-  // one triglyceride: a round head with three fatty tails.
+  // one triglyceride: a round head with three fatty tails. The carrier stands in for the
+  // particles that move them (no need to name VLDL or chylomicrons in Patient Access).
   function trig(ctx, x, y, r, alpha = 1) {
     if (alpha <= 0) return;
     ctx.save(); ctx.globalAlpha *= alpha; ctx.strokeStyle = '#e0901f'; ctx.lineWidth = Math.max(1.5, r * 0.3); ctx.lineCap = 'round';
@@ -207,12 +208,12 @@
 
   // 2b. Triglycerides: not cholesterol, a different fat used for energy. Their carriers bring
   //     them from meals and the liver to muscles (energy) or fat cells (storage).
-  const TT = { also: 0.8, not: 3.2, energy: 6.8, ride: 8.4, muscle: 12.9, store: 15 };
+  const TT = { also: 0.8, not: 3.2, energy: 6.8, ride: 8.3, muscle: 15.2, store: 16.8 };
   function triglycerides(ctx, p, s) {
     M.text(ctx, 'Triglycerides: a different blood fat', 480, 50, { size: 30, weight: 800 });
     const a0 = ease(seg(s, TT.also, TT.also + 0.6)), na = ease(seg(s, TT.not, TT.not + 0.6));
     tgCarrier(ctx, 250, 166, s, a0, 2.8);
-    M.text(ctx, 'Triglycerides ride in their own carrier', 250, 246, { size: 16, weight: 800, color: '#6a46b8', alpha: a0 });
+    M.text(ctx, 'Triglycerides travel inside tiny carriers', 250, 246, { size: 16, weight: 800, color: '#6a46b8', alpha: a0 });
     M.card(ctx, 520, 92, 380, 150, { alpha: na, r: 18, border: '#d7e0ec' });
     trig(ctx, 566, 134, 15, na);
     M.text(ctx, 'Triglyceride: a fat used for energy', 596, 134, { size: 15, weight: 800, align: 'left', alpha: seg(s, TT.energy, TT.energy + 0.5) });
@@ -223,7 +224,7 @@
     const ra = ease(seg(s, TT.ride - 0.4, TT.ride + 0.2));
     if (ra <= 0) return;
     ctx.save(); ctx.globalAlpha *= ra;
-    M.food(ctx, 'bread', 84, 318, 46, s); M.text(ctx, 'Meals', 84, 352, { size: 14, weight: 800, color: C.muted });
+    M.food(ctx, 'bread', 84, 318, 46, s); M.text(ctx, 'Food', 84, 352, { size: 14, weight: 800, color: C.muted });
     liverBuddy(ctx, 90, 440, 50, 1, s);
     M.vessel(ctx, 160, 340, 560, 110, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 60, r: 8 }] });
     ctx.strokeStyle = '#f2b8ae'; ctx.lineWidth = 16; ctx.lineCap = 'round';
@@ -490,7 +491,7 @@
   // exercise (modest changes in blood fats, a stronger heart; no plaque wash-out), knowing
   // your numbers (a test informs the plan; it does not lower cholesterol), long-term artery
   // protection (two arteries with the same early plaque over years), and keeping going.
-  // A medicine scene shows in general what cholesterol medicines do (no names or doses).
+  // A short medicine scene stays general (no names, doses, or how each one works).
   // Part 3 uses plain words ("bad cholesterol", "blood fats"); Parts 1 and 2 teach LDL, HDL,
   // and triglycerides. Measured lipids change over weeks; cardiovascular risk over years. Gauges and
   // results are labeled as examples, never as the viewer's own numbers.
@@ -684,76 +685,50 @@
     M.pill(ctx, 'Plan changed when needed', 760, 440, { size: 15, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: a6 });
   }
 
-  // 4. If medicine is prescribed: what cholesterol medicines in general do inside the body.
-  //    Different medicines work in different ways; many help the liver make less cholesterol
-  //    and pull more LDL out of the blood (more LDL "doors" on the liver). LDL in the blood
-  //    then drops a lot over weeks, but only while the medicine is taken as prescribed.
-  //    No drug names, doses, or schedules; the care team decides.
-  const TD = { need: 0.4, ways: 3.4, make: 6.5, pull: 8.5, weeks: 11, keep: 14.3 };
-  function capsule(ctx, x, y, r, a = 1, rot = -0.6) {
+  // 4. If medicine is prescribed, kept general: different medicines work in different ways to
+  //    lower bad cholesterol, and the care team explains how yours helps and how to use it.
+  //    How specific medicines work belongs in Provider Access; no names, doses, or schedules.
+  const TD = { ways: 0.1, lower: 2.8, plan: 5.5, team: 7, use: 9.7 };
+  function capsule(ctx, x, y, r, a = 1, rot = -0.6, col = '#7b61d1') {
     if (a <= 0) return;
     ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot);
     M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.fillStyle = '#ffffff'; ctx.fill();
-    ctx.save(); M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.clip(); ctx.fillStyle = '#7b61d1'; ctx.fillRect(-r, -r, r, r * 2); ctx.restore();
-    M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.strokeStyle = '#5a44a8'; ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.stroke();
+    ctx.save(); M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.clip(); ctx.fillStyle = col; ctx.fillRect(-r, -r, r, r * 2); ctx.restore();
+    M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.strokeStyle = M.mix(col, '#000000', 0.25); ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.stroke();
     ctx.restore();
   }
   function medicineScene(ctx, p, s) {
     M.text(ctx, 'If medicine is prescribed', 480, 44, { size: 28, weight: 800 });
-    const na = ease(seg(s, TD.need, TD.need + 0.6)), wa = seg(s, TD.ways, TD.ways + 0.5);
-    const make = ease(seg(s, TD.make, TD.make + 2.5)), pull = ease(seg(s, TD.pull, TD.pull + 2.5)), wk = ease(seg(s, TD.weeks, TD.weeks + 3));
-    // left: the medicine, and what it adds up to over weeks
-    M.card(ctx, 22, 74, 268, 440, { r: 20, alpha: na });
-    capsule(ctx, 156, 132, 30, na);
-    M.text(ctx, 'Cholesterol medicine', 156, 184, { size: 16, weight: 800, alpha: na });
-    M.wrap(ctx, 'Different kinds work in different ways. Your care team chooses.', 156, 222, 220, { size: 13, weight: 700, color: C.muted, alpha: wa });
-    M.text(ctx, 'Example: bad cholesterol', 156, 296, { size: 14, weight: 800, color: '#b86a00', alpha: seg(s, TD.weeks - 0.4, TD.weeks + 0.2) });
-    [['Start', 0.85], ['Weeks later', lerp(0.85, 0.4, wk)]].forEach(([t, v], i) => {
-      const y = 332 + i * 40, a = seg(s, TD.weeks - 0.4 + i * 0.6, TD.weeks + 0.2 + i * 0.6);
-      M.text(ctx, t, 44, y, { size: 13, weight: 800, align: 'left', alpha: a });
-      ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, 136, y - 7, 136, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
-      M.rr(ctx, 136, y - 7, 136 * v, 14, 7); ctx.fillStyle = i ? C.green : '#f08c00'; ctx.fill(); ctx.restore();
+    // different medicines, different ways
+    const wa = ease(seg(s, TD.ways, TD.ways + 0.6));
+    M.card(ctx, 22, 74, 290, 196, { r: 20, alpha: wa });
+    [['#7b61d1', -0.6], ['#2f9fa8', 0.3], ['#e98a3a', -0.2]].forEach(([col, rot], i) =>
+      capsule(ctx, 86 + i * 80, 140 + Math.sin(s * 2 + i) * 4, 24, seg(s, TD.ways + i * 0.4, TD.ways + i * 0.4 + 0.5), rot, col));
+    M.text(ctx, 'Different medicines', 167, 206, { size: 16, weight: 800, alpha: wa });
+    M.text(ctx, 'work in different ways', 167, 230, { size: 16, weight: 800, alpha: wa });
+    // the shared goal: less bad cholesterol in the blood over time
+    const la = seg(s, TD.lower, TD.lower + 0.5), wk = ease(seg(s, TD.lower, TD.lower + 4));
+    M.text(ctx, 'Bad cholesterol (LDL) in the blood', 636, 92, { size: 14, weight: 800, color: '#b3453c' });
+    M.vessel(ctx, 340, 104, 590, 96, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 50, r: 7 }] });
+    const nL = lerp(8, 3, wk);
+    for (let i = 0; i < nL; i++) lipo(ctx, 354 + wrapX(rnd(i + 110) * 562 + s * 50, 562), 130 + (i % 2) * 40, 'ldl', s, fadeIn(nL, i));
+    M.pill(ctx, 'Goal: lower bad cholesterol', 636, 232, { size: 16, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: la });
+    M.text(ctx, 'It is one part of your treatment plan', 636, 260, { size: 13, weight: 700, color: C.muted, alpha: seg(s, TD.plan, TD.plan + 0.5) });
+    // your care team explains how it helps and how to use it
+    const ta = ease(seg(s, TD.team - 0.6, TD.team));
+    M.card(ctx, 22, 290, 916, 228, { r: 20, alpha: ta });
+    M.person(ctx, 140, 424, 42, { look: { shirt: '#ffffff', shirtShade: '#dbe4ef', pants: '#5a6f94', hair: '#2f2a28', skin: '#c99272', skinShade: '#b47e60' }, t: s, alpha: ta });
+    ctx.save(); ctx.globalAlpha *= ta; ctx.strokeStyle = '#3b4a5e'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(128, 374); ctx.quadraticCurveTo(120, 408, 140, 414); ctx.quadraticCurveTo(160, 408, 152, 374); ctx.stroke(); M.dot(ctx, 140, 416, 4, '#3b4a5e'); ctx.restore();
+    M.person(ctx, 290, 428, 40, { t: s + 1, alpha: ta });
+    M.text(ctx, 'Your care team', 140, 506, { size: 13, weight: 800, color: C.muted, alpha: ta });
+    M.text(ctx, 'You', 290, 506, { size: 13, weight: 800, color: C.muted, alpha: ta });
+    [['💬', 'How your medicine helps', TD.team], ['✅', 'How to use it correctly', TD.use]].forEach(([ic, t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), y = 352 + i * 70;
+      M.card(ctx, 420, y - 28, 470, 56, { r: 16, alpha: a, border: '#bfe3cf' });
+      M.emoji(ctx, ic, 452, y, 26, a);
+      M.text(ctx, t, 480, y, { size: 18, weight: 800, align: 'left', alpha: a });
     });
-    M.wrap(ctx, 'It keeps working only while you take it as prescribed', 156, 452, 220, { size: 14, weight: 800, color: M.C.blue, alpha: seg(s, TD.keep, TD.keep + 0.5) });
-    // medicine travels to the liver
-    for (let i = 0; i < 4; i++) {
-      const q = wrapX(s * 0.3 + i / 4, 1), a = na * seg(s, TD.need + 0.6, TD.need + 1.2) * (1 - seg(q, 0.85, 1));
-      capsule(ctx, lerp(300, 430, q), lerp(150, 230, q) - Math.sin(q * Math.PI) * 20, 7, a, s * 2 + i);
-    }
-    // right: the liver makes less cholesterol (fewer puffs leave it) ...
-    const lx = 520, ly = 250;
-    liverBuddy(ctx, lx, ly, 104, lerp(0.85, 1, pull), s);
-    M.text(ctx, 'Liver', lx - 30, ly - 66, { size: 15, weight: 800, color: '#a4523f' });
-    const nMake = lerp(5, 1.5, make);
-    for (let i = 0; i < nMake; i++) {
-      const q = wrapX(s * 0.25 + i / 5, 1);
-      M.cholesterol(ctx, lerp(600, 900, q), 210 - Math.sin(q * 3 + i) * 18, 8, fadeIn(nMake, i) * (1 - seg(q, 0.85, 1)), s + i);
-    }
-    // ... and grows more LDL "doors" that pull bad cholesterol in from the blood
-    const nDoor = lerp(2, 6, pull);
-    for (let i = 0; i < 6; i++) {
-      const a = Math.max(0, Math.min(1, nDoor - i)), dx = 470 + i * 22, dy = ly + 46 - Math.abs(i - 2.5) * 4;
-      if (a <= 0) continue;
-      ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = '#6d2f22'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.arc(dx, dy + 6, 6, Math.PI, 0, true); ctx.stroke(); ctx.restore();
-    }
-    const nIn = lerp(1, 5, pull);
-    for (let i = 0; i < nIn; i++) {
-      const q = wrapX(s * 0.4 + i / 5, 1), dx = 470 + (i % 6) * 22;
-      lipo(ctx, lerp(dx + 30, dx, q), lerp(440, ly + 58, q), 'ldl', s, fadeIn(nIn, i) * (1 - seg(q, 0.85, 1)), 0.7);
-    }
-    // the blood: much less LDL over weeks
-    M.text(ctx, 'Bad cholesterol (LDL) in the blood', 760, 400, { size: 14, weight: 800, color: '#b3453c' });
-    M.vessel(ctx, 330, 412, 600, 92, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 50, r: 7 }] });
-    const nL = lerp(9, 3, wk);
-    for (let i = 0; i < nL; i++) lipo(ctx, 344 + wrapX(rnd(i + 110) * 572 + s * 50, 572), 438 + (i % 2) * 34, 'ldl', s, fadeIn(nL, i));
-    const step = (n, t, x, y, at, col) => {
-      const a = seg(s, at, at + 0.5), on = s < at + 3.5;
-      if (a > 0) M.pill(ctx, `${n}  ${t}`, x, y, { size: 14, bg: on ? col : '#fff', border: col, color: on ? '#fff' : col, alpha: a });
-    };
-    step(1, 'Liver makes less cholesterol', 790, 158, TD.make, '#a4523f');
-    step(2, 'Liver pulls more bad cholesterol from the blood', 700, 352, TD.pull, '#c0392b');
-    step(3, 'Over weeks, much less bad cholesterol', 630, 528, TD.weeks, '#1f4fa8');
   }
 
   // 5. Long-term artery protection: two arteries start with the same early plaque. Over years,
@@ -811,7 +786,7 @@
     },
     {
       label: 'Triglycerides',
-      caption: 'Your blood also carries triglycerides. They are not cholesterol. They are a different kind of fat that your body uses for energy. Triglycerides ride in their own carriers, from your meals and your liver to your muscles for energy, or to fat cells to be stored.',
+      caption: 'Your blood also carries triglycerides. They are not cholesterol. They are a different kind of fat that your body uses for energy. Triglycerides travel through your blood inside tiny carrier particles. They help deliver fat from food and the liver to muscles for energy or to fat cells for storage.',
       draw: triglycerides,
     },
     {
@@ -874,7 +849,7 @@
     },
     {
       label: 'Medicine, if prescribed',
-      caption: 'Some people also need medicine to lower cholesterol. Different medicines work in different ways. Many help your liver make less cholesterol and pull more bad cholesterol out of your blood. Over a few weeks, bad cholesterol can drop a lot, but it only keeps working if you take it as prescribed.',
+      caption: 'Different cholesterol medicines work in different ways to lower bad cholesterol. If medicine is part of your treatment plan, your healthcare team can explain how it helps and how to use it correctly.',
       draw: medicineScene,
     },
     {
@@ -901,7 +876,7 @@
       videos: [
         { title: 'What is high cholesterol?', length: 84, audio: 'audio/hyperlipidemia-a/', scenes: patientScenesA },
         { title: 'How high cholesterol changes your arteries', length: 56, audio: 'audio/hyperlipidemia-b/', scenes: patientScenesB },
-        { title: 'How can I protect my arteries?', length: 104, audio: 'audio/hyperlipidemia-c/', scenes: patientScenesC },
+        { title: 'How can I protect my arteries?', length: 98, audio: 'audio/hyperlipidemia-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your body needs cholesterol. Your liver makes most of it, and lipoprotein particles such as LDL and HDL carry it in the blood.',
@@ -923,15 +898,11 @@
         'Leg pain when walking that goes away with rest',
       ],
       quiz: [
-        { q: 'What are triglycerides?', options: ['A type of cholesterol', 'A type of fat in the blood used for energy, different from cholesterol', 'A kind of plaque'], answer: 1, explain: 'Triglycerides are a separate blood fat your body uses for energy. They ride in their own carriers, different from LDL and HDL.' },
-        { q: 'Why can LDL be high?', options: ['Only from eating greasy food', 'Genes, the liver, and food can all play a part', 'Only from not exercising'], answer: 1, explain: 'LDL levels depend on your genes, how your liver makes and clears LDL, and food over time. Some people have high LDL even with healthy eating.' },
-        { q: 'Where does plaque form?', options: ['Floating loose in the blood', 'Inside the artery wall', 'In the stomach'], answer: 1, explain: 'LDL particles can enter the artery wall. The body reacts, and cholesterol and immune cells build up there as plaque.' },
-        { q: 'How can healthy food choices help your bad cholesterol (LDL)?', options: ['More soluble fiber, and healthier fats in place of some saturated fat, can help lower it over time', 'Fiber pulls bad cholesterol straight out of the blood', 'One healthy meal clears plaque'], answer: 0, explain: 'Fiber carries some bile acids out of the gut, so the liver uses cholesterol to make more and takes up more LDL from the blood. Changes show up over weeks.' },
-        { q: 'Why is exercise worth it, even if your bad cholesterol changes only a little?', options: ['It can improve blood fats like triglycerides and supports a healthy heart', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise often lowers triglycerides more than bad cholesterol, and it supports your heart in many other ways.' },
+        { q: 'What are triglycerides, and how are they different from LDL and HDL?', options: ['They are all the same kind of cholesterol', 'Triglycerides are a type of fat in the blood used for energy, different from cholesterol. LDL and HDL carry cholesterol.', 'Triglycerides are a kind of good cholesterol'], answer: 1, explain: 'LDL carries cholesterol out through the blood, and HDL helps bring extra back to the liver. Triglycerides are a separate blood fat used for energy.' },
+        { q: 'Why can high LDL lead to plaque?', options: ['When LDL stays high for years, more of it can enter the artery wall, where the body reacts and plaque builds up', 'LDL sticks to the outside of the heart', 'Plaque forms in the stomach'], answer: 0, explain: 'More LDL in the blood for a long time means more particles slip into the artery wall. Plaque grows there slowly, over many years.' },
+        { q: 'How do healthy food and exercise help?', options: ['Fiber-rich foods and healthier fats can help lower bad cholesterol, and exercise improves blood fats like triglycerides', 'They clear plaque right away', 'They only matter for weight'], answer: 0, explain: 'Food swaps help lower bad cholesterol over weeks, and exercise improves blood fats and supports a healthy heart.' },
         { q: 'Why get your cholesterol checked, even if you feel fine?', options: ['High cholesterol usually has no symptoms, and results show whether your plan is working', 'The test itself lowers cholesterol', 'Only people who feel sick need tests'], answer: 0, explain: 'A test gives information. Your care team uses it, with your overall risk, to set or change your plan.' },
-        { q: 'What do many cholesterol medicines do inside the body?', options: ['Help the liver make less cholesterol and pull more bad cholesterol out of the blood', 'Wash plaque out of the arteries right away', 'Turn bad cholesterol into good cholesterol'], answer: 0, explain: 'Different medicines work in different ways, but many lower bad cholesterol by working with the liver. The effect lasts only while you keep taking it as prescribed.' },
-        { q: 'If medicine is prescribed, why follow your specific schedule?', options: ['It works as intended only when taken the way your care team prescribed', 'You can take it only when you remember', 'Taking extra works faster'], answer: 0, explain: 'Each plan is personal. Following your schedule keeps LDL where your care team is aiming, over time.' },
-        { q: 'Why does keeping bad cholesterol lower for years matter?', options: ['It removes all plaque right away', 'It helps reduce plaque buildup and lowers the risk of heart disease', 'It guarantees you will never have a problem'], answer: 1, explain: 'It is about lowering risk over many years, not a perfectly clean artery or a guarantee.' },
+        { q: 'Your numbers got better. Why keep up your plan?', options: ['Plaque builds over many years, and keeping bad cholesterol lower keeps lowering your future risk', 'Once the numbers are good, plaque is gone', 'There is no reason to keep going'], answer: 0, explain: 'Plaque already there does not vanish, and numbers can rise again. Staying on your plan for years is what lowers the risk.' },
       ],
     },
   });
