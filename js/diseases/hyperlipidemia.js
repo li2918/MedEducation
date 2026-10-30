@@ -490,7 +490,8 @@
   // exercise (modest changes in blood fats, a stronger heart; no plaque wash-out), knowing
   // your numbers (a test informs the plan; it does not lower cholesterol), long-term artery
   // protection (two arteries with the same early plaque over years), and keeping going.
-  // Measured lipids change over weeks; cardiovascular risk changes over years. Gauges and
+  // Part 3 uses plain words ("bad cholesterol", "blood fats"); Parts 1 and 2 teach LDL, HDL,
+  // and triglycerides. Measured lipids change over weeks; cardiovascular risk over years. Gauges and
   // results are labeled as examples, never as the viewer's own numbers.
   const fadeIn = (n, i) => Math.min(1, n - i); // item i of a fractional count n
   const bileAcid = (ctx, x, y, a = 1) => { M.dot(ctx, x, y, 6, '#8bc34a', a); M.dot(ctx, x - 2, y - 2, 2, '#ffffff', a * 0.7); };
@@ -500,7 +501,7 @@
   // 1. Healthy food. Swaps add up. In the gut, soluble fiber carries some bile acids out; the
   //    liver then uses cholesterol to make new ones and pulls more LDL in from the blood.
   //    Fiber never grabs LDL from the bloodstream.
-  const TF = { fiber: 2.2, fats: 5.6, bind: 10.5, liver: 14.6, remove: 17.6, tg: 21.1 };
+  const TF = { fiber: 5, fats: 8.2, bind: 11.4, liver: 15.9, remove: 18.7, tg: 22 };
   function foodScene(ctx, p, s) {
     M.text(ctx, 'Healthy food', 480, 44, { size: 28, weight: 800 });
     // small swaps
@@ -558,7 +559,7 @@
       M.text(ctx, 'Cholesterol →', 350, 384, { size: 13, weight: 800, color: '#a4523f', alpha: la });
       M.text(ctx, 'new bile acids', 350, 402, { size: 13, weight: 800, color: '#a4523f', alpha: la });
     }
-    M.text(ctx, 'LDL in the blood', 560, 412, { size: 14, weight: 800, color: '#b3453c' });
+    M.text(ctx, 'Bad cholesterol (LDL) in the blood', 610, 412, { size: 14, weight: 800, color: '#b3453c' });
     M.vessel(ctx, 470, 424, 460, 86, { t: s, wall: 12, items: [{ kind: 'rbc', n: 5, speed: 50, r: 7 }] });
     const nL = lerp(7, 4, wk);
     for (let i = 0; i < nL; i++) {
@@ -567,12 +568,12 @@
       lipo(ctx, into && q > 0.85 ? lerp(480, 440, seg(q, 0.85, 1)) : x, into && q > 0.85 ? lerp(y, 360, seg(q, 0.85, 1)) : y, 'ldl', s, fadeIn(nL, i) * (1 - seg(q, 0.95, 1)));
     }
     M.arrow(ctx, 470, 430, 430, 376, { color: '#a4523f', width: 3, head: 8, alpha: seg(s, TF.remove, TF.remove + 0.5) });
-    M.text(ctx, 'LDL slowly goes down over weeks', 700, 528, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TF.remove + 1, TF.remove + 1.6) });
+    M.text(ctx, 'Bad cholesterol slowly goes down over weeks', 700, 528, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TF.remove + 1, TF.remove + 1.6) });
   }
 
-  // 2. Regular exercise: a stronger heart and vessels, and modest changes in blood fats. It
-  //    does not wash plaque away.
-  const TE = { heart: 0.4, fats: 3.9, plaque: 9.5, support: 11.8 };
+  // 2. Regular exercise improves blood fats, triglycerides most clearly (bad cholesterol usually
+  //    only a little), and supports a healthy heart. It does not wash plaque away.
+  const TE = { heart: 0.4, fats: 1.3, plaque: 6.9, support: 9.4 };
   function moveScene(ctx, p, s) {
     M.text(ctx, 'Regular exercise', 480, 44, { size: 28, weight: 800 });
     ctx.fillStyle = '#c9e7b5'; ctx.fillRect(30, 470, 250, 12);
@@ -583,19 +584,19 @@
     S.heartBuddy(ctx, 430, 170, 50 * ha + 0.01, 1, s);
     M.pill(ctx, 'Heart and vessels work well', 430, 96, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: ha });
     M.vessel(ctx, 320, 290, 610, 110, { t: s, wall: 12, items: [{ kind: 'rbc', n: 8, speed: 80, r: 8 }], alpha: ha });
-    const nL = lerp(5, 4.3, k), nH = lerp(3, 3.4, k), nT = lerp(4, 3.2, k);
+    const nL = lerp(5, 4.7, k), nH = lerp(3, 3.3, k), nT = lerp(4.5, 2.5, k);
     for (let i = 0; i < nL; i++) lipo(ctx, 330 + wrapX(rnd(i + 60) * 590 + s * 60, 590), 318 + (i % 3) * 26, 'ldl', s, ha * fadeIn(nL, i));
     for (let i = 0; i < nH; i++) lipo(ctx, 330 + wrapX(rnd(i + 70) * 590 + s * 50, 590), 330 + (i % 2) * 40, 'hdl', s, ha * fadeIn(nH, i));
     for (let i = 0; i < nT; i++) tgCarrier(ctx, 330 + wrapX(rnd(i + 80) * 590 + s * 55, 590), 340 + (i % 2) * 30, s, ha * fadeIn(nT, i), 0.8);
     // modest changes, not big guaranteed ones
     const fa = seg(s, TE.fats, TE.fats + 0.6);
     M.card(ctx, 590, 78, 340, 190, { r: 18, alpha: fa });
-    M.text(ctx, 'May improve a little', 760, 102, { size: 15, weight: 800, color: C.muted, alpha: fa });
-    [['LDL', 0.62, 0.56, '#f08c00'], ['HDL', 0.45, 0.5, '#2fb380'], ['Triglycerides', 0.6, 0.52, '#8a63d2']].forEach(([t, a, b, col], i) => {
+    M.text(ctx, 'Exercise improves blood fats', 760, 102, { size: 15, weight: 800, color: C.muted, alpha: fa });
+    [['Triglycerides', 0.66, 0.44, '#8a63d2'], ['Good cholesterol', 0.45, 0.5, '#2fb380'], ['Bad cholesterol', 0.62, 0.59, '#f08c00']].forEach(([t, a, b, col], i) => {
       const y = 140 + i * 42, v = lerp(a, b, k);
       M.text(ctx, t, 610, y, { size: 14, weight: 800, align: 'left', alpha: fa });
-      ctx.save(); ctx.globalAlpha *= fa; M.rr(ctx, 730, y - 7, 180, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
-      M.rr(ctx, 730, y - 7, 180 * v, 14, 7); ctx.fillStyle = col; ctx.fill(); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= fa; M.rr(ctx, 760, y - 7, 150, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+      M.rr(ctx, 760, y - 7, 150 * v, 14, 7); ctx.fillStyle = col; ctx.fill(); ctx.restore();
     });
     // existing plaque stays: no instant wash-out
     const pa = seg(s, TE.plaque, TE.plaque + 0.6);
@@ -607,7 +608,7 @@
   // 3. Know your numbers: a blood test gives information, the care team reviews it with your
   //    overall risk, sets or adjusts the plan, and a follow-up test shows if it is working.
   //    Medicine is one possible part of a plan, on its own schedule. No names or doses.
-  const TN = { test: 3.6, ldl: 4.6, team: 5.4, risk: 8, working: 9.1, change: 11, medicine: 12.9 };
+  const TN = { test: 3.5, ldl: 4.4, team: 5.4, risk: 8.1, working: 9.1, change: 11.1, medicine: 13 };
   function numbersScene(ctx, p, s) {
     M.text(ctx, 'Know your numbers', 480, 44, { size: 28, weight: 800 });
     const st = (at) => ease(seg(s, at - 0.5, at + 0.1));
@@ -641,7 +642,7 @@
     M.person(ctx, 589, 238, 40, { look: { shirt: '#ffffff', shirtShade: '#dbe4ef', pants: '#5a6f94', hair: '#2f2a28', skin: '#c99272', skinShade: '#b47e60' }, t: s, alpha: a3 });
     ctx.save(); ctx.globalAlpha *= a3; ctx.strokeStyle = '#3b4a5e'; ctx.lineWidth = 2.5;
     ctx.beginPath(); ctx.moveTo(578, 190); ctx.quadraticCurveTo(570, 222, 589, 228); ctx.quadraticCurveTo(608, 222, 600, 190); ctx.stroke(); M.dot(ctx, 589, 230, 4, '#3b4a5e'); ctx.restore();
-    M.pill(ctx, 'LDL + overall risk', 589, 312, { size: 13, bg: '#fff', border: '#c8d6ee', alpha: seg(s, TN.risk, TN.risk + 0.5) });
+    M.pill(ctx, 'Your numbers + overall risk', 589, 312, { size: 13, bg: '#fff', border: '#c8d6ee', alpha: seg(s, TN.risk, TN.risk + 0.5) });
     // 4 the plan
     const a4 = st(TN.working);
     M.card(ctx, 714, 78, 222, 250, { r: 18, alpha: a4 });
@@ -656,9 +657,10 @@
     const a5 = ease(seg(s, TN.working - 0.3, TN.working + 0.4));
     M.card(ctx, 244, 360, 300, 150, { r: 18, alpha: a5, border: C.green });
     M.text(ctx, 'Follow-up test, weeks later', 394, 386, { size: 15, weight: 800, alpha: a5 });
-    M.text(ctx, 'LDL', 270, 430, { size: 14, weight: 800, align: 'left', alpha: a5 });
-    ctx.save(); ctx.globalAlpha *= a5; M.rr(ctx, 320, 424, 200, 12, 6); ctx.fillStyle = '#e3e9f2'; ctx.fill();
-    M.rr(ctx, 320, 424, 200 * lerp(0.82, 0.55, ease(seg(s, TN.working, TN.working + 2))), 12, 6); ctx.fillStyle = C.green; ctx.fill(); ctx.restore();
+    M.text(ctx, 'Bad', 270, 422, { size: 13, weight: 800, align: 'left', alpha: a5 });
+    M.text(ctx, 'cholesterol', 270, 438, { size: 13, weight: 800, align: 'left', alpha: a5 });
+    ctx.save(); ctx.globalAlpha *= a5; M.rr(ctx, 350, 424, 170, 12, 6); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    M.rr(ctx, 350, 424, 170 * lerp(0.82, 0.55, ease(seg(s, TN.working, TN.working + 2))), 12, 6); ctx.fillStyle = C.green; ctx.fill(); ctx.restore();
     M.text(ctx, 'Is the plan working?', 394, 476, { size: 14, weight: 800, color: '#1d7a4c', alpha: a5 });
     const a6 = seg(s, TN.change, TN.change + 0.6);
     ctx.save(); ctx.globalAlpha *= a6; ctx.setLineDash([6, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 3;
@@ -670,7 +672,7 @@
   //    keeping LDL lower tends to slow plaque growth and lower risk; LDL that stays high gives
   //    plaque more chance to grow. Illustrative, not a promise: the lower-LDL artery keeps some
   //    plaque, and neither side shows numbers.
-  const TA = { same: 1.3, years: 3.7, slow: 7.1, risk: 8.5, notclean: 11.3 };
+  const TA = { same: 1.2, years: 3.6, slow: 6.3, risk: 8, notclean: 9.9 };
   function arteryPanel(ctx, p, s, high, W) {
     const yr = ease(seg(s, TA.years, TA.years + 7));
     timeline(ctx, 60, 44, W - 120, yr, 'Over many years', high ? C.amber : C.green);
@@ -680,14 +682,14 @@
     M.vessel(ctx, 30, 254, W - 60, 42, { t: s, wall: 8, items: [] });
     const n = high ? 7 : 2.5;
     for (let i = 0; i < n; i++) lipo(ctx, 44 + wrapX(rnd(i + 90) * (W - 88) + s * 45, W - 88), 275, 'ldl', s, fadeIn(n, i), 0.8);
-    M.text(ctx, high ? 'LDL stays high' : 'LDL kept lower', W / 2, 312, { size: 13, weight: 800, color: high ? '#b86a00' : '#1d7a4c' });
+    M.text(ctx, high ? 'Bad cholesterol stays high' : 'Lower bad cholesterol', W / 2, 312, { size: 13, weight: 800, color: high ? '#b86a00' : '#1d7a4c' });
     if (high) S.phasePill(ctx, W / 2, 336, s, [[TA.same, 'Same early plaque', '#8a5a00'], [TA.slow, 'Plaque may keep growing'], [TA.risk, 'Higher chance of heart attack or stroke']]);
     else S.phasePill(ctx, W / 2, 336, s, [[TA.same, 'Same early plaque', '#8a5a00'], [TA.slow, 'Plaque grows more slowly', C.green], [TA.risk, 'Lower chance of heart attack or stroke', C.green], [TA.notclean, 'Lower risk, not a perfectly clean artery', C.green]]);
     return high ? 0.7 - 0.4 * yr : 0.7 + 0.05 * yr;
   }
 
   // 5. Keep going: the four habits together protect the heart and brain over time.
-  const TK = { fine: 0.4, keep: 3.1, food: 4.7, checks: 5.9, treat: 7.1, protect: 8.6 };
+  const TK = { food: 0.3, checks: 2.8, treat: 3.2, fine: 7.8, protect: 11.1 };
   function keepGoing(ctx, p, s) {
     M.text(ctx, 'Keep going', 480, 44, { size: 28, weight: 800 });
     const x = 230, y = 320, sc = 96, k = ease(seg(s, TK.food, TK.protect + 1));
@@ -769,27 +771,27 @@
   const patientScenesC = [
     {
       label: 'Healthy food',
-      caption: 'Small food swaps add up. Choosing more oats, beans, fruits, and vegetables, and replacing some saturated fats with healthier fats, can help lower LDL. Soluble fiber helps carry some bile acids out of your gut. Your liver then uses cholesterol to replace them, which can help remove more LDL from the blood over time. Cutting back on sugary drinks and refined carbs can help lower triglycerides.',
+      caption: 'Healthy food choices can help lower your bad cholesterol, also called LDL. Choose more oats, beans, fruits, and vegetables, and swap some saturated fats for healthier fats. Soluble fiber helps carry some bile acids out of your gut. Your liver then uses cholesterol to replace them, which helps clear more bad cholesterol from your blood over time. Cutting back on sugary drinks and refined carbs can help lower triglycerides.',
       draw: foodScene,
     },
     {
       label: 'Regular exercise',
-      caption: 'Regular exercise helps your heart and blood vessels work well. It may modestly improve LDL, HDL, and triglycerides. It does not instantly wash plaque away, but it supports your heart health over time.',
+      caption: 'Regular exercise can improve your blood fat levels, including triglycerides, and support a healthy heart. It does not instantly wash plaque away, but it helps your heart health over time.',
       draw: moveScene,
     },
     {
       label: 'Know your numbers',
-      caption: 'Because high cholesterol usually has no warning signs, blood tests are important. Your healthcare team can look at your LDL numbers and overall risk, see whether your plan is working, and make changes when needed. If medicine is prescribed, follow your specific schedule.',
+      caption: 'Because high cholesterol usually has no warning signs, blood tests are important. Your healthcare team can look at your cholesterol numbers and overall risk, see whether your plan is working, and make changes when needed. If medicine is prescribed, follow your specific schedule.',
       draw: numbersScene,
     },
     {
       label: 'Protecting arteries',
-      caption: 'Picture two arteries starting with the same early plaque. Over many years, a plan that keeps LDL lower can slow plaque growth and reduce the chance of a heart attack or stroke. The difference is about lowering risk, not making every artery perfectly clean.',
-      draw: S.versus({ title: 'Over many years', panel: arteryPanel, left: 'LDL kept lower', right: 'LDL stays high', bar: 'Future risk', levels: ['Lower risk', 'Some risk', 'Higher risk'] }),
+      caption: "Picture two arteries starting with the same early plaque. Keeping your bad cholesterol lower over time helps reduce plaque buildup and the risk of heart disease. It's about lowering risk, not making every artery perfectly clean.",
+      draw: S.versus({ title: 'Over many years', panel: arteryPanel, left: 'Lower bad cholesterol', right: 'High bad cholesterol', bar: 'Future risk', levels: ['Lower risk', 'Some risk', 'Higher risk'] }),
     },
     {
       label: 'Keep going',
-      caption: 'Even when you feel fine or your numbers improve, keep following your plan. Healthy choices, regular checks, and treatment when prescribed help protect your heart and brain over time.',
+      caption: 'Healthy eating, regular exercise, and following your care plan can help improve your cholesterol and triglyceride levels. Even when you feel fine or your numbers improve, keep going to protect your heart and brain over time.',
       draw: keepGoing,
     },
   ];
@@ -831,11 +833,11 @@
         { q: 'What are triglycerides?', options: ['A type of cholesterol', 'A type of fat in the blood used for energy, different from cholesterol', 'A kind of plaque'], answer: 1, explain: 'Triglycerides are a separate blood fat your body uses for energy. They ride in their own carriers, different from LDL and HDL.' },
         { q: 'Why can LDL be high?', options: ['Only from eating greasy food', 'Genes, the liver, and food can all play a part', 'Only from not exercising'], answer: 1, explain: 'LDL levels depend on your genes, how your liver makes and clears LDL, and food over time. Some people have high LDL even with healthy eating.' },
         { q: 'Where does plaque form?', options: ['Floating loose in the blood', 'Inside the artery wall', 'In the stomach'], answer: 1, explain: 'LDL particles can enter the artery wall. The body reacts, and cholesterol and immune cells build up there as plaque.' },
-        { q: 'How can healthy food choices help LDL?', options: ['More soluble fiber, and healthier fats in place of some saturated fat, can help lower LDL over time', 'Fiber pulls LDL straight out of the blood', 'One healthy meal clears plaque'], answer: 0, explain: 'Fiber carries some bile acids out of the gut, so the liver uses cholesterol to make more and takes up more LDL from the blood. Changes show up over weeks.' },
-        { q: 'Why is exercise worth it, even if HDL barely changes?', options: ['It helps your heart and blood vessels work well and may modestly improve blood fats', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise supports heart health in many ways. A big HDL change is not needed for it to help.' },
+        { q: 'How can healthy food choices help your bad cholesterol (LDL)?', options: ['More soluble fiber, and healthier fats in place of some saturated fat, can help lower it over time', 'Fiber pulls bad cholesterol straight out of the blood', 'One healthy meal clears plaque'], answer: 0, explain: 'Fiber carries some bile acids out of the gut, so the liver uses cholesterol to make more and takes up more LDL from the blood. Changes show up over weeks.' },
+        { q: 'Why is exercise worth it, even if your bad cholesterol changes only a little?', options: ['It can improve blood fats like triglycerides and supports a healthy heart', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise often lowers triglycerides more than bad cholesterol, and it supports your heart in many other ways.' },
         { q: 'Why get your cholesterol checked, even if you feel fine?', options: ['High cholesterol usually has no symptoms, and results show whether your plan is working', 'The test itself lowers cholesterol', 'Only people who feel sick need tests'], answer: 0, explain: 'A test gives information. Your care team uses it, with your overall risk, to set or change your plan.' },
         { q: 'If medicine is prescribed, why follow your specific schedule?', options: ['It works as intended only when taken the way your care team prescribed', 'You can take it only when you remember', 'Taking extra works faster'], answer: 0, explain: 'Each plan is personal. Following your schedule keeps LDL where your care team is aiming, over time.' },
-        { q: 'Why does keeping LDL lower for years matter?', options: ['It removes all plaque right away', 'Less LDL over time tends to slow plaque growth and lower the chance of a heart attack or stroke', 'It guarantees you will never have a problem'], answer: 1, explain: 'It is about lowering risk over many years, not a perfectly clean artery or a guarantee.' },
+        { q: 'Why does keeping bad cholesterol lower for years matter?', options: ['It removes all plaque right away', 'It helps reduce plaque buildup and lowers the risk of heart disease', 'It guarantees you will never have a problem'], answer: 1, explain: 'It is about lowering risk over many years, not a perfectly clean artery or a guarantee.' },
       ],
     },
   });
