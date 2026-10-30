@@ -485,11 +485,12 @@
   }
 
   // ---- Part 3: How can I protect my arteries? ---------------------------------------------
-  // Five connected scenes that show what each step changes inside the body: food (healthier
+  // Six connected scenes that show what each step changes inside the body: food (healthier
   // fats and soluble fiber, which carries bile acids out so the liver pulls in more LDL),
   // exercise (modest changes in blood fats, a stronger heart; no plaque wash-out), knowing
   // your numbers (a test informs the plan; it does not lower cholesterol), long-term artery
   // protection (two arteries with the same early plaque over years), and keeping going.
+  // A medicine scene shows in general what cholesterol medicines do (no names or doses).
   // Part 3 uses plain words ("bad cholesterol", "blood fats"); Parts 1 and 2 teach LDL, HDL,
   // and triglycerides. Measured lipids change over weeks; cardiovascular risk over years. Gauges and
   // results are labeled as examples, never as the viewer's own numbers.
@@ -683,7 +684,79 @@
     M.pill(ctx, 'Plan changed when needed', 760, 440, { size: 15, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: a6 });
   }
 
-  // 4. Long-term artery protection: two arteries start with the same early plaque. Over years,
+  // 4. If medicine is prescribed: what cholesterol medicines in general do inside the body.
+  //    Different medicines work in different ways; many help the liver make less cholesterol
+  //    and pull more LDL out of the blood (more LDL "doors" on the liver). LDL in the blood
+  //    then drops a lot over weeks, but only while the medicine is taken as prescribed.
+  //    No drug names, doses, or schedules; the care team decides.
+  const TD = { need: 0.4, ways: 3.4, make: 6.5, pull: 8.5, weeks: 11, keep: 14.3 };
+  function capsule(ctx, x, y, r, a = 1, rot = -0.6) {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(rot);
+    M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.save(); M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.clip(); ctx.fillStyle = '#7b61d1'; ctx.fillRect(-r, -r, r, r * 2); ctx.restore();
+    M.rr(ctx, -r, -r * 0.45, r * 2, r * 0.9, r * 0.45); ctx.strokeStyle = '#5a44a8'; ctx.lineWidth = Math.max(1.5, r * 0.12); ctx.stroke();
+    ctx.restore();
+  }
+  function medicineScene(ctx, p, s) {
+    M.text(ctx, 'If medicine is prescribed', 480, 44, { size: 28, weight: 800 });
+    const na = ease(seg(s, TD.need, TD.need + 0.6)), wa = seg(s, TD.ways, TD.ways + 0.5);
+    const make = ease(seg(s, TD.make, TD.make + 2.5)), pull = ease(seg(s, TD.pull, TD.pull + 2.5)), wk = ease(seg(s, TD.weeks, TD.weeks + 3));
+    // left: the medicine, and what it adds up to over weeks
+    M.card(ctx, 22, 74, 268, 440, { r: 20, alpha: na });
+    capsule(ctx, 156, 132, 30, na);
+    M.text(ctx, 'Cholesterol medicine', 156, 184, { size: 16, weight: 800, alpha: na });
+    M.wrap(ctx, 'Different kinds work in different ways. Your care team chooses.', 156, 222, 220, { size: 13, weight: 700, color: C.muted, alpha: wa });
+    M.text(ctx, 'Example: bad cholesterol', 156, 296, { size: 14, weight: 800, color: '#b86a00', alpha: seg(s, TD.weeks - 0.4, TD.weeks + 0.2) });
+    [['Start', 0.85], ['Weeks later', lerp(0.85, 0.4, wk)]].forEach(([t, v], i) => {
+      const y = 332 + i * 40, a = seg(s, TD.weeks - 0.4 + i * 0.6, TD.weeks + 0.2 + i * 0.6);
+      M.text(ctx, t, 44, y, { size: 13, weight: 800, align: 'left', alpha: a });
+      ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, 136, y - 7, 136, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+      M.rr(ctx, 136, y - 7, 136 * v, 14, 7); ctx.fillStyle = i ? C.green : '#f08c00'; ctx.fill(); ctx.restore();
+    });
+    M.wrap(ctx, 'It keeps working only while you take it as prescribed', 156, 452, 220, { size: 14, weight: 800, color: M.C.blue, alpha: seg(s, TD.keep, TD.keep + 0.5) });
+    // medicine travels to the liver
+    for (let i = 0; i < 4; i++) {
+      const q = wrapX(s * 0.3 + i / 4, 1), a = na * seg(s, TD.need + 0.6, TD.need + 1.2) * (1 - seg(q, 0.85, 1));
+      capsule(ctx, lerp(300, 430, q), lerp(150, 230, q) - Math.sin(q * Math.PI) * 20, 7, a, s * 2 + i);
+    }
+    // right: the liver makes less cholesterol (fewer puffs leave it) ...
+    const lx = 520, ly = 250;
+    liverBuddy(ctx, lx, ly, 104, lerp(0.85, 1, pull), s);
+    M.text(ctx, 'Liver', lx - 30, ly - 66, { size: 15, weight: 800, color: '#a4523f' });
+    const nMake = lerp(5, 1.5, make);
+    for (let i = 0; i < nMake; i++) {
+      const q = wrapX(s * 0.25 + i / 5, 1);
+      M.cholesterol(ctx, lerp(600, 900, q), 210 - Math.sin(q * 3 + i) * 18, 8, fadeIn(nMake, i) * (1 - seg(q, 0.85, 1)), s + i);
+    }
+    // ... and grows more LDL "doors" that pull bad cholesterol in from the blood
+    const nDoor = lerp(2, 6, pull);
+    for (let i = 0; i < 6; i++) {
+      const a = Math.max(0, Math.min(1, nDoor - i)), dx = 470 + i * 22, dy = ly + 46 - Math.abs(i - 2.5) * 4;
+      if (a <= 0) continue;
+      ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = '#6d2f22'; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(dx, dy + 6, 6, Math.PI, 0, true); ctx.stroke(); ctx.restore();
+    }
+    const nIn = lerp(1, 5, pull);
+    for (let i = 0; i < nIn; i++) {
+      const q = wrapX(s * 0.4 + i / 5, 1), dx = 470 + (i % 6) * 22;
+      lipo(ctx, lerp(dx + 30, dx, q), lerp(440, ly + 58, q), 'ldl', s, fadeIn(nIn, i) * (1 - seg(q, 0.85, 1)), 0.7);
+    }
+    // the blood: much less LDL over weeks
+    M.text(ctx, 'Bad cholesterol (LDL) in the blood', 760, 400, { size: 14, weight: 800, color: '#b3453c' });
+    M.vessel(ctx, 330, 412, 600, 92, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 50, r: 7 }] });
+    const nL = lerp(9, 3, wk);
+    for (let i = 0; i < nL; i++) lipo(ctx, 344 + wrapX(rnd(i + 110) * 572 + s * 50, 572), 438 + (i % 2) * 34, 'ldl', s, fadeIn(nL, i));
+    const step = (n, t, x, y, at, col) => {
+      const a = seg(s, at, at + 0.5), on = s < at + 3.5;
+      if (a > 0) M.pill(ctx, `${n}  ${t}`, x, y, { size: 14, bg: on ? col : '#fff', border: col, color: on ? '#fff' : col, alpha: a });
+    };
+    step(1, 'Liver makes less cholesterol', 790, 158, TD.make, '#a4523f');
+    step(2, 'Liver pulls more bad cholesterol from the blood', 700, 352, TD.pull, '#c0392b');
+    step(3, 'Over weeks, much less bad cholesterol', 630, 528, TD.weeks, '#1f4fa8');
+  }
+
+  // 5. Long-term artery protection: two arteries start with the same early plaque. Over years,
   //    keeping LDL lower tends to slow plaque growth and lower risk; LDL that stays high gives
   //    plaque more chance to grow. Illustrative, not a promise: the lower-LDL artery keeps some
   //    plaque, and neither side shows numbers.
@@ -703,7 +776,7 @@
     return high ? 0.7 - 0.4 * yr : 0.7 + 0.05 * yr;
   }
 
-  // 5. Keep going: the four habits together protect the heart and brain over time.
+  // 6. Keep going: the four habits together protect the heart and brain over time.
   const TK = { food: 0.3, checks: 2.8, treat: 3.2, fine: 7.8, protect: 11.1 };
   function keepGoing(ctx, p, s) {
     M.text(ctx, 'Keep going', 480, 44, { size: 28, weight: 800 });
@@ -800,6 +873,11 @@
       draw: numbersScene,
     },
     {
+      label: 'Medicine, if prescribed',
+      caption: 'Some people also need medicine to lower cholesterol. Different medicines work in different ways. Many help your liver make less cholesterol and pull more bad cholesterol out of your blood. Over a few weeks, bad cholesterol can drop a lot, but it only keeps working if you take it as prescribed.',
+      draw: medicineScene,
+    },
+    {
       label: 'Protecting arteries',
       caption: "Picture two arteries starting with the same early plaque. Keeping your bad cholesterol lower over time helps reduce plaque buildup and the risk of heart disease. It's about lowering risk, not making every artery perfectly clean.",
       draw: S.versus({ title: 'Over many years', panel: arteryPanel, left: 'Lower bad cholesterol', right: 'High bad cholesterol', bar: 'Future risk', levels: ['Lower risk', 'Some risk', 'Higher risk'] }),
@@ -823,7 +901,7 @@
       videos: [
         { title: 'What is high cholesterol?', length: 84, audio: 'audio/hyperlipidemia-a/', scenes: patientScenesA },
         { title: 'How high cholesterol changes your arteries', length: 56, audio: 'audio/hyperlipidemia-b/', scenes: patientScenesB },
-        { title: 'How can I protect my arteries?', length: 88, audio: 'audio/hyperlipidemia-c/', scenes: patientScenesC },
+        { title: 'How can I protect my arteries?', length: 104, audio: 'audio/hyperlipidemia-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your body needs cholesterol. Your liver makes most of it, and lipoprotein particles such as LDL and HDL carry it in the blood.',
@@ -851,6 +929,7 @@
         { q: 'How can healthy food choices help your bad cholesterol (LDL)?', options: ['More soluble fiber, and healthier fats in place of some saturated fat, can help lower it over time', 'Fiber pulls bad cholesterol straight out of the blood', 'One healthy meal clears plaque'], answer: 0, explain: 'Fiber carries some bile acids out of the gut, so the liver uses cholesterol to make more and takes up more LDL from the blood. Changes show up over weeks.' },
         { q: 'Why is exercise worth it, even if your bad cholesterol changes only a little?', options: ['It can improve blood fats like triglycerides and supports a healthy heart', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise often lowers triglycerides more than bad cholesterol, and it supports your heart in many other ways.' },
         { q: 'Why get your cholesterol checked, even if you feel fine?', options: ['High cholesterol usually has no symptoms, and results show whether your plan is working', 'The test itself lowers cholesterol', 'Only people who feel sick need tests'], answer: 0, explain: 'A test gives information. Your care team uses it, with your overall risk, to set or change your plan.' },
+        { q: 'What do many cholesterol medicines do inside the body?', options: ['Help the liver make less cholesterol and pull more bad cholesterol out of the blood', 'Wash plaque out of the arteries right away', 'Turn bad cholesterol into good cholesterol'], answer: 0, explain: 'Different medicines work in different ways, but many lower bad cholesterol by working with the liver. The effect lasts only while you keep taking it as prescribed.' },
         { q: 'If medicine is prescribed, why follow your specific schedule?', options: ['It works as intended only when taken the way your care team prescribed', 'You can take it only when you remember', 'Taking extra works faster'], answer: 0, explain: 'Each plan is personal. Following your schedule keeps LDL where your care team is aiming, over time.' },
         { q: 'Why does keeping bad cholesterol lower for years matter?', options: ['It removes all plaque right away', 'It helps reduce plaque buildup and lowers the risk of heart disease', 'It guarantees you will never have a problem'], answer: 1, explain: 'It is about lowering risk over many years, not a perfectly clean artery or a guarantee.' },
       ],
