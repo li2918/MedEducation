@@ -663,8 +663,10 @@
     ctx.fillStyle = L.shoe;
     [-1, 1].forEach((d) => { ctx.beginPath(); ctx.ellipse(x + d * 0.3 * s, y + 1.64 * s, 0.29 * s, 0.13 * s, 0, 0, TAU); ctx.fill(); });
     // arms: skin with a short sleeve, round hands
-    // o.armUp (0..1) lifts the right-hand arm out to the side and up, as if reaching high.
+    // o.armUp (0..1) lifts the right-hand arm out to the side and up, as if reaching high;
+    // o.rightArm === false leaves that arm off so a scene can draw it in another pose.
     [-1, 1].forEach((d) => {
+      if (d > 0 && o.rightArm === false) return;
       const ax = x + d * 0.72 * s;
       ctx.save();
       if (d > 0 && o.armUp) { ctx.translate(ax, y - 1.0 * s); ctx.rotate(-o.armUp * 2.6); ctx.translate(-ax, -(y - 1.0 * s)); }

@@ -8,7 +8,7 @@
 
   // ---------------------------------------------------------------------------
   // Patient portal: Part 1 "What are tendons, and where are they?" and Part 2 "Why do tendons
-  // hurt? The rotator cuff". Muscles are red-pink with
+  // hurt? The rotator cuff", Part 3 "How can tendon pain improve?". Muscles are red-pink with
   // fiber lines, tendons are cream rope-like bands, bones are beige, ligaments are pale blue.
   // Cues use s (seconds since the narration started), matched to the narrator's words.
   // ---------------------------------------------------------------------------
@@ -481,6 +481,196 @@
     });
   }
 
+  // ---- Part 3: How can tendon pain improve? -----------------------------------------------
+  // Manage load, keep moving, build strength gradually, progress at the right pace, ease
+  // symptoms with support, and return to daily life. Strengthening improves strength, load
+  // capacity, and control over weeks; the tendon is never shown turning "brand new", and
+  // cold or warmth only ease symptoms.
+  const SKIN = '#f1c7a5', SLEEVE = '#86b1e2', BAND = '#2fb5a8';
+  const meter3 = (ctx, x, y, w, v, label, col, a = 1) => {
+    if (a <= 0) return;
+    M.text(ctx, label, x, y - 16, { size: 14, weight: 800, color: C.muted, align: 'left', alpha: a });
+    ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, x, y - 7, w, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    M.rr(ctx, x, y - 7, w * Math.max(0.02, v), 14, 7); ctx.fillStyle = col; ctx.fill(); ctx.restore();
+  };
+  // Where the hand is when M.person raises its right arm by armUp.
+  const handOf = (x, y, sc, up) => [x + 0.72 * sc + 1.1 * sc * Math.sin(up * 2.6), y - 1.0 * sc + 1.1 * sc * Math.cos(up * 2.6)];
+  // Shoulder external rotation with a light resistance band: elbow at the side (with a small
+  // towel roll), forearm turning from across the belly out to the side. rot: 0..1.
+  function bandPerson(ctx, x, y, sc, rot, s, o = {}) {
+    const anchor = [x - 1.55 * sc, y - 0.42 * sc];
+    M.rr(ctx, anchor[0] - 14, y - 1.9 * sc, 16, 3.55 * sc, 4); ctx.fillStyle = '#d9c4a5'; ctx.fill();
+    M.person(ctx, x, y, sc, { t: s, rightArm: false, mood: o.mood });
+    const SH = [x + 0.64 * sc, y - 1.0 * sc], E = [x + 0.66 * sc, y - 0.42 * sc];
+    const ang = lerp(Math.PI - 0.12, 0.1, rot), H = [E[0] + Math.cos(ang) * 0.6 * sc, E[1] + Math.sin(ang) * 0.6 * sc];
+    ctx.save(); ctx.lineCap = 'round';
+    ctx.strokeStyle = BAND; ctx.lineWidth = lerp(6, 3.5, rot); ctx.beginPath(); ctx.moveTo(...anchor); ctx.lineTo(H[0], H[1]); ctx.stroke();
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 0.22 * sc; ctx.beginPath(); ctx.moveTo(...SH); ctx.lineTo(...E); ctx.stroke();
+    ctx.strokeStyle = SLEEVE; ctx.lineWidth = 0.3 * sc; ctx.beginPath(); ctx.moveTo(SH[0], SH[1] - 0.05 * sc); ctx.lineTo(SH[0], SH[1] + 0.3 * sc); ctx.stroke();
+    M.rr(ctx, E[0] - 0.2 * sc, E[1] - 0.12 * sc, 0.16 * sc, 0.24 * sc, 0.06 * sc); ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 0.2 * sc; ctx.beginPath(); ctx.moveTo(...E); ctx.lineTo(...H); ctx.stroke();
+    ctx.restore();
+    M.dot(ctx, H[0], H[1], 0.14 * sc, SKIN);
+    M.dot(ctx, anchor[0], anchor[1], 6, '#7a6a52');
+    return { shoulder: SH, hand: H };
+  }
+  const zoomLines = (ctx, from, cx, cy, R, a) => {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(from[0] + 10, from[1] - 10); ctx.lineTo(cx - R * 0.72, cy - R * 0.7); ctx.moveTo(from[0] + 10, from[1] + 10); ctx.lineTo(cx - R * 0.72, cy + R * 0.7); ctx.stroke(); ctx.restore();
+  };
+
+  // 1. Reduce overload: lifting heavy things overhead again and again keeps the tendon
+  //    irritated; cut back on what makes the pain worse, without stopping all movement.
+  const TC1 = { tooMuch: 2.1, irritated: 3.6, step: 4.7, reduce: 5.9, worse: 7.8, without: 8.6 };
+  function reduceOverload(ctx, p, s) {
+    M.text(ctx, 'Reduce overload', 480, 44, { size: 28, weight: 800 });
+    const easy = ease(seg(s, TC1.reduce, TC1.reduce + 1.2)), x = 170, y = 330, sc = 76;
+    const up = lerp(0.35 + 0.65 * (0.5 - 0.5 * Math.cos(s * 2.2)), 0.12 + 0.12 * (0.5 - 0.5 * Math.cos(s * 1.6)), easy);
+    const pain = lerp(seg(s, TC1.irritated, TC1.irritated + 0.6) * up, 0.25 * up, easy);
+    M.person(ctx, x, y, sc, { t: s, armUp: up, mood: lerp(1, 0.45, pain) });
+    const h = handOf(x, y, sc, up);
+    M.emoji(ctx, '📦', h[0], h[1] - 18, 40, 1 - easy);
+    M.emoji(ctx, '☕', h[0] + 4, h[1] - 6, 24, easy);
+    const cx = 640, cy = 270, R = 180, sp = [x + 0.66 * sc, y - 1.08 * sc];
+    zoomLines(ctx, sp, cx, cy, R, 1);
+    lens(ctx, cx, cy, R, () => {
+      shoulder(ctx, cx + 20, cy - 10, 1.05, { abd: up, four: 4, bursa: 1, irr: lerp(ease(seg(s, TC1.irritated, TC1.irritated + 1)) * 0.85, 0.5, easy), changed: 0.3 });
+      const L = lerp(1, 0.35, easy) * seg(s, TC1.tooMuch, TC1.tooMuch + 0.5);
+      for (let i = 0; i < 3; i++) { const px = cx - 40 + i * 50; M.arrow(ctx, px, cy - 160, px, cy - 160 + 30 + 30 * L, { color: '#6b7a90', width: 3 + 3 * L, head: 9, alpha: L > 0.05 ? 1 : 0 }); }
+    });
+    M.pill(ctx, 'Doing too much keeps it irritated', cx, 478, { size: 16, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, TC1.tooMuch, TC1.tooMuch + 0.5) * (1 - easy) });
+    M.pill(ctx, 'Reduce what makes the pain worse', cx, 478, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: easy });
+    M.pill(ctx, 'Without stopping all movement', cx, 520, { size: 16, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TC1.without, TC1.without + 0.5) });
+    meter3(ctx, 40, 506, 240, 0.15 + 0.7 * pain, 'Pain', C.red, seg(s, TC1.irritated, TC1.irritated + 0.5));
+  }
+
+  // 2. Keep moving: gentle movement in a comfortable range keeps the shoulder flexible; not
+  //    moving at all can let it get stiff.
+  const TC2 = { gentle: 0.5, flexible: 1.7, active: 4.1, example: 5.1, range: 7.3, stiffness: 9.1 };
+  function movePanel(ctx, p, s, still, W) {
+    const x = W / 2 - 20, y = 250, sc = 60;
+    if (!still) {
+      const up = 0.08 + 0.4 * (0.5 - 0.5 * Math.cos(s * 1.4)), ra = seg(s, TC2.range, TC2.range + 0.5);
+      if (ra > 0) {
+        const sx = x + 0.72 * sc, sy = y - 1.0 * sc;
+        ctx.save(); ctx.globalAlpha *= ra; ctx.fillStyle = 'rgba(87,194,122,0.18)'; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.arc(sx, sy, 1.3 * sc, Math.PI / 2 - 0.52 * 2.6, Math.PI / 2 - 0.02, false); ctx.closePath(); ctx.fill(); ctx.restore();
+        M.text(ctx, 'Comfortable range', W / 2 + 90, 70, { size: 13, weight: 800, color: '#1d7a4c', alpha: ra });
+      }
+      M.person(ctx, x, y, sc, { t: s, armUp: up });
+      S.phasePill(ctx, W / 2, 344, s, [[TC2.gentle, 'Gentle movement', C.green], [TC2.stiffness, 'Helps prevent stiffness', C.green]]);
+      return 0.85;
+    }
+    const st = ease(seg(s, TC2.active, TC2.stiffness));
+    M.person(ctx, x, y, sc, { t: s, mood: lerp(0.8, 0.5, st) });
+    const sp = [x + 0.66 * sc, y - 1.08 * sc];
+    if (st > 0.1) { M.emoji(ctx, '🔒', sp[0] + 26, sp[1] - 12, 24, st); }
+    S.phasePill(ctx, W / 2, 344, s, [[TC2.gentle, 'Not moving at all', '#c26a00'], [TC2.active, 'The shoulder can get stiff']]);
+    return lerp(0.75, 0.35, st);
+  }
+
+  // 3. Gradually build strength (the core scene): outside, a light band exercise; inside, the
+  //    rotator cuff muscles contract and the tendons pass the force to the bone. Over weeks,
+  //    strength, the load the shoulder can handle, and control improve. The tendon still has
+  //    some changes: improvement is not about looking brand new.
+  const TC3 = { strength: 1.8, more: 5.1, cuff: 7.4, contract: 9.8, transfer: 11.4, bones: 12.9, gradual: 14.1, stronger: 17.7, everyday: 20.1 };
+  function buildStrength(ctx, p, s) {
+    M.text(ctx, 'Gradually build strength', 480, 44, { size: 28, weight: 800 });
+    const rot = 0.5 - 0.5 * Math.cos(s * 1.5), x = 190, y = 330, sc = 72;
+    const wk = ease(seg(s, TC3.gradual, TC3.everyday + 0.6));
+    const b = bandPerson(ctx, x, y, sc, rot, s);
+    M.pill(ctx, 'Light resistance band', x, 96, { size: 15, bg: '#e6f7f5', border: BAND, color: '#1b7c73', alpha: seg(s, TC3.strength, TC3.strength + 0.5) });
+    const cx = 660, cy = 262, R = 150, la = ease(seg(s, TC3.cuff - 0.4, TC3.cuff + 0.4));
+    zoomLines(ctx, b.shoulder, cx, cy, R, la);
+    lens(ctx, cx, cy, R, () => shoulder(ctx, cx + 24, cy - 6, 0.95, { abd: 0.12, four: 4, bursa: 1, mGlow: seg(s, TC3.contract, TC3.contract + 0.5) * rot * lerp(0.7, 1, wk), glow: seg(s, TC3.transfer, TC3.transfer + 0.5) * (0.4 + 0.6 * rot), irr: lerp(0.45, 0.25, wk), changed: 0.35 }), la);
+    M.pill(ctx, 'Rotator cuff', cx + 190, 120, { size: 15, bg: '#fff8e8', border: TEN_S, color: '#7a5f22', alpha: la });
+    S.phasePill(ctx, cx, 418, s, [[TC3.contract, 'Muscles contract', '#a3461f'], [TC3.transfer, 'Tendons pass the force to the bone', '#7a5f22'], [TC3.gradual, 'Over weeks of gradual exercise', '#1f4fa8']]);
+    const ma = seg(s, TC3.gradual, TC3.gradual + 0.5);
+    M.text(ctx, `Week ${Math.max(1, Math.round(1 + 5 * wk))}`, 360, 470, { size: 15, weight: 800, color: '#1f4fa8', align: 'left', alpha: ma });
+    [['Strength', '#e98b72'], ['Load it can handle', BAND], ['Control', '#5b8def']].forEach(([t, col], i) => meter3(ctx, 450 + i * 165, 506, 145, lerp(0.3, 0.85, wk), t, col, ma));
+    M.pill(ctx, 'Better able to handle everyday movements', 190, 510, { size: 14, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TC3.everyday, TC3.everyday + 0.5) });
+  }
+
+  // 4. Progress at the right pace: easier movements first, then slowly harder. Some mild
+  //    discomfort can be OK; if pain keeps getting worse, the plan may need to change.
+  const TC4 = { easier: 0.6, increase: 2.3, discomfort: 4.9, worse: 6.9, change: 10 };
+  function rightPace(ctx, p, s) {
+    M.text(ctx, 'Progress at the right pace', 480, 44, { size: 28, weight: 800 });
+    [['⏸️', 'Too little', 'Avoiding movement for a long time can reduce strength', '#6b7a90'], ['✅', 'Manageable load', 'Gradual, step-by-step activity builds capacity', C.green], ['⚠️', 'Too much', 'Sudden big increases can flare symptoms', C.red]].forEach(([ic, t, d, col], i) => {
+      const a = ease(seg(s, 0.2 + i * 0.3, 0.7 + i * 0.3)), x = 24 + i * 306, cx = x + 147, hi = i === 1 && s > TC4.increase;
+      M.card(ctx, x, 76, 294, 150, { r: 18, alpha: a, border: hi ? col : '#d7e0ec', borderWidth: hi ? 3 : 1.5 });
+      M.emoji(ctx, ic, x + 34, 110, 24, a); M.text(ctx, t, x + 58, 110, { size: 18, weight: 800, align: 'left', color: col, alpha: a });
+      M.wrap(ctx, d, cx, 170, 250, { size: 14, weight: 700, color: C.muted, alpha: a });
+    });
+    // steps: harder bit by bit; one jump too big, then step back
+    const prog = ease(seg(s, TC4.easier, TC4.worse)), back = ease(seg(s, TC4.change, TC4.change + 1)), jump = seg(s, TC4.worse - 0.4, TC4.worse) * (1 - back);
+    for (let i = 0; i < 5; i++) {
+      const on = Math.max(0, Math.min(1, prog * 4.2 - i)), x = 60 + i * 76, h = 40 + i * 30, red = i === 4 ? jump : 0;
+      if (i === 4) { const hh = lerp(h, 220, red); M.rr(ctx, x, 500 - hh, 64, hh, 8); } else M.rr(ctx, x, 500 - h, 64, h, 8);
+      ctx.save(); ctx.globalAlpha *= 0.3 + 0.7 * Math.max(on, red); ctx.fillStyle = red > 0.3 ? '#ef7b74' : M.mix('#cfe6d8', '#57c27a', i / 4); ctx.fill(); ctx.restore();
+    }
+    M.text(ctx, 'Easier → harder', 230, 520, { size: 13, weight: 800, color: C.muted });
+    // pain check gauge
+    const gx = 520, gy = 330, gw = 400;
+    [[0, 0.33, '#8fd3ad', 'Little or none'], [0.33, 0.66, '#f7d36b', 'Mild discomfort can be OK'], [0.66, 1, '#ef7b74', 'Keeps getting worse']].forEach(([a, b, col, t], i) => {
+      M.rr(ctx, gx + gw * a + 2, gy, gw * (b - a) - 4, 26, 8); ctx.fillStyle = col; ctx.fill();
+      M.wrap(ctx, t, gx + gw * (a + b) / 2, gy + 50, 130, { size: 13, weight: 800, color: '#4d5f86' });
+    });
+    M.text(ctx, 'How it feels', gx, gy - 18, { size: 14, weight: 800, color: C.muted, align: 'left' });
+    const v = s < TC4.discomfort ? 0.15 : s < TC4.worse ? lerp(0.15, 0.48, ease(seg(s, TC4.discomfort, TC4.discomfort + 1))) : s < TC4.change ? lerp(0.48, 0.86, ease(seg(s, TC4.worse, TC4.worse + 1))) : lerp(0.86, 0.42, back);
+    const nx = gx + gw * v;
+    ctx.beginPath(); ctx.moveTo(nx, gy - 4); ctx.lineTo(nx - 9, gy - 18); ctx.lineTo(nx + 9, gy - 18); ctx.closePath(); ctx.fillStyle = '#1d2b3a'; ctx.fill();
+    M.text(ctx, 'Check how it feels later that day and the next day', 720, 430, { size: 13, weight: 700, color: C.muted, alpha: seg(s, TC4.discomfort + 0.5, TC4.discomfort + 1) });
+    M.pill(ctx, 'Pain keeps getting worse? Adjust the plan', 720, 480, { size: 16, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TC4.change, TC4.change + 0.5) });
+  }
+
+  // 5. Manage pain and get support: short breaks, cold or warmth, and your treatment plan ease
+  //    symptoms (they do not repair the tendon); a physical therapist can guide recovery.
+  const TC5 = { breaks: 0.1, cold: 1.1, warmth: 1.9, plan: 3, manage: 4.1, pro: 5.7, pt: 7.2, guide: 8.4 };
+  function painSupport(ctx, p, s) {
+    M.text(ctx, 'Manage pain and get support', 480, 44, { size: 28, weight: 800 });
+    [['⏸️', 'Short breaks', TC5.breaks], ['🧊', 'Cold', TC5.cold], ['♨️', 'Warmth', TC5.warmth], ['📋', 'Your treatment plan', TC5.plan]].forEach(([ic, t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), x = 24 + i * 232, cx = x + 110;
+      M.card(ctx, x, 76, 220, 150, { r: 18, alpha: a });
+      M.emoji(ctx, ic, cx, 124, 40, a);
+      M.wrap(ctx, t, cx, 188, 190, { size: 16, weight: 800, alpha: a });
+    });
+    M.text(ctx, 'These help ease symptoms. They do not repair the tendon.', 480, 254, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TC5.manage, TC5.manage + 0.5) });
+    const ta = ease(seg(s, TC5.pro - 0.4, TC5.pro + 0.2));
+    M.card(ctx, 140, 280, 680, 240, { r: 22, alpha: ta, border: '#bfe3cf' });
+    if (ta > 0) {
+      ctx.save(); ctx.globalAlpha *= ta;
+      M.person(ctx, 300, 418, 46, { t: s, look: { shirt: '#ffffff', shirtShade: '#dbe4ef', pants: '#5a6f94', hair: '#2f2a28', skin: '#c99272', skinShade: '#b47e60' } });
+      bandPerson(ctx, 470, 418, 46, 0.5 - 0.5 * Math.cos(s * 1.5), s);
+      ctx.restore();
+      M.text(ctx, 'Physical therapist', 300, 306, { size: 13, weight: 800, color: C.muted, alpha: ta });
+      M.wrap(ctx, 'A healthcare professional or physical therapist can guide your recovery', 680, 400, 230, { size: 16, weight: 800, color: '#1d7a4c', alpha: seg(s, TC5.pt, TC5.pt + 0.5) });
+    }
+  }
+
+  // 6. Return to daily life: recovery takes time; many people get back to everyday activities
+  //    with less pain and better movement. The goal is not to avoid using the tendon forever.
+  const TC6 = { time: 0.1, approach: 2, everyday: 4.9, less: 6.2, better: 7.9, remember: 8.8, avoid: 10.8, handle: 13.6 };
+  function backToLife(ctx, p, s) {
+    M.text(ctx, 'Return to daily life', 480, 44, { size: 28, weight: 800 });
+    const tl = ease(seg(s, TC6.time, TC6.better + 0.5)), x = 190, y = 340, sc = 76;
+    M.rr(ctx, 60, 84, 300, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 60, 84, 300 * tl, 10, 5); ctx.fillStyle = C.green; ctx.fill();
+    M.text(ctx, 'Weeks to months', 210, 110, { size: 13, weight: 800, color: C.muted });
+    const k = Math.floor(s / 3.2) % 3, ph = (s % 3.2) / 3.2, up = 0.25 + 0.6 * Math.sin(Math.PI * Math.min(1, ph * 1.2));
+    M.person(ctx, x, y, sc, { t: s, armUp: up });
+    const h = handOf(x, y, sc, up);
+    M.emoji(ctx, ['🪮', '👕', '☕'][k], h[0], h[1] - 14, 28, seg(s, TC6.everyday - 0.5, TC6.everyday));
+    if (k === 2) { M.rr(ctx, 230, 132, 150, 10, 4); ctx.fillStyle = '#b08a64'; ctx.globalAlpha = seg(s, TC6.everyday - 0.5, TC6.everyday); ctx.fill(); ctx.globalAlpha = 1; }
+    M.text(ctx, ['Combing your hair', 'Getting dressed', 'Reaching a high shelf'][k], x, y - 2.25 * sc, { size: 15, weight: 800, color: '#1d7a4c', alpha: seg(s, TC6.everyday, TC6.everyday + 0.5) });
+    const cx = 670, cy = 250, R = 160, sp = [x + 0.66 * sc, y - 1.08 * sc];
+    zoomLines(ctx, sp, cx, cy, R, 1);
+    lens(ctx, cx, cy, R, () => shoulder(ctx, cx + 24, cy - 6, 0.95, { abd: up, four: 4, bursa: 1, irr: lerp(0.4, 0.12, tl), changed: 0.3, glow: 0.6 * up, mGlow: 0.5 * up }));
+    meter3(ctx, 520, 450, 150, lerp(0.7, 0.25, ease(seg(s, TC6.less, TC6.less + 1.4))), 'Pain', C.red, seg(s, TC6.less - 0.4, TC6.less));
+    meter3(ctx, 700, 450, 150, lerp(0.35, 0.85, ease(seg(s, TC6.better, TC6.better + 1.4))), 'Movement', C.green, seg(s, TC6.better - 0.4, TC6.better));
+    M.pill(ctx, '✗  Not: avoid using it forever', 300, 512, { size: 15, bg: '#fff', border: '#a3261f', color: '#a3261f', alpha: seg(s, TC6.avoid, TC6.avoid + 0.5) });
+    M.pill(ctx, '✓  Goal: help it handle activity again', 690, 512, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TC6.handle, TC6.handle + 0.5) });
+  }
+
   const patientScenesA = [
     { label: 'Tendons are everywhere', caption: 'Tendons are found throughout your body. You have them in your shoulders, elbows, hands, knees, ankles, and many other places.', draw: everywhere },
     { label: 'What is a tendon?', caption: 'But what exactly is a tendon? A tendon is a strong, rope-like tissue that connects a muscle to a bone.', draw: whatIsTendon },
@@ -499,6 +689,15 @@
     { label: 'The key takeaway', caption: "Shoulder pain doesn't always mean a torn tendon, and it isn't always caused by inflammation. Many things can play a part, and it can get better.", draw: tendonTakeaway },
   ];
 
+  const patientScenesC = [
+    { label: 'Reduce overload', caption: 'When a tendon becomes painful, doing too much can keep it irritated. The first step is to reduce activities that make the pain worse, without stopping all movement.', draw: reduceOverload },
+    { label: 'Keep moving', caption: 'Gentle movement helps maintain flexibility and keeps your body active. For example, moving your shoulder within a comfortable range can help prevent stiffness.', draw: S.versus({ title: 'Keep moving', panel: movePanel, left: 'Gentle movement', right: 'Not moving at all', bar: 'Flexibility', levels: ['Flexible', 'Getting stiff', 'Stiff'] }) },
+    { label: 'Gradually build strength', caption: "As your symptoms improve, strengthening exercises can help your muscles and tendons handle more activity. Let's look at the rotator cuff. When your shoulder muscles contract, the tendons transfer that force to your bones. With gradual, appropriate exercise, your shoulder can become stronger and better able to handle everyday movements.", draw: buildStrength },
+    { label: 'Progress at the right pace', caption: 'Start with easier movements, then slowly increase the challenge. Some discomfort may occur, but if pain keeps getting worse, your exercise plan may need to change.', draw: rightPace },
+    { label: 'Manage pain and get support', caption: 'Short breaks, cold or warmth, and your treatment plan may help manage symptoms. A healthcare professional or physical therapist can guide your recovery.', draw: painSupport },
+    { label: 'Return to daily life', caption: "Recovery takes time. With the right approach, many people can return to everyday activities with less pain and better movement. Remember: the goal is not to avoid using your tendon forever. It's to help it handle movement and activity again.", draw: backToLife },
+  ];
+
   MedData.register({
     id: 'tendinopathy',
     name: 'Tendon pain (tendinopathy)',
@@ -506,10 +705,12 @@
     aliases: ['tendinopathy', 'tendinitis', 'tendonitis', 'tendon pain', 'tendon', 'rotator cuff', 'shoulder pain', 'tennis elbow', 'achilles', 'patellar tendon', 'jumper\'s knee'],
     patient: {
       tagline: 'Tendons are strong, rope-like tissues that connect muscles to bones and help you move.',
-      // Part 1 explains tendons; Part 2 uses the rotator cuff to explain why a tendon can hurt.
+      // Part 1 explains tendons; Part 2 uses the rotator cuff to explain why a tendon can hurt;
+      // Part 3 shows how tendon pain can improve.
       videos: [
         { title: 'What are tendons, and where are they?', length: 84, audio: 'audio/tendinopathy-a/', scenes: patientScenesA },
         { title: 'Why do tendons hurt? The rotator cuff', length: 92, audio: 'audio/tendinopathy-b/', scenes: patientScenesB },
+        { title: 'How can tendon pain improve?', length: 100, audio: 'audio/tendinopathy-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Tendons are strong, rope-like tissues made of bundles of collagen fibers. They connect muscles to bones.',
@@ -518,6 +719,7 @@
         'Ligaments are different: they connect bones to other bones.',
         'A tendon can be hurt suddenly or overloaded over time. Long-lasting tendon pain (tendinopathy) often involves changes in the tendon fibers, not just inflammation.',
         'In the shoulder, the rotator cuff tendons and the bursa above them are different tissues, and both can add to pain. Shoulder pain does not always mean a torn tendon, and it can get better.',
+        'To help tendon pain improve: reduce what makes it worse without stopping all movement, keep moving gently, and build strength gradually. Mild discomfort can be OK, but if pain keeps getting worse, adjust the plan.',
       ],
       questions: [
         'Which tendon is causing my pain?',
@@ -529,11 +731,23 @@
         'You cannot lift your arm after a fall or injury',
         'A hot, red, swollen joint, especially with a fever',
       ],
+      // Shown in a separate tap-to-open box on the patient page, not only inside the video.
+      emergency: {
+        title: 'When not to treat it on your own',
+        items: [
+          'You suddenly cannot lift your arm after a fall or injury',
+          'New, obvious weakness in the arm',
+          'The shoulder looks out of shape or deformed',
+          'A fever with a red, hot, swollen joint',
+        ],
+        action: 'Get checked by a healthcare professional promptly. For severe injuries, go to the emergency room.',
+      },
       quiz: [
         { q: 'What does a tendon connect?', options: ['A muscle to a bone', 'A bone to another bone', 'Two muscles together'], answer: 0, explain: 'A tendon is a strong, rope-like tissue that connects a muscle to a bone.' },
-        { q: 'How does a tendon help you move?', options: ['It makes the muscle bigger', 'It passes the pull of the muscle to the bone, so the joint moves', 'It pumps blood to the muscle'], answer: 1, explain: 'When a muscle contracts, it pulls on the tendon, and the tendon transfers that force to the bone.' },
         { q: 'Is long-lasting tendon pain always caused by inflammation?', options: ['Yes, always', 'No, the tendon fibers can become less organized, so it is often not just inflammation', 'Tendons cannot hurt'], answer: 1, explain: 'Soon after an injury there may be inflammation. Long-lasting tendon pain, called tendinopathy, often involves changes in the tendon itself.' },
         { q: 'Does shoulder pain always mean a torn tendon?', options: ['Yes', 'No, an irritated tendon or an inflamed bursa can also cause pain, and it can get better', 'Shoulder pain never comes from tendons'], answer: 1, explain: 'Many things can play a part in shoulder pain. Pain does not always mean a tear.' },
+        { q: 'Should you stop moving completely when a tendon hurts?', options: ['Yes, rest it until all pain is gone', 'No, reduce what makes it worse but keep moving gently', 'Push through any pain'], answer: 1, explain: 'Doing too much can keep a tendon irritated, but stopping all movement can make it stiff and weaker.' },
+        { q: 'How do strengthening exercises help a painful tendon?', options: ['They instantly make the tendon brand new', 'Gradually, they help the muscles and tendon handle more activity', 'They only help if they hurt a lot'], answer: 1, explain: 'Over weeks, strength, the load the tendon can handle, and control can improve. If pain keeps getting worse, the plan may need to change.' },
         { q: 'How are ligaments different from tendons?', options: ['Ligaments connect bones to other bones', 'Ligaments connect muscles to bones', 'There is no difference'], answer: 0, explain: 'Tendons connect muscles to bones. Ligaments connect bones to other bones.' },
       ],
     },
