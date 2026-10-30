@@ -110,6 +110,15 @@ a { color: var(--blue); }
 .checklist input { margin-top: 4px; }
 .flags-title { margin-top: 18px; color: #b3322b; }
 .flags li::marker { color: var(--red); }
+.emergency { margin: 0 0 16px; border: 2px solid var(--red); background: #fdecea; border-radius: 14px; padding: 12px 18px; }
+.emergency summary { cursor: pointer; font-weight: 800; font-size: 1.05rem; color: #a3261f; list-style: none; }
+.emergency summary::-webkit-details-marker { display: none; }
+.emergency summary::before { content: "\26A0\FE0F  "; }
+.emergency summary::after { content: "Tap to see the signs"; float: right; font-weight: 700; font-size: 0.85rem; color: #b3322b; text-decoration: underline; }
+.emergency[open] summary::after { content: "Hide"; }
+.emergency ul { margin: 10px 0 6px; padding-left: 22px; }
+.emergency li { margin: 5px 0; font-weight: 600; color: var(--ink); }
+.emergency-action { margin: 6px 0 0; font-weight: 800; color: #a3261f; }
 
 /* ---------- Quiz ---------- */
 .quiz { margin-top: 20px; }

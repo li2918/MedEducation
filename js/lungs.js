@@ -1,7 +1,7 @@
 // Shared cartoon pieces for breathing conditions (COPD, asthma): air, mucus, triggers,
 // airways in cross-section and from the side, and lungs that fill with color.
 (function () {
-  const { C, lerp, rnd } = M;
+  const { C, lerp, rnd, seg } = M;
   const seg01 = (m) => Math.min(1, Math.max(0, (m - 0.3) / 0.3));
 
   const wrapX = (v, w) => ((v % w) + w) % w;
@@ -156,5 +156,38 @@
     ctx.restore();
   }
 
-  window.Lungs = { wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungPath, lungsFilled, lungLegend, puffLines, riskMeter };
+
+  // Generic inhaler (no brand): canister on top, mouthpiece to one side (dir 1 right, -1 left).
+  function inhaler(ctx, x, y, k, alpha = 1, dir = 1) {
+    if (alpha <= 0) return;
+    ctx.save(); ctx.globalAlpha *= alpha; ctx.translate(x, y); ctx.scale(dir, 1);
+    M.rr(ctx, -15 * k, -66 * k, 30 * k, 64 * k, 10 * k); ctx.fillStyle = '#5b8def'; ctx.fill();
+    M.rr(ctx, -22 * k, -14 * k, 44 * k, 56 * k, 12 * k); ctx.fillStyle = '#eef2f8'; ctx.fill(); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 2; ctx.stroke();
+    M.rr(ctx, 12 * k, 16 * k, 36 * k, 24 * k, 7 * k); ctx.fillStyle = '#c8d0dc'; ctx.fill();
+    ctx.restore();
+  }
+
+  // Medicine mist: soft purple droplets, so it never looks like air or mucus.
+  function mist(ctx, x, y, r, alpha = 1) {
+    M.dot(ctx, x, y, r, '#a98bf2', alpha * 0.85);
+    M.dot(ctx, x - r * 0.3, y - r * 0.3, r * 0.35, '#ffffff', alpha * 0.6);
+  }
+
+  // A person breathing medicine in from an inhaler: the mist travels down the windpipe and
+  // branches into both lungs. a (0..1) shows the inhaler; flow (0..1) runs the mist.
+  function inhaleMedicine(ctx, x, y, sc, s, a, flow) {
+    M.person(ctx, x, y, sc, { color: '#dfe7f3' });
+    lungsFilled(ctx, x, y - 0.72 * sc, 0.46 * sc, 0.45 + 0.35 * breathOf(s / 4), 0, s);
+    const mx = x + 0.34 * sc, my = y - 1.55 * sc;
+    inhaler(ctx, mx + 38, my - 4, 0.8, a, -1);
+    if (flow <= 0) return;
+    for (let i = 0; i < 10; i++) {
+      const q = wrapX(s * 0.45 + i / 10, 1), d = i % 2 ? 1 : -1;
+      const pt = q < 0.25 ? [lerp(mx, x + 4, q / 0.25), lerp(my, y - 1.42 * sc, q / 0.25)]
+        : q < 0.6 ? [x + 2, lerp(y - 1.42 * sc, y - 0.98 * sc, (q - 0.25) / 0.35)]
+        : [x + d * lerp(0, 0.34, (q - 0.6) / 0.4) * sc, lerp(y - 0.98 * sc, y - 0.55 * sc, (q - 0.6) / 0.4)];
+      mist(ctx, pt[0], pt[1], 4.5, flow * (1 - seg(q, 0.88, 1)));
+    }
+  }
+  window.Lungs = { wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungPath, lungsFilled, lungLegend, puffLines, riskMeter, inhaler, mist, inhaleMedicine };
 })();

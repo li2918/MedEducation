@@ -75,6 +75,15 @@
     const flags = d.patient.redFlags || [];
     $('d-flags-wrap').hidden = !flags.length;
     $('d-flags').innerHTML = flags.map((k) => `<li>${k}</li>`).join('');
+    // Separate tap-to-open emergency box, so urgent signs are never only in a video's last seconds.
+    const em = d.patient.emergency;
+    $('d-emergency').hidden = !em;
+    $('d-emergency').open = false;
+    if (em) {
+      $('d-emergency-title').textContent = em.title;
+      $('d-emergency-list').innerHTML = em.items.map((k) => `<li>${k}</li>`).join('');
+      $('d-emergency-action').textContent = em.action || '';
+    }
     renderQuiz(d.patient.quiz);
     loadVideo(d, part);
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });

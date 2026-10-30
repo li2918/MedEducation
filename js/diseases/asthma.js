@@ -7,7 +7,7 @@
 (function () {
   const { C, ease, seg, lerp, rnd } = M;
   const { runner } = S;
-  const { wrapX, breathOf, exhaling, phaseOf, air, smokePuff, germ, airwayCross, airwayTube, lungsFilled, puffLines, riskMeter } = Lungs;
+  const { wrapX, breathOf, exhaling, phaseOf, air, smokePuff, germ, airwayCross, airwayTube, lungsFilled, puffLines, riskMeter, inhaler, mist, inhaleMedicine } = Lungs;
 
   // ---------------------------------------------------------------------------
   // Patient portal: three videos in the MedMotion cartoon style.
@@ -43,17 +43,7 @@
     else if (kind === 'cold') germ(ctx, x, y, r, t, alpha);
     else coldAir(ctx, x, y, r, t, alpha);
   }
-  const TRIGGERS = [['pollen', 'Pollen'], ['dust', 'Dust'], ['smoke', 'Smoke'], ['cold', 'A cold'], ['coldair', 'Cold air']];
-
-  function inhaler(ctx, x, y, k, alpha = 1) {
-    if (alpha <= 0) return;
-    ctx.save(); ctx.globalAlpha *= alpha;
-    M.rr(ctx, x - 15 * k, y - 66 * k, 30 * k, 64 * k, 10 * k); ctx.fillStyle = '#5b8def'; ctx.fill();
-    M.rr(ctx, x - 22 * k, y - 14 * k, 44 * k, 56 * k, 12 * k); ctx.fillStyle = '#eef2f8'; ctx.fill(); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 2; ctx.stroke();
-    M.rr(ctx, x + 12 * k, y + 16 * k, 36 * k, 24 * k, 7 * k); ctx.fillStyle = '#c8d0dc'; ctx.fill();
-    ctx.restore();
-  }
-
+  const TRIGGERS = [['pollen', 'Pollen'], ['dust', 'Dust'], ['smoke', 'Smoke'], ['cold', 'Infection'], ['coldair', 'Cold air']];
 
   // In-and-out air position for a side view: in at vin while breathing in, out at vout while
   // breathing out (period 4 s). Returns a distance that the tube turns into dot positions.
@@ -175,29 +165,77 @@
 
   // ---- Part 2: What happens during an asthma attack? ----------------------------
 
-  // 1. Before a flare-up the person looks and feels normal, but the airways stay sensitive.
-  function beforeFlare(ctx, p, s) {
-    M.text(ctx, 'Before a flare-up', 480, 50, { size: 30, weight: 800 });
-    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, 440, 360, 12);
-    runner(ctx, 240, 440, s * 5, 0.45, 0.05, 1, s);
-    M.pill(ctx, '"I feel great!"', 240, 150, { size: 19, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.6, 1.2) });
-    const z = ease(seg(s, 3.4, 4.6)), zx = 680, zy = 280;
-    if (z > 0) {
-      ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2; ctx.globalAlpha *= z;
-      ctx.beginPath(); ctx.moveTo(256, 330); ctx.lineTo(zx - 150, zy - 60); ctx.moveTo(256, 340); ctx.lineTo(zx - 150, zy + 60); ctx.stroke(); ctx.restore();
-      ctx.save(); ctx.globalAlpha *= z;
-      ctx.beginPath(); ctx.arc(zx, zy, 160, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 3; ctx.stroke();
-      airwayCross(ctx, zx, zy, 110, s, { muscle: 0.05, thick: 0.25, inflam: 0.4, air: 7 });
-      ctx.restore();
+  // 1. The whole flare-up as one story. Left: a person walks feeling fine, breathes in pollen,
+  //    slows down, coughs and wheezes, then stops, short of breath. Right: at the same moments,
+  //    the lungs and one airway change step by step (sensitive, muscles tighten, lining swells,
+  //    mucus). T holds the narration times of the matching words.
+  const T = { fine: 3.4, sens: 5.7, flower: 5.6, inhale: 7.8, react: 10.5, mus: 11.8, sw: 13.4, muc: 14.9, slow: 16.6, cough: 17.7, wheeze: 18.4, short: 19.4 };
+  // Walking slows to a stop: stride phase is the running total of a speed that falls off.
+  const walkSlow = (t) => ease(seg(t, T.slow, T.short + 0.6));
+  function walkPhase(t) {
+    let ph = 0;
+    for (let u = 0; u < t; u += 0.05) ph += 0.05 * 5 * lerp(1, 0.04, walkSlow(u));
+    return ph;
+  }
+  function attackStory(ctx, p, s) {
+    M.text(ctx, 'From feeling fine to short of breath', 480, 44, { size: 28, weight: 800 });
+    const ph = walkPhase(s), slow = walkSlow(s), K = 10, ground = 452;
+    const mus = ease(seg(s, T.mus, T.mus + 1.6)), sw = ease(seg(s, T.sw, T.sw + 1.6)), muc = ease(seg(s, T.muc, T.muc + 1.6));
+    const less = Math.max(mus, sw, muc) * 0.4 + (mus + sw + muc) / 3 * 0.6;
+
+    // Left: the walk. Grass and a flowering bush scroll past while the person walks.
+    ctx.save(); ctx.beginPath(); ctx.rect(30, 70, 460, 450); ctx.clip();
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(30, ground, 460, 14);
+    for (let i = 0; i < 9; i++) {
+      const gx = 30 + wrapX(i * 56 - ph * K, 504);
+      ctx.strokeStyle = '#8cc56f'; ctx.lineWidth = 3; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(gx, ground); ctx.lineTo(gx - 4, ground - 12); ctx.moveTo(gx + 6, ground); ctx.lineTo(gx + 8, ground - 10); ctx.stroke();
     }
-    M.pill(ctx, 'Airways still sensitive underneath', zx, 480, { size: 18, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, 5.4, 6) });
+    const bx = 540 + (walkPhase(T.flower) - ph) * K, by = ground - 30;
+    if (bx < 560 && bx > -80) {
+      M.dot(ctx, bx, by, 34, '#7fbf6a'); M.dot(ctx, bx - 26, by + 10, 24, '#8fcb78'); M.dot(ctx, bx + 26, by + 10, 24, '#8fcb78');
+      [[-18, -18], [10, -26], [24, -4], [-4, 4], [-30, 0]].forEach(([u, v]) => { M.dot(ctx, bx + u, by + v, 7, '#f7c948'); M.dot(ctx, bx + u, by + v, 3, '#e08a00'); });
+      for (let i = 0; i < 4; i++) pollen(ctx, bx - 10 + i * 12, by - 46 - 10 * Math.sin(s * 2 + i), 4, s, 0.8 * seg(s, T.flower, T.flower + 0.6) * (1 - seg(s, T.inhale, T.inhale + 1)));
+    }
+    const lean = lerp(0.05, 0.32, ease(seg(s, T.short, T.short + 1.2)));
+    const mood = lerp(1, 0.15, ease(seg(s, T.mus, T.short + 1)));
+    const head = runner(ctx, 230, ground, ph, lerp(0.45, 0.06, slow), lean, mood, s);
+    ctx.restore();
+    // Pollen drifts from the bush into the nose and mouth as the person breathes in.
+    for (let i = 0; i < 8; i++) {
+      const q = ease(seg(s, T.inhale - 0.6 + i * 0.14, T.inhale + 0.6 + i * 0.14));
+      if (q <= 0 || q >= 1) continue;
+      const sx = 400 + (i % 4) * 14, sy = 360 - (i % 3) * 16;
+      pollen(ctx, lerp(sx, head[0] + 18, q), lerp(sy, head[1] + 8, q) - Math.sin(q * Math.PI) * 30, 5, s, 0.95);
+    }
+    S.phasePill(ctx, 230, 110, s, [[0.4, 'Feeling fine', C.green], [T.inhale - 0.4, 'Breathing in pollen', '#b08000'], [T.mus, 'Chest feels a bit tight', '#c26a00'], [T.slow, 'Slowing down', '#c26a00'], [T.cough, 'Coughing and wheezing', '#c26a00'], [T.short, 'Short of breath']]);
+    const ca = seg(s, T.cough, T.cough + 0.3) * (1 - seg(s, T.short - 0.2, T.short + 0.3));
+    if (ca > 0) M.say(ctx, 'cough!', head[0] + 70, head[1] - 34, ca * (0.6 + 0.4 * Math.abs(Math.sin(s * 3))), '#8a5a00');
+    const wa = seg(s, T.wheeze, T.wheeze + 0.4);
+    if (wa > 0) M.text(ctx, '~ wheeze ~', head[0] + 92, head[1] + 22, { size: 16, weight: 800, color: '#8a5a00', alpha: wa * (0.7 + 0.3 * Math.sin(s * 5)) });
+    puffLines(ctx, head[0] + 16, head[1] - 4, s, seg(s, T.short, T.short + 0.6));
+
+    // Right: inside the lungs at the same moment.
+    M.card(ctx, 510, 76, 424, 440, { r: 22, border: '#d7e0ec' });
+    M.text(ctx, 'Meanwhile, inside the lungs', 722, 104, { size: 18, weight: 800, color: C.muted });
+    const rate = lerp(4, 1.8, ease(seg(s, T.react, T.short)));
+    lungsFilled(ctx, 600, 250, 50, 0.5 + lerp(0.4, 0.15, less) * breathOf(s / rate), 0, s, { face: true, mood: lerp(1, 0.2, less) });
+    ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(624, 236); ctx.lineTo(730, 166); ctx.moveTo(624, 262); ctx.lineTo(730, 334); ctx.stroke(); ctx.restore();
+    const ax = 812, ay = 250;
+    airwayCross(ctx, ax, ay, 92, s, { muscle: 0.05 + 0.85 * mus, thick: 0.25 + 0.3 * sw, inflam: 0.4 + 0.5 * sw, mucus: muc, air: Math.round(lerp(7, 2, less)) });
+    // The breathed-in pollen lands inside the airway just before it reacts.
+    for (let i = 0; i < 4; i++) pollen(ctx, ax - 18 + i * 12, ay - 10 + (i % 2) * 18, 4, s, seg(s, T.inhale + 0.8, T.inhale + 1.2) * (1 - seg(s, T.mus + 1, T.mus + 2)));
+    M.text(ctx, 'One airway', ax, 362, { size: 15, weight: 800, color: C.muted });
+    S.phasePill(ctx, 722, 398, s, [[0.4, 'Looks calm, but sensitive', '#8a5a00'], [T.react, 'The airway reacts'], [T.mus, 'Muscles tighten', '#a3475f'], [T.sw, 'Lining swells'], [T.muc, 'Mucus builds up', '#7c8a22'], [T.slow, 'Less room for air']]);
+    riskMeter(ctx, 552, 470, 340, lerp(0.95, 0.25, less), 'Air getting through', 1, true);
   }
 
-  // 2. A trigger shows up; triggers differ from person to person.
+  // 2. Pollen is one trigger of many; triggers differ from person to person.
   function triggerAppears(ctx, p, s) {
-    M.text(ctx, 'A trigger appears', 480, 50, { size: 30, weight: 800 });
-    const cx = 480, cy = 300, at = [3.2, 3.7, 4.1, 4.8, 5.6], spots = [[180, 160], [160, 330], [780, 160], [800, 330], [480, 120]];
-    const react = ease(seg(s, 5.8, 8));
+    M.text(ctx, 'Many kinds of triggers', 480, 50, { size: 30, weight: 800 });
+    const cx = 480, cy = 300, at = [0.2, 3, 3.8, 4.7, 5.7], spots = [[180, 160], [160, 330], [780, 160], [800, 330], [480, 120]];
+    const react = ease(seg(s, 1.3, 7));
     airwayCross(ctx, cx, cy, 108, s, { muscle: 0.35 * react, thick: 0.25 + 0.15 * react, inflam: 0.4 + 0.3 * react, air: 6 });
     TRIGGERS.forEach(([kind, label], i) => {
       const a = ease(seg(s, at[i], at[i] + 0.5)), [x, y] = spots[i];
@@ -205,7 +243,7 @@
       M.text(ctx, label, x, y + 44, { size: 17, weight: 800, alpha: a });
       if (a > 0.5) for (let k = 0; k < 2; k++) { const q = wrapX(s * 0.35 + k / 2 + i * 0.13, 1); trigger(ctx, kind === 'coldair' ? 'dust' : kind, lerp(x, cx, q), lerp(y, cy, q), kind === 'coldair' ? 4 : 6, s, (1 - q) * 0.9); }
     });
-    M.pill(ctx, 'Triggers are different for each person', 480, 494, { size: 19, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, 6.8, 7.4) });
+    M.pill(ctx, 'Triggers are different for each person', 480, 494, { size: 19, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, 6.9, 7.5) });
   }
 
   // 3. The key animation: one airway goes from normal to an attack, bit by bit.
@@ -237,7 +275,29 @@
       M.pill(ctx, t, 440 + (i % 2) * 210, 380 + Math.floor(i / 2) * 58, { align: 'left', size: 17, bg: '#fff', border: '#f3d2a2', color: '#8a5a00', alpha: seg(s, at, at + 0.5) }));
   }
 
-  // 5. A severe attack: very little air gets through; danger signs.
+  // 5. How a rescue (quick-relief) inhaler works: the medicine reaches the airways and relaxes
+  //    the tight muscle ring within minutes, so the airway opens and air moves again. Some
+  //    swelling and mucus remain: quick relief works on the muscles, the daily plan on swelling.
+  function rescueInhaler(ctx, p, s) {
+    M.text(ctx, 'How a rescue inhaler works', 480, 50, { size: 30, weight: 800 });
+    inhaleMedicine(ctx, 170, 404, 80, s, ease(seg(s, 0.4, 1)), seg(s, 1.4, 2));
+    const open = ease(seg(s, 3.2, 6.4)), cx = 500, cy = 290;
+    ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(200, 330); ctx.lineTo(cx - 150, cy - 80); ctx.moveTo(200, 346); ctx.lineTo(cx - 150, cy + 80); ctx.stroke(); ctx.restore();
+    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.85, 0.12, open), thick: lerp(0.42, 0.32, open), inflam: 0.6, mucus: 0.4, air: Math.round(lerp(2, 7, open)) });
+    for (let i = 0; i < 5; i++) {
+      const a = i * 1.25 + 0.3, d = lerp(150, 40, seg(s, 2.2 + i * 0.25, 3.4 + i * 0.25));
+      mist(ctx, cx + Math.cos(a) * d * 0.5, cy + Math.sin(a) * d * 0.5, 5, seg(s, 2.2, 2.8) * (1 - seg(s, 7, 8)));
+    }
+    M.text(ctx, 'Inside an airway', cx, 476, { size: 16, weight: 800, color: C.muted });
+    [['Quick relief', 1, M.C.blue], ['Tight muscles relax', 3.4, '#a3475f'], ['Airway opens up', 7.6, C.green]].forEach(([t, at, col], i) =>
+      M.pill(ctx, t, 810, 150 + i * 60, { size: 18, bg: '#fff', border: col, color: col, alpha: seg(s, at, at + 0.5) }));
+    riskMeter(ctx, 700, 370, 220, lerp(0.3, 0.85, ease(seg(s, 5, 8.5))), 'Air getting through', 1, true);
+    M.pill(ctx, 'Need it often? Tell your care team.', 790, 440, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, 10.4, 11) });
+    M.text(ctx, 'Quick relief relaxes the muscles. Your daily plan works on the swelling.', 480, 516, { size: 15, weight: 700, color: C.muted, alpha: seg(s, 12.4, 13) });
+  }
+
+  // 6. A severe attack: very little air gets through; danger signs.
   function dangerous(ctx, p, s) {
     M.text(ctx, 'When it becomes dangerous', 480, 50, { size: 30, weight: 800 });
     const k = ease(seg(s, 0.4, 2.4));
@@ -249,7 +309,7 @@
       M.wrap(ctx, '• ' + t, 690, 222 + i * 74, 370, { size: 19, weight: 700, alpha: seg(s, at, at + 0.5) }));
   }
 
-  // 6. Recognize the warning: follow the action plan; call 911 for severe symptoms.
+  // 7. Recognize the warning: follow the action plan; call 911 for severe symptoms.
   function recognize(ctx, p, s) {
     M.text(ctx, 'Recognize the warning', 480, 50, { size: 30, weight: 800 });
     const a = ease(seg(s, 0.3, 0.9)), red = seg(s, 4, 4.6);
@@ -270,17 +330,17 @@
   // 1. Know your own triggers and share them with your care team.
   function knowTriggers(ctx, p, s) {
     M.text(ctx, 'Know your triggers', 480, 50, { size: 30, weight: 800 });
-    const at = [4.6, 5, 5.4, 6.2, 7], mine = [0, 4];
+    const at = [4.5, 5.5, 6.2, 7.2, 8.2], mine = [0, 4];
     TRIGGERS.forEach(([kind, label], i) => {
       const a = ease(seg(s, at[i], at[i] + 0.5)), x = 58 + i * 172, cx = x + 78;
       if (a <= 0) return;
       M.card(ctx, x, 110, 156, 210, { alpha: a, r: 20, border: '#d7e0ec' });
       trigger(ctx, kind, cx, 188, 26, s, a);
       M.text(ctx, label, cx, 272, { size: 18, weight: 800, alpha: a });
-      if (mine.includes(i)) { const c = seg(s, 7.8, 8.3); M.dot(ctx, x + 136, 130, 16, C.green, c); M.text(ctx, '✓', x + 136, 131, { size: 18, weight: 900, color: '#fff', alpha: c }); }
+      if (mine.includes(i)) { const c = seg(s, 8.9, 9.4); M.dot(ctx, x + 136, 130, 16, C.green, c); M.text(ctx, '✓', x + 136, 131, { size: 18, weight: 900, color: '#fff', alpha: c }); }
     });
-    M.text(ctx, '✓ = this person\'s triggers. Yours may be different.', 480, 360, { size: 16, weight: 700, color: C.muted, alpha: seg(s, 8, 8.6) });
-    const n = ease(seg(s, 8.6, 9.2));
+    M.text(ctx, '✓ = this person\'s triggers. Yours may be different.', 480, 360, { size: 16, weight: 700, color: C.muted, alpha: seg(s, 9.1, 9.7) });
+    const n = ease(seg(s, 9.6, 10.2));
     if (n > 0) {
       ctx.save(); ctx.globalAlpha *= n;
       M.rr(ctx, 300, 400, 70, 88, 8); ctx.fillStyle = '#fffdf5'; ctx.fill(); ctx.strokeStyle = '#d7cfae'; ctx.lineWidth = 2; ctx.stroke();
@@ -417,16 +477,16 @@
     },
   ];
 
-  // Part 2 (~82 s): What happens during an asthma attack? Answers "why was I fine yesterday?"
+  // Part 2 (~95 s): What happens during an asthma attack? Answers "why was I fine yesterday?"
   const patientScenesB = [
     {
-      label: 'Before a flare-up',
-      caption: 'Before a flare-up, a person with asthma can look and feel completely normal. But the airways can still be sensitive underneath.',
-      draw: beforeFlare,
+      label: 'From fine to short of breath',
+      caption: 'Here is how a flare-up can happen. You feel fine walking, but your airways are still sensitive underneath. Then you breathe in a trigger, like pollen. Your airways react. The muscles tighten, the lining swells, and mucus builds up. You slow down, start to cough and wheeze, and get short of breath.',
+      draw: attackStory,
     },
     {
-      label: 'A trigger appears',
-      caption: 'Then a trigger shows up. It might be pollen, dust, smoke, a cold, or cold air. Triggers are different for each person.',
+      label: 'Many kinds of triggers',
+      caption: 'Pollen is just one trigger. Others include dust, smoke, an infection, or cold air. Triggers are different for each person.',
       draw: triggerAppears,
     },
     {
@@ -438,6 +498,11 @@
       label: 'Why breathing feels hard',
       caption: 'Pushing air through narrow airways takes more work. You might wheeze, cough, feel your chest get tight, or find it hard to catch your breath.',
       draw: breathingHard,
+    },
+    {
+      label: 'How a rescue inhaler works',
+      caption: 'A rescue inhaler gives quick relief. Its medicine relaxes the tight muscles around your airways within minutes, so they open up and air moves again. If you need it often, tell your care team.',
+      draw: rescueInhaler,
     },
     {
       label: 'When it becomes dangerous',
@@ -455,7 +520,7 @@
   const patientScenesC = [
     {
       label: 'Know your triggers',
-      caption: 'Start by learning your own triggers. Notice what makes your breathing worse, like pollen, dust, smoke, colds, or cold air, and share it with your care team.',
+      caption: 'Start by learning your own triggers. Notice what makes your breathing worse, like pollen, dust, smoke, an infection, or cold air, and share it with your care team.',
       draw: knowTriggers,
     },
     {
@@ -496,12 +561,12 @@
       // calmer pace); audio: recorded narration from tools/make-narration.py.
       videos: [
         { title: 'What is asthma?', length: 70, audio: 'audio/asthma-a/', scenes: patientScenesA },
-        { title: 'What happens during an asthma attack?', length: 82, audio: 'audio/asthma-b/', scenes: patientScenesB },
+        { title: 'What happens during an asthma attack?', length: 110, audio: 'audio/asthma-b/', scenes: patientScenesB },
         { title: 'How can I keep my asthma under control?', length: 75, audio: 'audio/asthma-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Asthma makes the airways extra sensitive. When they react, the lining swells, the muscles around them tighten, and extra mucus may form, leaving less room for air.',
-        'Triggers such as pollen, dust, smoke, colds, or cold air can start symptoms. Triggers are different for each person.',
+        'Triggers such as pollen, dust, smoke, infections, or cold air can start symptoms. Triggers are different for each person.',
         'Symptoms like wheezing, coughing, and chest tightness can come and go. The airways may still be sensitive on days you feel fine.',
         'Asthma can often be controlled. Knowing your triggers, using inhaled medicines exactly as prescribed, and following your asthma action plan help you stay active and breathe easier.',
       ],
@@ -518,10 +583,23 @@
         'Breathing keeps getting harder even after following your action plan: call 911',
         'Symptoms in your yellow zone: follow your action plan and contact your care team',
       ],
+      // Shown as a separate, tap-to-open safety box above the video.
+      emergency: {
+        title: 'Asthma emergency? Know the danger signs',
+        items: [
+          'Breathing is very hard or keeps getting worse',
+          "You can't speak in full sentences or walk",
+          'Lips or fingernails are turning blue or gray',
+          'Your rescue inhaler is not helping, or the relief does not last',
+        ],
+        action: 'Use your rescue inhaler as your action plan says, and call 911.',
+      },
       quiz: [
         { q: 'What three changes narrow the airways in asthma?', options: ['Swollen lining, tight muscles, extra mucus', 'Broken bones, fever, rash', 'Too much oxygen, dry air, hiccups'], answer: 0, explain: 'When sensitive airways react, the lining swells, the muscle ring tightens, and extra mucus forms, leaving less room for air.' },
-        { q: 'Are asthma triggers the same for everyone?', options: ['Yes, everyone reacts to pollen', 'No, triggers are different for each person', 'Only cold air is a trigger'], answer: 1, explain: 'Pollen, dust, smoke, colds, and cold air are common triggers, but each person has their own.' },
+        { q: 'Are asthma triggers the same for everyone?', options: ['Yes, everyone reacts to pollen', 'No, triggers are different for each person', 'Only cold air is a trigger'], answer: 1, explain: 'Pollen, dust, smoke, infections, and cold air are common triggers, but each person has their own.' },
         { q: 'Why keep following your care plan when you feel fine?', options: ['The airways can still be sensitive underneath', 'It is not needed when you feel fine', 'It makes asthma go away forever'], answer: 0, explain: 'Airways can stay a little swollen even on good days. Following your plan helps keep swelling down so flare-ups happen less often.' },
+        { q: 'What does a rescue inhaler do?', options: ['Quickly relaxes the tight muscles around the airways', 'Cures asthma for good', 'Removes all triggers'], answer: 0, explain: 'It gives quick relief by relaxing the airway muscles so air moves again. Your daily care plan works on the swelling over time.' },
+        { q: 'If you need your rescue inhaler often, what should you do?', options: ['Nothing, that is normal', 'Tell your care team', 'Stop your daily plan'], answer: 1, explain: 'Needing quick relief often can mean your asthma is not well controlled. Your care team can adjust your plan.' },
         { q: 'What should you do if you have trouble talking in full sentences or your lips turn blue?', options: ['Wait until tomorrow', 'Call 911', 'Go for a run'], answer: 1, explain: 'These are signs of a severe attack. Follow your action plan and call 911.' },
       ],
     },

@@ -16,7 +16,7 @@
   // started), matched to when the narrator says each word. Comparison panels draw in
   // card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
-  const { wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungsFilled, lungLegend, puffLines, riskMeter } = Lungs;
+  const { wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungsFilled, lungLegend, puffLines, riskMeter, mist, inhaleMedicine } = Lungs;
   // Stretchy fiber between two air sacs: a zigzag spring, or a broken one.
   function spring(ctx, x1, y1, x2, y2, broken, alpha = 1) {
     const n = 8, dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
@@ -55,8 +55,8 @@
     ctx.strokeStyle = '#e8f5fd'; ctx.lineWidth = R * 0.17 * (1 - 0.75 * sq); ctx.beginPath(); ctx.moveTo(cx, cy - R * 1.5); ctx.lineTo(cx, cy - R * 0.62); ctx.stroke();
     ctx.restore();
     if (o.partial) {
-      const nh = Math.round(SAC_H.length * (1 - damage)), r = R * 0.3 * (0.68 + 0.32 * fill);
-      const P = SAC_H.map(([u, v]) => [cx + u * R, cy + v * R * (0.9 + 0.1 * fill)]), gone = P.slice(nh);
+      const nh = Math.round(SAC_H.length * (1 - damage)), r = R * 0.3 * (0.55 + 0.45 * fill);
+      const P = SAC_H.map(([u, v]) => [cx + u * R * (0.86 + 0.14 * fill), cy + v * R * (0.84 + 0.16 * fill)]), gone = P.slice(nh);
       [[0, 1], [0, 2], [1, 3], [2, 4], [3, 6], [4, 6], [1, 5], [2, 5]].forEach(([a, b]) => spring(ctx, P[a][0], P[a][1], P[b][0], P[b][1], a >= nh || b >= nh));
       if (gone.length) {
         const gx = gone.reduce((t, q) => t + q[0], 0) / gone.length, gy = gone.reduce((t, q) => t + q[1], 0) / gone.length;
@@ -68,7 +68,7 @@
     const ah = 1 - damage, ad = damage;
     if (ah > 0.01) {
       ctx.save(); ctx.globalAlpha *= ah;
-      const r = R * 0.3 * (0.68 + 0.32 * fill), P = SAC_H.map(([u, v]) => [cx + u * R, cy + v * R * (0.9 + 0.1 * fill)]);
+      const r = R * 0.3 * (0.55 + 0.45 * fill), P = SAC_H.map(([u, v]) => [cx + u * R * (0.86 + 0.14 * fill), cy + v * R * (0.84 + 0.16 * fill)]);
       [[0, 1], [0, 2], [1, 3], [2, 4], [3, 6], [4, 6], [1, 5], [2, 5]].forEach(([a, b]) => spring(ctx, P[a][0], P[a][1], P[b][0], P[b][1], false));
       P.forEach(([x, y], i) => sac(ctx, x, y, r, false, Math.round(fill * 3), t + i));
       ctx.restore();
@@ -126,6 +126,10 @@
     const ph = s / 4.5, b = breathOf(ph);
     sacCluster(ctx, 480, 330, 140, b, 0, s);
     const out = exhaling(ph);
+    lungsFilled(ctx, 160, 200, 70, 0.2 + 0.7 * b, 0, s, { face: true });
+    M.text(ctx, out ? 'Lungs get smaller' : 'Lungs get bigger', 160, 290, { size: 15, weight: 800, color: C.muted });
+    M.arrow(ctx, 560, out ? 240 : 150, 560, out ? 150 : 240, { color: out ? '#4d5f86' : '#2f6f9e', width: 5, head: 14, alpha: 0.85 });
+    M.text(ctx, out ? 'Air out' : 'Air in', 578, 195, { size: 17, weight: 800, align: 'left', color: out ? '#4d5f86' : '#2f6f9e' });
     for (let i = 0; i < 4; i++) { const q = wrapX(ph * 2 + i / 4, 1); air(ctx, 480 + (i - 1.5) * 4, out ? lerp(240, 120, q) : lerp(120, 240, q), 6, 1 - seg(q, 0.85, 1)); }
     if (s > 4.4) M.pill(ctx, out ? 'Breathe out: they spring back' : 'Breathe in: they fill up', 790, 260, { size: 18, bg: out ? '#e9f7ef' : '#e8f5fd', border: out ? C.green : M.C.blue, color: out ? '#1d7a4c' : '#1f4fa8', alpha: seg(s, 4.4, 5) });
     M.pill(ctx, 'Stretchy fibers', 170, 330, { size: 17, bg: '#fff', border: '#43b581', color: '#1d7a4c', alpha: seg(s, 7.8, 8.4) });
@@ -338,30 +342,72 @@
   // 2. Pursed-lip breathing: in through the nose, out slowly through pursed lips; it keeps
   //    small airways open longer so more air gets out.
   function pursedLips(ctx, p, s) {
-    M.text(ctx, 'Pursed-lip breathing', 480, 50, { size: 30, weight: 800 });
-    const fx = 220, fy = 250, R = 92, demo = s >= 1.8, q = demo ? wrapX(s - 1.8, 6) : 0, inhale = demo && q < 2;
+    M.text(ctx, 'Try pursed-lip breathing', 480, 50, { size: 30, weight: 800 });
+    // the practice cycle: 2 s in through the nose, then 4 s out slowly through pursed lips
+    const demo = s >= 1.8, q = demo ? wrapX(s - 1.8, 6) : 0, inhale = demo && q < 2;
+    const fx = 190, fy = 220, R = 96, level = !demo ? 0.4 : inhale ? lerp(0.3, 0.9, q / 2) : lerp(0.9, 0.22, (q - 2) / 4);
     M.dot(ctx, fx, fy, R, '#f2c8a8');
-    M.dot(ctx, fx - 32, fy - 18, 8, '#2b2233'); M.dot(ctx, fx + 32, fy - 18, 8, '#2b2233');
+    M.dot(ctx, fx - 34, fy - 22, 9, '#2b2233'); M.dot(ctx, fx + 34, fy - 22, 9, '#2b2233');
     ctx.save(); ctx.strokeStyle = '#c98f6b'; ctx.lineWidth = 4; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(fx, fy - 6); ctx.lineTo(fx - 6, fy + 14); ctx.lineTo(fx + 4, fy + 16); ctx.stroke(); ctx.restore();
-    if (demo && !inhale) { ctx.save(); ctx.strokeStyle = '#c0504a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(fx, fy + 44, 9, 7, 0, 0, M.TAU); ctx.stroke(); ctx.restore(); }
-    else { ctx.save(); ctx.strokeStyle = '#c0504a'; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(fx - 18, fy + 42); ctx.quadraticCurveTo(fx, fy + 50, fx + 18, fy + 42); ctx.stroke(); ctx.restore(); }
-    if (inhale) for (let i = 0; i < 3; i++) { const k = wrapX(q / 2 + i / 3, 1); air(ctx, lerp(fx + 90, fx + 4, k), lerp(fy - 60, fy + 4, k), 6, 1 - seg(k, 0.8, 1)); }
-    if (demo && !inhale) for (let i = 0; i < 5; i++) { const k = wrapX((q - 2) / 4 * 2 + i / 5, 1); air(ctx, lerp(fx + 14, fx + 150, k), fy + 44 + Math.sin(k * 6) * 6, 5, 1 - seg(k, 0.85, 1)); }
-    if (demo) M.pill(ctx, inhale ? 'In through your nose: 1, 2' : 'Out slowly through pursed lips: 1, 2, 3, 4', fx, 386, { size: 17, bg: inhale ? '#e8f5fd' : '#e9f7ef', border: inhale ? M.C.blue : C.green, color: inhale ? '#1f4fa8' : '#1d7a4c' });
+    ctx.beginPath(); ctx.moveTo(fx, fy - 8); ctx.lineTo(fx - 7, fy + 14); ctx.lineTo(fx + 4, fy + 16); ctx.stroke(); ctx.restore();
+    if (demo && !inhale) { ctx.save(); ctx.strokeStyle = '#c0504a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.ellipse(fx, fy + 48, 10, 8, 0, 0, M.TAU); ctx.stroke(); ctx.restore(); }
+    else { ctx.save(); ctx.strokeStyle = '#c0504a'; ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(fx - 20, fy + 46); ctx.quadraticCurveTo(fx, fy + 54, fx + 20, fy + 46); ctx.stroke(); ctx.restore(); }
+    if (inhale) for (let i = 0; i < 3; i++) { const k = wrapX(q / 2 + i / 3, 1); air(ctx, lerp(fx + 110, fx + 6, k), lerp(fy - 70, fy + 4, k), 7, 1 - seg(k, 0.8, 1)); }
+    if (demo && !inhale) for (let i = 0; i < 6; i++) { const k = wrapX((q - 2) / 2 + i / 6, 1); air(ctx, lerp(fx + 16, fx + 150, k), fy + 48 + Math.sin(k * 6) * 6, 6, 1 - seg(k, 0.85, 1)); }
+    // soup cooling: what pursed lips feel like
     const sa = ease(seg(s, 6.4, 7));
-    if (sa > 0) { M.food(ctx, 'rice', fx + 200, fy + 56, 60, s, sa); M.text(ctx, 'Like blowing on soup', fx + 200, fy + 112, { size: 15, weight: 800, color: C.muted, alpha: sa }); }
+    if (sa > 0) { M.food(ctx, 'rice', fx + 182, fy + 66, 58, s, sa); M.text(ctx, 'Like blowing on soup', fx + 182, fy + 120, { size: 15, weight: 800, color: C.muted, alpha: sa }); }
+    // a big on-screen count, and the lungs emptying slowly
+    if (demo) {
+      const n = inhale ? Math.floor(q) + 1 : Math.floor(q - 2) + 1;
+      M.text(ctx, String(n), fx, 404, { size: 64, weight: 900, color: inhale ? '#2f6f9e' : '#1d7a4c' });
+      M.text(ctx, inhale ? 'breathe in' : 'breathe out slowly', fx, 452, { size: 18, weight: 800, color: inhale ? '#2f6f9e' : '#1d7a4c' });
+    }
+    lungsFilled(ctx, 360, 410, 58, level, 0, s, { face: true });
+    // the three steps light up in turn
+    [['1', 'Breathe in through your nose', 'count 1, 2', M.C.blue], ['2', 'Pucker your lips', 'like blowing on soup', '#c0504a'], ['3', 'Breathe out slowly', 'count 1, 2, 3, 4', C.green]].forEach(([n, t, sub, col], i) => {
+      const shown = seg(s, [1.8, 4, 4.4][i], [2.4, 4.6, 5][i]);
+      const on = demo && (i === 0 ? inhale : i === 1 ? q >= 2 && q < 2.8 : q >= 2.6);
+      const y = 112 + i * 76;
+      M.card(ctx, 470, y, 440, 64, { alpha: shown, r: 16, border: on ? col : '#d7e0ec', borderWidth: on ? 3 : 2, fill: on ? '#fbfdff' : '#ffffff' });
+      M.dot(ctx, 500, y + 32, 16, col, shown); M.text(ctx, n, 500, y + 33, { size: 17, weight: 900, color: '#fff', alpha: shown });
+      M.text(ctx, t, 528, y + 24, { size: 18, weight: 800, align: 'left', alpha: shown });
+      M.text(ctx, sub, 528, y + 46, { size: 14, weight: 700, align: 'left', color: C.muted, alpha: shown });
+    });
+    // why it helps: small airways stay open longer, so more air gets out
     const ta = ease(seg(s, 8.6, 9.2));
     if (ta > 0) {
-      M.text(ctx, 'Fast breath out', 730, 130, { size: 16, weight: 800, color: '#a3261f', alpha: ta });
-      ctx.save(); ctx.globalAlpha *= ta; airwayTube(ctx, 560, 148, 340, 96, s, { thick: 0.3, squeeze: 0.75 + 0.15 * Math.sin(s * 2), air: 2, dir: -1, speed: 30 }); ctx.restore();
-      M.text(ctx, 'Slow, pursed-lip breath out', 730, 296, { size: 16, weight: 800, color: '#1d7a4c', alpha: ta });
-      ctx.save(); ctx.globalAlpha *= ta; airwayTube(ctx, 560, 314, 340, 96, s, { thick: 0.3, squeeze: 0.2, air: 7, dir: -1, speed: 45 }); ctx.restore();
-      M.pill(ctx, 'Airways stay open longer, so more air gets out', 730, 452, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, 11.4, 12) });
+      M.text(ctx, 'Fast breath out', 580, 364, { size: 14, weight: 800, color: '#a3261f', alpha: ta });
+      ctx.save(); ctx.globalAlpha *= ta; airwayTube(ctx, 480, 378, 200, 64, s, { thick: 0.3, squeeze: 0.8 + 0.1 * Math.sin(s * 2), air: 2, dir: -1, speed: 30 }); ctx.restore();
+      M.text(ctx, 'Pursed-lip breath out', 810, 364, { size: 14, weight: 800, color: '#1d7a4c', alpha: ta });
+      ctx.save(); ctx.globalAlpha *= ta; airwayTube(ctx, 710, 378, 200, 64, s, { thick: 0.3, squeeze: 0.15, air: 6, dir: -1, speed: 45 }); ctx.restore();
+      M.pill(ctx, 'Airways stay open longer, so more air gets out', 695, 482, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, 11.4, 12) });
     }
   }
 
-  // 3. Pulmonary rehab: exercise and breathing skills build stronger muscles that use oxygen
+  // 3. How a daily (routine) inhaler works: the medicine is breathed straight into the airways
+  //    and helps them relax and stay more open, so breathing is easier. It does not repair air
+  //    sacs that are already damaged.
+  function dailyInhaler(ctx, p, s) {
+    M.text(ctx, 'How a daily inhaler works', 480, 50, { size: 30, weight: 800 });
+    inhaleMedicine(ctx, 170, 404, 80, s, ease(seg(s, 0.3, 0.9)), seg(s, 1.4, 2));
+    const open = ease(seg(s, 4.6, 7.4)), cx = 500, cy = 290;
+    ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(200, 330); ctx.lineTo(cx - 150, cy - 80); ctx.moveTo(200, 346); ctx.lineTo(cx - 150, cy + 80); ctx.stroke(); ctx.restore();
+    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.55, 0.1, open), thick: 0.35, inflam: lerp(0.5, 0.35, open), mucus: 0.3, air: Math.round(lerp(2, 6, open)) });
+    for (let i = 0; i < 5; i++) {
+      const a = i * 1.25 + 0.3, d = lerp(150, 40, seg(s, 2.4 + i * 0.25, 3.6 + i * 0.25));
+      mist(ctx, cx + Math.cos(a) * d * 0.5, cy + Math.sin(a) * d * 0.5, 5, seg(s, 2.4, 3) * (1 - seg(s, 7.4, 8.4)));
+    }
+    M.text(ctx, 'Inside an airway', cx, 476, { size: 16, weight: 800, color: C.muted });
+    [['Medicine reaches the airways', 1.6, '#7b5cd6'], ['Airways relax and open more', 4.6, M.C.blue], ['Breathing is easier', 8.2, C.green]].forEach(([t, at, col], i) =>
+      M.pill(ctx, t, 790, 150 + i * 60, { size: 17, bg: '#fff', border: col, color: col, alpha: seg(s, at, at + 0.5) }));
+    riskMeter(ctx, 680, 370, 240, lerp(0.35, 0.75, ease(seg(s, 5.2, 8.6))), 'Air getting through', 1, true);
+    M.pill(ctx, 'Use it every day as prescribed, even on good days', 752, 446, { size: 15, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, 9.4, 10) });
+    M.text(ctx, 'It helps the airways. It does not repair damaged air sacs.', 480, 516, { size: 15, weight: 700, color: C.muted, alpha: seg(s, 12.4, 13) });
+  }
+
+  // 4. Pulmonary rehab: exercise and breathing skills build stronger muscles that use oxygen
   //    better, so daily activities feel easier. It does not repair the lungs.
   function rehab(ctx, p, s) {
     M.text(ctx, 'Pulmonary rehab', 480, 50, { size: 30, weight: 800 });
@@ -388,7 +434,7 @@
     M.text(ctx, "Rehab helps your body, even though lung damage doesn't go away", 480, 508, { size: 16, weight: 700, color: C.muted, alpha: seg(s, 10.4, 11) });
   }
 
-  // 4. Preventing flare-ups: avoid smoke, get recommended vaccines, wash hands.
+  // 5. Preventing flare-ups: avoid smoke, get recommended vaccines, wash hands.
   function preventFlares(ctx, p, s) {
     M.text(ctx, 'Prevent flare-ups', 480, 50, { size: 30, weight: 800 });
     const sh = ease(seg(s, 2.8, 8)), cx = 300, cy = 290;
@@ -405,7 +451,7 @@
     riskMeter(ctx, 520, 410, 360, lerp(0.75, 0.4, sh), 'Chance of a flare-up');
   }
 
-  // 5. Keep checking: breathing tests, notice changes, follow the care plan.
+  // 6. Keep checking: breathing tests, notice changes, follow the care plan.
   function keepChecking(ctx, p, s) {
     M.text(ctx, 'Keep checking', 480, 50, { size: 30, weight: 800 });
     [['Breathing tests', 1.1], ['Notice changes in how you feel', 1.9], ['Follow your care plan', 4.4]].forEach(([label, at], i) => {
@@ -431,7 +477,7 @@
     });
   }
 
-  // 6. The takeaway.
+  // 7. The takeaway.
   function takeaway(ctx, p, s) {
     const a = ease(seg(s, 0, 0.5));
     M.card(ctx, 80, 90, 800, 380, { alpha: a, border: M.C.blue, borderWidth: 3, r: 28 });
@@ -507,7 +553,7 @@
     },
   ];
 
-  // Part 3 (~80 s): How can I protect my lungs? Management helps you breathe and live better;
+  // Part 3 (~92 s): How can I protect my lungs? Management helps you breathe and live better;
   // it does not repair air sacs that are already damaged.
   const patientScenesC = [
     {
@@ -519,6 +565,11 @@
       label: 'Breathing techniques',
       caption: 'Pursed-lip breathing can help. Breathe in through your nose, then breathe out slowly through pursed lips, like blowing on soup. It helps keep small airways open longer, so more air gets out.',
       draw: pursedLips,
+    },
+    {
+      label: 'How a daily inhaler works',
+      caption: 'A daily inhaler sends medicine straight into your airways. It helps the airways relax and stay more open, so breathing is easier. Use it every day as prescribed, even on good days.',
+      draw: dailyInhaler,
     },
     {
       label: 'Pulmonary rehab',
@@ -554,7 +605,7 @@
       videos: [
         { title: 'What is COPD?', length: 75, audio: 'audio/copd-a/', scenes: patientScenesA },
         { title: 'How COPD changes your lungs', length: 85, audio: 'audio/copd-b/', scenes: patientScenesB },
-        { title: 'How can I protect my lungs?', length: 80, audio: 'audio/copd-c/', scenes: patientScenesC },
+        { title: 'How can I protect my lungs?', length: 92, audio: 'audio/copd-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'COPD is a long-term lung disease. Swollen, narrow airways and air sacs that lose their spring make it harder to breathe out, so some air gets trapped.',
@@ -575,10 +626,22 @@
         'Confusion or unusual sleepiness: call 911',
         'Breathing, cough, or mucus worse than usual: contact your care team the same day',
       ],
+      // Shown as a separate, tap-to-open safety box above the video.
+      emergency: {
+        title: 'Breathing emergency? Know the danger signs',
+        items: [
+          'Severe trouble breathing, or you cannot speak in full sentences',
+          'Blue or gray lips or fingertips',
+          'Confusion, unusual sleepiness, or hard to wake up',
+          'Chest pain',
+        ],
+        action: 'Call 911 or go to the nearest emergency room.',
+      },
       quiz: [
         { q: 'With COPD, what happens when you breathe out?', options: ['Some air gets trapped inside', 'All the air turns into mucus', 'Air cannot get into your nose'], answer: 0, explain: 'Narrow airways and air sacs that lose their spring make it harder to push air out, so some air stays in the lungs.' },
         { q: 'What is the most important step to protect your lungs?', options: ['Stop breathing in smoke and irritants', 'Breathe as fast as you can', 'Avoid all activity'], answer: 0, explain: 'Quitting smoking and avoiding other smoke, dust, and fumes slows new damage.' },
         { q: 'How can pursed-lip breathing help?', options: ['It heals damaged air sacs', 'It keeps small airways open longer so more air gets out', 'It stops coughing forever'], answer: 1, explain: 'Breathing out slowly through pursed lips helps keep small airways open, so more air can leave the lungs.' },
+        { q: 'Why use your daily inhaler even on good days?', options: ['It helps keep your airways more open over time', 'It repairs damaged air sacs', 'It is only for emergencies'], answer: 0, explain: 'A daily inhaler helps your airways relax and stay more open. It works best when you use it every day as prescribed.' },
         { q: 'What should you do if your breathing, cough, or mucus gets worse?', options: ['Wait a few weeks', 'Contact your care team', 'Exercise harder'], answer: 1, explain: 'These can be signs of a flare-up. Contact your care team, and call 911 for severe trouble breathing.' },
       ],
     },
