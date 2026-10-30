@@ -9,7 +9,8 @@
   const { runner } = S;
 
   // ---------------------------------------------------------------------------
-  // Patient portal: Part 1 "How do your muscles work?". Muscles are red-pink with fiber lines,
+  // Patient portal: Part 1 "How do your muscles work?" and Part 2 "What happens when you strain
+  // a muscle?". Muscles are red-pink with fiber lines,
   // tendons cream, bones beige, nerves yellow. Cues use s (seconds since the narration
   // started), matched to the narrator's words.
   // ---------------------------------------------------------------------------
@@ -277,6 +278,215 @@
     M.pill(ctx, 'What happens when a muscle gets hurt?', 700, 420, { size: 17, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, T6.hurt, T6.hurt + 0.5) });
   }
 
+  // ---- Part 2: What happens when you strain a muscle? ------------------------------------
+  // A strain is an injury to muscle fibers (or where muscle joins tendon) when the force is
+  // more than the muscle can handle in that moment. A mild strain involves a small area; a
+  // larger tear disrupts more fibers, with bleeding and swelling. It is not drawn as a muscle
+  // snapping in half, and no single posture is shown as the cause.
+  const ACHE_C = '#e5484d', REPAIR = '#7fb3e8';
+  // Front-view person seen from behind: same body, the hair covers the head.
+  function backPerson(ctx, x, y, sc, o = {}) {
+    M.person(ctx, x, y, sc, Object.assign({}, o, { face: false }));
+    ctx.save(); if (o.alpha != null) ctx.globalAlpha *= o.alpha;
+    M.dot(ctx, x, y - 1.62 * sc, 0.38 * sc, '#5b3a29');
+    ctx.restore();
+  }
+  function ache(ctx, x, y, r, a, s) {
+    if (a <= 0) return;
+    const g = ctx.createRadialGradient(x, y, 2, x, y, r);
+    g.addColorStop(0, `rgba(229,72,77,${0.7 * a * (0.75 + 0.25 * Math.sin(s * 5))})`); g.addColorStop(1, 'rgba(229,72,77,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fill();
+  }
+  // A strip of muscle fibers up close. level: 0 healthy, 1 mild strain (a few fibers in a small
+  // area), 2 larger tear (many fibers, a gap, bleeding). work (0..1) glows like working muscle;
+  // swell (0..1) puffy red area; heal (0..1) repair cells bridge the gap; s (time).
+  function fiberStrip(ctx, x, y, w, h, o = {}) {
+    const level = o.level || 0, n = 8, fh = h / n, s = o.s || 0, mid = x + w * 0.55, heal = o.heal || 0;
+    ctx.save(); M.rr(ctx, x, y, w, h, 16); ctx.clip();
+    ctx.fillStyle = '#f6d6cf'; ctx.fillRect(x, y, w, h);
+    if (o.swell > 0) { const g = ctx.createRadialGradient(mid, y + h / 2, 4, mid, y + h / 2, w * 0.4); g.addColorStop(0, `rgba(229,72,77,${0.45 * o.swell})`); g.addColorStop(1, 'rgba(229,72,77,0)'); ctx.fillStyle = g; ctx.fillRect(x, y, w, h); }
+    const broken = level === 0 ? [] : level === 1 ? [3, 4] : [1, 2, 3, 4, 5, 6];
+    const gap = level === 1 ? 10 : 34;
+    for (let i = 0; i < n; i++) {
+      const fy = y + fh * (i + 0.5), br = broken.includes(i), g2 = br ? gap * (1 - 0.7 * heal) * (0.7 + 0.3 * Math.sin(i * 1.7)) : 0;
+      const col = M.mix(MUS, '#f0b05a', (o.work || 0) * 0.35);
+      const seg2 = (x0, x1) => { M.rr(ctx, x0, fy - fh * 0.36, x1 - x0, fh * 0.72, fh * 0.36); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = MUS_D; ctx.lineWidth = 1.2; ctx.stroke(); };
+      if (!br) seg2(x - 10, x + w + 10);
+      else {
+        const off = (i % 2 ? 1 : -1) * 6;
+        seg2(x - 10, mid - g2 / 2 + off); seg2(mid + g2 / 2 + off, x + w + 10);
+        ctx.strokeStyle = MUS_D; ctx.lineWidth = 1.5;
+        [mid - g2 / 2 + off, mid + g2 / 2 + off].forEach((ex, j) => { for (let k = -1; k <= 1; k++) { ctx.beginPath(); ctx.moveTo(ex, fy + k * fh * 0.2); ctx.lineTo(ex + (j ? -1 : 1) * -5, fy + k * fh * 0.2 + 2); ctx.stroke(); } });
+      }
+    }
+    if (level === 2) { ctx.beginPath(); ctx.ellipse(mid, y + h / 2, 22 * (1 - 0.6 * heal), h * 0.34, 0, 0, M.TAU); ctx.fillStyle = `rgba(150,20,30,${0.55 * (1 - 0.7 * heal)})`; ctx.fill(); }
+    if (heal > 0) for (let i = 0; i < 8; i++) { const a = i / 8 * M.TAU + s * 0.6; M.dot(ctx, mid + Math.cos(a) * 26, y + h / 2 + Math.sin(a) * h * 0.28, 5, REPAIR, heal); }
+    if (o.cells > 0) for (let i = 0; i < 7; i++) { const q = Math.min(1, o.cells * 1.4 - i * 0.08); if (q <= 0) continue; const a = i * 0.9; M.dot(ctx, lerp(x + (i % 2 ? w : 0), mid + Math.cos(a) * 22, q), lerp(y + (i % 3) * h / 2, y + h / 2 + Math.sin(a) * h * 0.3, q), 6, '#9a7fd6', 0.9); M.dot(ctx, lerp(x + (i % 2 ? w : 0), mid + Math.cos(a) * 22, q), lerp(y + (i % 3) * h / 2, y + h / 2 + Math.sin(a) * h * 0.3, q), 2.5, '#ffffff', 0.8); }
+    ctx.restore();
+    M.rr(ctx, x, y, w, h, 16); ctx.strokeStyle = '#d9a99f'; ctx.lineWidth = 3; ctx.stroke();
+    return [mid, y + h / 2];
+  }
+  // Yellow pain signals along a path.
+  function signals(ctx, pts, s, a) {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = NERVE; ctx.lineWidth = 3; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke(); ctx.restore();
+    const L = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1])), tot = L.reduce((p, q) => p + q, 0);
+    for (let k = 0; k < 3; k++) {
+      let d = (s * 120 + k * tot / 3) % tot, i = 0;
+      while (i < L.length - 1 && d > L[i]) { d -= L[i]; i++; }
+      const f = Math.min(1, d / L[i]), px = lerp(pts[i][0], pts[i + 1][0], f), py = lerp(pts[i][1], pts[i + 1][1], f);
+      M.dot(ctx, px, py, 6, NERVE, a); M.dot(ctx, px, py, 3, '#fff7cc', a);
+    }
+  }
+
+  // 1. Common muscle strains: front and back of the body; each spot lights up with the kind
+  //    of activity that can strain it.
+  const TS1 = { many: 0.1, neck: 4.9, lift: 6.8, low: 10.7, sudden: 8.4, sports: 11.8, groin: 14.8, thigh: 16.2, calf: 17.1 };
+  function strainMap(ctx, p, s) {
+    M.text(ctx, 'Muscle strains can happen in many places', 480, 44, { size: 28, weight: 800 });
+    const fx = 200, bx = 760, y = 300, sc = 84, a = seg(s, TS1.many, TS1.many + 0.6);
+    M.person(ctx, fx, y, sc, { t: s, alpha: 0.6 }); backPerson(ctx, bx, y, sc, { alpha: 0.6 });
+    M.text(ctx, 'Front', fx, 500, { size: 14, weight: 800, color: C.muted, alpha: a });
+    M.text(ctx, 'Back', bx, 500, { size: 14, weight: 800, color: C.muted, alpha: a });
+    const spot = (px, py, rx, ry, at) => { const on = seg(s, at, at + 0.5); if (on <= 0) return; ctx.save(); ctx.globalAlpha *= on; ctx.beginPath(); ctx.ellipse(px, py, rx, ry, 0, 0, M.TAU); ctx.fillStyle = 'rgba(224,122,106,0.8)'; ctx.fill(); ctx.restore(); ache(ctx, px, py, Math.max(rx, ry) + 10, on, s); };
+    spot(bx, y - 1.18 * sc, 0.42 * sc, 0.16 * sc, TS1.neck);
+    spot(bx, y - 0.15 * sc, 0.3 * sc, 0.16 * sc, TS1.low);
+    spot(fx - 0.14 * sc, y + 0.4 * sc, 0.08 * sc, 0.22 * sc, TS1.groin);
+    spot(bx + 0.26 * sc, y + 0.55 * sc, 0.15 * sc, 0.32 * sc, TS1.thigh);
+    spot(bx - 0.26 * sc, y + 1.22 * sc, 0.13 * sc, 0.24 * sc, TS1.calf);
+    // what can cause it, in the middle
+    [['📦', 'Neck or upper back', 'Lifting something heavy', TS1.neck], ['⚡', 'Lower back', 'A sudden movement', TS1.low - 2.3], ['⚽', 'Groin, back of thigh, calf', 'Sports', TS1.sports]].forEach(([ic, t, d, at], i) => {
+      const ca = ease(seg(s, at, at + 0.5)), cy = 120 + i * 120;
+      M.card(ctx, 330, cy, 300, 100, { r: 16, alpha: ca, border: '#f3c9a0' });
+      M.emoji(ctx, ic, 372, cy + 50, 34, ca);
+      M.text(ctx, t, 404, cy + 36, { size: 16, weight: 800, align: 'left', alpha: ca });
+      M.text(ctx, d, 404, cy + 66, { size: 14, weight: 700, align: 'left', color: '#a3461f', alpha: ca });
+    });
+  }
+
+  // 2. Inside the muscle: bundles of fibers; too much force injures some fibers (a strain, or
+  //    pulled muscle). Mild strain (small area) vs. a larger tear.
+  const TS2 = { inside: 1.7, bundles: 4.3, force: 8.4, injured: 11.6, strain: 13.6, mild: 15.8, larger: 21.1 };
+  function insideStrain(ctx, p, s) {
+    M.text(ctx, 'What happens inside the muscle?', 480, 44, { size: 28, weight: 800 });
+    // the zoom: muscle with bundles, pulled by force arrows
+    const pull = seg(s, TS2.force, TS2.force + 0.5) * (0.6 + 0.4 * Math.sin(s * 5));
+    const lvl = s > TS2.injured ? 1 : 0;
+    lens(ctx, 250, 270, 170, () => { fiberStrip(ctx, 100, 190, 300, 160, { level: lvl, s, work: pull, swell: lvl * 0.4 }); });
+    if (pull > 0) { M.arrow(ctx, 120, 270, 60, 270, { color: '#c2410c', width: 6, head: 14, alpha: pull }); M.arrow(ctx, 380, 270, 440, 270, { color: '#c2410c', width: 6, head: 14, alpha: pull }); }
+    M.text(ctx, 'Bundles of tiny fibers', 250, 466, { size: 15, weight: 800, color: '#a3461f', alpha: seg(s, TS2.bundles, TS2.bundles + 0.5) });
+    M.pill(ctx, 'More force than it can handle', 250, 82, { size: 15, bg: '#fff3e8', border: '#c2410c', color: '#a3461f', alpha: seg(s, TS2.force, TS2.force + 0.5) });
+    M.pill(ctx, 'A muscle strain = a pulled muscle', 250, 506, { size: 16, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, TS2.strain, TS2.strain + 0.5) });
+    // mild vs larger
+    [['Mild strain', 'A few fibers, small area', 1, TS2.mild, '#c26a00'], ['Larger tear', 'More fibers, bleeding and swelling', 2, TS2.larger, C.red]].forEach(([t, d, level, at, col], i) => {
+      const a = ease(seg(s, at - 0.4, at + 0.2)), y = 110 + i * 200;
+      M.card(ctx, 470, y, 460, 180, { r: 18, alpha: a, border: col });
+      if (a <= 0) return;
+      M.text(ctx, t, 500, y + 28, { size: 18, weight: 800, align: 'left', color: col, alpha: a });
+      ctx.save(); ctx.globalAlpha *= a; fiberStrip(ctx, 500, y + 50, 260, 110, { level, s, swell: level === 2 ? 0.8 : 0.3 }); ctx.restore();
+      M.wrap(ctx, d, 845, y + 105, 150, { size: 14, weight: 800, alpha: a });
+    });
+  }
+
+  // 3. A lower back strain, starting from real life: playing basketball, a sudden twist and
+  //    reach; the back muscles work hard; the force is too much, and part of a muscle is hurt.
+  //    Left: the person and where it hurts; right: inside the muscle.
+  const TS3 = { example: 1, play: 3.5, twist: 5.3, grab: 7, work: 8.2, control: 9.9, much: 13, injured: 15.4 };
+  function backStrain(ctx, p, s) {
+    M.text(ctx, "Let's look at a lower back strain", 480, 44, { size: 28, weight: 800 });
+    const ground = 452, hurt = ease(seg(s, TS3.much, TS3.much + 0.8));
+    // court
+    ctx.fillStyle = '#f2d6a8'; ctx.fillRect(40, ground, 420, 14);
+    ctx.strokeStyle = '#b08a64'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(420, ground); ctx.lineTo(420, 160); ctx.stroke();
+    M.rr(ctx, 380, 150, 64, 40, 4); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.strokeStyle = '#e8733c'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(380, 196, 20, 6, 0, 0, M.TAU); ctx.stroke();
+    const moving = s < TS3.twist, twist = ease(seg(s, TS3.twist, TS3.grab)) * (1 - hurt);
+    const x = moving ? lerp(120, 220, (s / TS3.twist)) : 220, ph = moving ? s * 6 : 0;
+    const lean = moving ? 0.08 : lerp(lerp(0.08, -0.25, twist), 0.45, hurt);
+    const head = runner(ctx, x, ground, ph, moving ? 0.55 : 0.12, lean, lerp(1, 0.35, hurt), s);
+    // the ball: dribbled, then grabbed overhead with a twist
+    const ballY = moving ? ground - 20 - 60 * Math.abs(Math.sin(s * 4)) : lerp(ground - 40, head[1] - 46, twist);
+    const ballX = moving ? x + 30 : lerp(x + 30, head[0] + 30, twist) + (hurt > 0 ? 60 * hurt : 0);
+    const by = lerp(ballY, ground - 14, hurt);
+    M.dot(ctx, ballX, by, 14, "#e8733c");
+    ctx.strokeStyle = "#8a3a14"; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(ballX, by, 14, 0, M.TAU); ctx.moveTo(ballX - 14, by); ctx.lineTo(ballX + 14, by); ctx.stroke();
+    if (twist > 0.3 && hurt < 0.5) { ctx.save(); ctx.strokeStyle = 'rgba(100,120,150,0.6)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, ground - 110, 46, -0.6, 0.9); ctx.stroke(); ctx.restore(); }
+    // low back of the runner: just above the hip, toward the back
+    const ang = lean * 0.9, lb = [x + Math.sin(ang) * 18 - 10, ground - 70 - Math.cos(ang) * 18];
+    ache(ctx, lb[0], lb[1], 30, hurt, s);
+    if (seg(s, TS3.work, TS3.work + 0.5) > 0 && hurt < 0.5) M.dot(ctx, lb[0], lb[1], 16, `rgba(255,190,80,${0.6 * seg(s, TS3.work, TS3.work + 0.5)})`);
+    M.say(ctx, 'Ouch!', head[0] - 70, head[1] - 30, hurt, '#a3261f');
+    // inside the muscle
+    const work = seg(s, TS3.work, TS3.work + 0.5) * (0.6 + 0.4 * Math.sin(s * 6)), cx = 720, cy = 280, R = 190;
+    ctx.save(); ctx.globalAlpha *= seg(s, TS3.work - 0.6, TS3.work); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lb[0], lb[1]); ctx.lineTo(cx - R * 0.72, cy - R * 0.7); ctx.moveTo(lb[0], lb[1]); ctx.lineTo(cx - R * 0.72, cy + R * 0.7); ctx.stroke(); ctx.restore();
+    lens(ctx, cx, cy, R, () => {
+      fiberStrip(ctx, cx - 160, cy - 90, 320, 180, { level: s > TS3.much ? 1 : 0, s, work: hurt > 0.5 ? 0 : work, swell: 0.5 * hurt });
+      const L = seg(s, TS3.control, TS3.control + 0.5) * (1 - hurt);
+      if (L > 0) { M.arrow(ctx, cx - 120, cy, cx - 175, cy, { color: '#c2410c', width: 5 + 3 * L, head: 12, alpha: L }); M.arrow(ctx, cx + 120, cy, cx + 175, cy, { color: '#c2410c', width: 5 + 3 * L, head: 12, alpha: L }); }
+    }, seg(s, TS3.work - 0.6, TS3.work));
+    M.pill(ctx, 'Back muscles, up close', cx, 72, { size: 15, bg: '#fff', border: MUS, color: '#a3461f', alpha: seg(s, TS3.work - 0.4, TS3.work) });
+    S.phasePill(ctx, cx, 500, s, [[TS3.work, 'Muscles work hard to control the movement', '#c26a00'], [TS3.much, 'Too much force: some fibers are hurt']]);
+    S.phasePill(ctx, 240, 110, s, [[TS3.play, 'Playing basketball', C.green], [TS3.twist, 'A sudden twist and reach', '#c26a00'], [TS3.much, 'A lower back strain']]);
+  }
+
+  // 4. Why it hurts: an inflammatory response around the injured fibers, pain signals to the
+  //    brain, and nearby muscles guarding (tightening). Sore, tight, hard to move.
+  const TS4 = { tissues: 0.2, inflam: 2, nerves: 4.1, brain: 5.8, sore: 7.7, tight: 8.3, move: 9.6 };
+  function whyHurts(ctx, p, s) {
+    M.text(ctx, 'Why does it hurt?', 480, 44, { size: 28, weight: 800 });
+    const cx = 300, cy = 290, R = 200, guard = seg(s, TS4.tight, TS4.tight + 0.6);
+    lens(ctx, cx, cy, R, () => {
+      fiberStrip(ctx, cx - 170, cy - 60, 340, 120, { level: 1, s, swell: 0.4 + 0.5 * seg(s, TS4.inflam, TS4.inflam + 1), cells: seg(s, TS4.inflam, TS4.inflam + 1.6) });
+      [-1, 1].forEach((d) => { const y = cy + d * 110; M.rr(ctx, cx - 170, y - 28, 340, 56, 26); ctx.fillStyle = M.mix(MUS_L, '#e56a5a', guard); ctx.fill(); ctx.strokeStyle = MUS_D; ctx.lineWidth = 1.5; ctx.stroke(); if (guard > 0) for (let i = 0; i < 3; i++) M.arrow(ctx, cx - 100 + i * 100, y + d * 34, cx - 100 + i * 100, y + d * 14, { color: '#a3261f', width: 3, head: 8, alpha: guard * (0.6 + 0.4 * Math.sin(s * 5)) }); });
+    });
+    M.dot(ctx, 330, 300, 6, NERVE);
+    const brain = [780, 140];
+    M.brain(ctx, brain[0], brain[1], 52, { alpha: seg(s, TS4.nerves - 0.4, TS4.nerves) });
+    signals(ctx, [[330, 300], [560, 240], [brain[0] - 50, brain[1] + 10]], s, seg(s, TS4.nerves, TS4.nerves + 0.5));
+    M.pill(ctx, 'Inflammation: the body starts to react', 740, 250, { size: 15, bg: '#f4eeff', border: '#9a7fd6', color: '#5b3a90', alpha: seg(s, TS4.inflam, TS4.inflam + 0.5) });
+    M.pill(ctx, 'Nerves send pain signals', 740, 300, { size: 15, bg: '#fff8db', border: NERVE_D, color: '#8a6a00', alpha: seg(s, TS4.nerves, TS4.nerves + 0.5) });
+    M.pill(ctx, 'Nearby muscles tighten to guard it', 740, 350, { size: 15, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: guard });
+    [['Sore', TS4.sore], ['Tight', TS4.tight], ['Hard to move', TS4.move]].forEach(([t, at], i) => M.pill(ctx, t, 620 + i * 120, 440, { size: 16, bg: '#fff', border: '#f3c9a0', color: '#a3461f', alpha: seg(s, at, at + 0.4) }));
+  }
+
+  // 5. Not every back pain is a muscle strain; the good news: many strains improve with care.
+  const TS5 = { notEvery: 1.1, strain: 3.5, good: 4.4, improve: 6.8, care: 8.1 };
+  function notEveryStrain(ctx, p, s) {
+    M.text(ctx, 'Not every back pain is a strain', 480, 44, { size: 28, weight: 800 });
+    const a = seg(s, TS5.notEvery - 0.4, TS5.notEvery + 0.2);
+    [['💪', 'Muscles'], ['🦴', 'Joints'], ['💧', 'Discs'], ['⚡', 'Nerves']].forEach(([ic, t], i) => {
+      const x = 120 + i * 120;
+      M.card(ctx, x - 50, 100, 100, 110, { r: 16, alpha: a, border: i === 0 ? MUS : '#d7e0ec' });
+      M.emoji(ctx, ic, x, 140, 32, a); M.text(ctx, t, x, 186, { size: 14, weight: 800, alpha: a });
+    });
+    M.text(ctx, 'Back pain can come from different places', 300, 240, { size: 15, weight: 800, color: C.muted, alpha: a });
+    const imp = ease(seg(s, TS5.improve, TS5.care + 1.5));
+    M.card(ctx, 580, 100, 340, 300, { r: 20, alpha: seg(s, TS5.good - 0.3, TS5.good + 0.2), border: C.green });
+    if (s > TS5.good - 0.3) {
+      M.text(ctx, 'The good news', 750, 132, { size: 18, weight: 800, color: '#1d7a4c', alpha: seg(s, TS5.good, TS5.good + 0.5) });
+      fiberStrip(ctx, 620, 160, 260, 110, { level: 1, s, heal: imp, swell: 0.4 * (1 - imp) });
+      M.text(ctx, 'Many strains improve with the right care', 750, 300, { size: 15, weight: 800, alpha: seg(s, TS5.improve, TS5.improve + 0.5) });
+      ctx.save(); ctx.globalAlpha *= seg(s, TS5.improve, TS5.improve + 0.5);
+      M.rr(ctx, 620, 336, 260, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 620, 336, 260 * lerp(0.2, 0.85, imp), 14, 7); ctx.fillStyle = C.green; ctx.fill();
+      ctx.restore();
+    }
+    backPerson(ctx, 300, 430, 36, { alpha: 0.9 });
+    ache(ctx, 300, 430 - 0.15 * 36, 22, a, s);
+  }
+
+  // 6. What happens next: the body starts to repair the fibers; lead-in to Part 3.
+  const TS6 = { repair: 1.3, recover: 4.6 };
+  function whatNext(ctx, p, s) {
+    M.text(ctx, 'What happens next?', 480, 44, { size: 28, weight: 800 });
+    const heal = ease(seg(s, TS6.repair - 0.4, TS6.recover + 1));
+    lens(ctx, 330, 290, 190, () => fiberStrip(ctx, 170, 220, 320, 140, { level: 1, s, heal: heal * 0.6, swell: 0.4 * (1 - heal) }));
+    M.text(ctx, 'Repair cells get to work', 330, 504, { size: 15, weight: 800, color: '#3a73b8', alpha: seg(s, TS6.repair, TS6.repair + 0.5) });
+    M.pill(ctx, 'How does a muscle heal?', 740, 230, { size: 18, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TS6.repair, TS6.repair + 0.5) });
+    M.pill(ctx, 'What can you do to help?', 740, 300, { size: 18, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TS6.recover - 1, TS6.recover - 0.5) });
+  }
+
   const patientScenesA = [
     { label: 'Muscles throughout your body', caption: 'Muscles are found throughout your body. They help you walk, lift, bend, and move.', draw: muscledBody },
     { label: 'What is a muscle made of?', caption: 'Inside each muscle are thousands of tiny muscle fibers, grouped into bundles. Each fiber is packed with even smaller strands that can slide together, so the fiber gets shorter.', draw: madeOf },
@@ -286,6 +496,15 @@
     { label: 'Transition to muscle pain', caption: 'Muscles are strong, but they can become sore, tight, or injured. So what happens when a muscle gets hurt?', draw: toMusclePain },
   ];
 
+  const patientScenesB = [
+    { label: 'Common muscle strains', caption: 'Muscle strains can happen in many parts of your body. You might strain a muscle in your neck or upper back while lifting something heavy. A sudden movement may strain muscles in your lower back. Sports activities can sometimes cause strains in your groin, the back of your thigh, or your calf.', draw: strainMap },
+    { label: 'What does a strain look like?', caption: 'But what actually happens inside the muscle? Your muscles contain bundles of tiny fibers. When a muscle experiences more force than it can handle, some fibers may become injured. This is called a muscle strain, or a pulled muscle. A mild strain may involve only a small area, while more serious injuries can cause larger tears.', draw: insideStrain },
+    { label: 'A lower back strain', caption: 'Let\'s look at a common example: a lower back strain. Imagine you\'re playing basketball, and you twist and reach suddenly to grab the ball. Your back muscles work hard to control the movement. Sometimes, the force is too much, and part of a muscle becomes injured.', draw: backStrain },
+    { label: 'Why does it hurt?', caption: 'The surrounding tissues may develop an inflammatory response, and nerves send pain signals to your brain. Your back may feel sore, tight, or difficult to move.', draw: whyHurts },
+    { label: 'Not every back pain is a strain', caption: 'But remember, not every episode of back pain is a muscle strain. The good news is that many muscle strains improve with appropriate care.', draw: notEveryStrain },
+    { label: 'What happens next?', caption: 'So how does your body repair an injured muscle, and what can you do to help it recover?', draw: whatNext },
+  ];
+
   MedData.register({
     id: 'muscle-pain',
     name: 'Muscle pain and strains',
@@ -293,15 +512,18 @@
     aliases: ['muscle pain', 'muscle strain', 'pulled muscle', 'strain', 'sore muscles', 'myalgia', 'hamstring strain', 'muscle injury', 'muscle cramp'],
     patient: {
       tagline: 'Muscles move your bones, steady your joints, and keep you upright. They can also get sore, tight, or strained.',
-      // Part 1 for now; later parts use a muscle strain as the example.
+      // Part 1 explains muscles; Part 2 explains muscle strains, with a lower back strain.
       videos: [
         { title: 'How do your muscles work?', length: 80, audio: 'audio/muscle-pain-a/', scenes: patientScenesA },
+        { title: 'What happens when you strain a muscle?', length: 92, audio: 'audio/muscle-pain-b/', scenes: patientScenesB },
       ],
       keyPoints: [
         'Muscles are found throughout your body. Each muscle is made of bundles of thousands of tiny fibers.',
         'Inside each fiber, tiny strands slide together so the fiber shortens. A nerve signal starts this, and a tendon carries the pull to the bone.',
         'Muscles work together: some tighten while others relax and steady the movement.',
         'Muscles also steady your joints, help you hold your posture, and make heat.',
+        'A strain (pulled muscle) happens when a muscle takes more force than it can handle and some fibers are hurt. A mild strain affects a small area; a larger tear can cause bleeding and swelling.',
+        'Strains are common in the neck, upper and lower back, groin, back of the thigh, and calf. Not every back pain is a strain, and many strains improve with the right care.',
       ],
       questions: [
         'Is my pain from a muscle, or something else?',
@@ -317,6 +539,8 @@
       quiz: [
         { q: 'What is a muscle made of?', options: ['One solid piece', 'Bundles of thousands of tiny fibers', 'Only tendons'], answer: 1, explain: 'Each muscle is made of bundles of fibers, and each fiber has tiny strands inside that slide together.' },
         { q: 'How does a muscle move a bone?', options: ['It pushes the bone', 'A nerve signal makes the fibers contract, and a tendon carries the pull to the bone', 'The bone moves on its own'], answer: 1, explain: 'Muscles pull, not push. The tendon passes the pull to the bone.' },
+        { q: 'What is a muscle strain?', options: ['A muscle snapping completely in half', 'Some muscle fibers get hurt when the muscle takes more force than it can handle', 'A broken bone'], answer: 1, explain: 'A mild strain affects a small area. More serious strains can tear more fibers.' },
+        { q: 'Why can a strained back feel tight?', options: ['Nearby muscles tighten to guard the hurt area', 'The bones get bigger', 'It always means a disc problem'], answer: 0, explain: 'After a strain, nerves send pain signals and nearby muscles may tighten, so the back can feel sore, tight, or hard to move.' },
         { q: 'Besides movement, what else do muscles do?', options: ['Nothing else', 'Steady your joints, hold your posture, and make heat', 'Make blood'], answer: 1, explain: 'Muscles help keep your body stable and warm, not just moving.' },
       ],
     },
