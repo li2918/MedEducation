@@ -254,8 +254,17 @@
 
     const i = this._sceneAt(this.t), sc = this.scenes[i];
     const s = Math.min(this.t - sc.start, sc.dur), p = M.clamp(s / sc.dur);
+    // Cross-fade from the previous scene's last frame, so a scene change (or a pause while the
+    // next clip loads) never flashes an empty background.
+    const fade = i === 0 ? 1 : M.clamp(s / 0.35);
+    if (fade < 1) {
+      const pv = this.scenes[i - 1];
+      ctx.save(); ctx.globalAlpha = 1 - fade;
+      try { pv.draw(ctx, 1, pv.dur); } catch (e) { console.error('Scene draw failed:', pv.label, e); }
+      ctx.restore();
+    }
     ctx.save();
-    ctx.globalAlpha = i === 0 ? 1 : M.clamp(s / 0.35);
+    ctx.globalAlpha = fade;
     try { sc.draw(ctx, p, s); } catch (e) { console.error('Scene draw failed:', sc.label, e); }
     ctx.restore();
 

@@ -7,7 +7,7 @@
 (function () {
   const { C, ease, seg, lerp, rnd } = M;
   const { runner } = S;
-  const { wrapX, breathOf, exhaling, phaseOf, air, smokePuff, germ, airwayCross, airwayTube, lungsFilled, puffLines, riskMeter, inhaler, mist, inhaleMedicine } = Lungs;
+  const { part, wrapX, breathOf, exhaling, phaseOf, air, smokePuff, germ, airwayCross, airwayTube, lungsFilled, puffLines, riskMeter, inhaler, mist, inhaleMedicine } = Lungs;
 
   // ---------------------------------------------------------------------------
   // Patient portal: three videos in the MedMotion cartoon style.
@@ -117,7 +117,7 @@
     airwayCross(ctx, 150, 300, 70, s, { muscle: 0, air: 6 });
     M.text(ctx, 'Normal airway', 150, 400, { size: 16, weight: 800, color: C.muted });
     const cx = 480, cy = 300;
-    airwayCross(ctx, cx, cy, 150, s, { muscle: 0.85 * mus, thick: 0.5 * sw, inflam: 0.8 * sw, mucus: muc, air: Math.round(lerp(8, 3, Math.max(mus, sw))) });
+    airwayCross(ctx, cx, cy, 150, s, { muscle: 0.85 * mus, thick: 0.5 * sw, inflam: 0.8 * sw, mucus: muc, air: lerp(8, 3, Math.max(mus, sw)) });
     if (hit < 1) pollen(ctx, lerp(cx - 260, cx - 40, hit), lerp(120, cy - 20, hit), 10, s, seg(s, 1.4, 1.8) * (1 - hit));
     [['1', 'Lining swells', 4.2, '#e57b70'], ['2', 'Muscles tighten', 5.6, '#a3475f'], ['3', 'Extra mucus', 7.8, '#7c8a22']].forEach(([n, t, at, col], i) => {
       const a = seg(s, at, at + 0.5);
@@ -201,12 +201,32 @@
     const mood = lerp(1, 0.15, ease(seg(s, T.mus, T.short + 1)));
     const head = runner(ctx, 230, ground, ph, lerp(0.45, 0.06, slow), lean, mood, s);
     ctx.restore();
-    // Pollen drifts from the bush into the nose and mouth as the person breathes in.
+    // See-through windpipe and lungs on the chest, so you can watch the pollen go in.
+    const ang = lean * 0.9, chest = [230 + Math.sin(ang) * 40, ground - 70 - Math.cos(ang) * 40];
+    const mouth = [head[0] + 12, head[1] + 10], see = ease(seg(s, T.inhale - 0.8, T.inhale - 0.2));
+    if (see > 0) {
+      ctx.save(); ctx.globalAlpha *= see;
+      ctx.strokeStyle = 'rgba(200,210,225,0.95)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(mouth[0] - 6, mouth[1] + 6); ctx.lineTo(chest[0], chest[1] - 16); ctx.stroke();
+      lungsFilled(ctx, chest[0], chest[1], 20, 0.5 + 0.3 * breathOf(s / lerp(4, 1.8, ease(seg(s, T.react, T.short)))), 0, s);
+      ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(chest[0] + 22, chest[1] - 10); ctx.lineTo(548, 226); ctx.moveTo(chest[0] + 22, chest[1] + 10); ctx.lineTo(548, 274); ctx.stroke();
+      ctx.restore();
+    }
+    // Breathing in: an arrow points into the nose while pollen drifts from the bush to the
+    // mouth, then on down the windpipe into the lungs.
+    const ba = seg(s, T.inhale - 0.5, T.inhale) * (1 - seg(s, T.inhale + 1.6, T.inhale + 2.2));
+    if (ba > 0) {
+      M.arrow(ctx, head[0] + 84, head[1] - 34, head[0] + 30, head[1] - 2, { color: M.C.blue, width: 4, head: 11, alpha: ba });
+      M.text(ctx, 'Breathing in', head[0] + 96, head[1] - 52, { size: 15, weight: 800, color: M.C.blue, alpha: ba });
+    }
     for (let i = 0; i < 8; i++) {
       const q = ease(seg(s, T.inhale - 0.6 + i * 0.14, T.inhale + 0.6 + i * 0.14));
-      if (q <= 0 || q >= 1) continue;
+      const q2 = ease(seg(s, T.inhale + 0.6 + i * 0.14, T.inhale + 1.6 + i * 0.14));
+      if (q <= 0 || q2 >= 1) continue;
       const sx = 400 + (i % 4) * 14, sy = 360 - (i % 3) * 16;
-      pollen(ctx, lerp(sx, head[0] + 18, q), lerp(sy, head[1] + 8, q) - Math.sin(q * Math.PI) * 30, 5, s, 0.95);
+      if (q < 1) pollen(ctx, lerp(sx, mouth[0], q), lerp(sy, mouth[1], q) - Math.sin(q * Math.PI) * 30, 5, s, 0.95);
+      else pollen(ctx, lerp(mouth[0] - 6, chest[0] + ((i % 3) - 1) * 9, q2), lerp(mouth[1] + 6, chest[1] + (i % 2) * 8, q2), 4, s, 1 - 0.5 * q2);
     }
     S.phasePill(ctx, 230, 110, s, [[0.4, 'Feeling fine', C.green], [T.inhale - 0.4, 'Breathing in pollen', '#b08000'], [T.mus, 'Chest feels a bit tight', '#c26a00'], [T.slow, 'Slowing down', '#c26a00'], [T.cough, 'Coughing and wheezing', '#c26a00'], [T.short, 'Short of breath']]);
     const ca = seg(s, T.cough, T.cough + 0.3) * (1 - seg(s, T.short - 0.2, T.short + 0.3));
@@ -223,7 +243,7 @@
     ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(624, 236); ctx.lineTo(730, 166); ctx.moveTo(624, 262); ctx.lineTo(730, 334); ctx.stroke(); ctx.restore();
     const ax = 812, ay = 250;
-    airwayCross(ctx, ax, ay, 92, s, { muscle: 0.05 + 0.85 * mus, thick: 0.25 + 0.3 * sw, inflam: 0.4 + 0.5 * sw, mucus: muc, air: Math.round(lerp(7, 2, less)) });
+    airwayCross(ctx, ax, ay, 92, s, { muscle: 0.05 + 0.85 * mus, thick: 0.25 + 0.3 * sw, inflam: 0.4 + 0.5 * sw, mucus: muc, air: lerp(7, 2, less) });
     // The breathed-in pollen lands inside the airway just before it reacts.
     for (let i = 0; i < 4; i++) pollen(ctx, ax - 18 + i * 12, ay - 10 + (i % 2) * 18, 4, s, seg(s, T.inhale + 0.8, T.inhale + 1.2) * (1 - seg(s, T.mus + 1, T.mus + 2)));
     M.text(ctx, 'One airway', ax, 362, { size: 15, weight: 800, color: C.muted });
@@ -251,10 +271,10 @@
     M.text(ctx, 'The airway narrows', 480, 50, { size: 30, weight: 800 });
     S.phasePill(ctx, 480, 92, s, [[0.3, 'The airway reacts'], [1.6, 'Muscles squeeze tighter', '#a3475f'], [4, 'The lining swells'], [5.6, 'Mucus builds up', '#7c8a22'], [6.8, 'Less and less room for air']]);
     const mus = ease(seg(s, 1.6, 3.8)), sw = ease(seg(s, 4, 5.6)), muc = ease(seg(s, 5.6, 7)), less = Math.max(mus, sw, muc);
-    airwayCross(ctx, 300, 310, 160, s, { muscle: 0.9 * mus, thick: 0.5 * sw, inflam: 0.85 * sw, mucus: muc, air: Math.round(lerp(8, 2, less)) });
+    airwayCross(ctx, 300, 310, 160, s, { muscle: 0.9 * mus, thick: 0.5 * sw, inflam: 0.85 * sw, mucus: muc, air: lerp(8, 2, less) });
     M.text(ctx, 'Inside view', 300, 504, { size: 16, weight: 800, color: C.muted });
     const lessAt = (t) => Math.max(ease(seg(t, 1.6, 3.8)), ease(seg(t, 4, 5.6)), ease(seg(t, 5.6, 7)));
-    airwayTube(ctx, 560, 170, 360, 130, phaseOf(s, (t) => 1 / lerp(60, 15, lessAt(t))), { tight: 0.8 * mus, thick: 0.4 * sw, inflam: 0.8 * sw, mucus: 0.7 * muc, air: Math.round(lerp(10, 3, less)), speed: 1 });
+    airwayTube(ctx, 560, 170, 360, 130, phaseOf(s, (t) => 1 / lerp(60, 15, lessAt(t))), { tight: 0.8 * mus, thick: 0.4 * sw, inflam: 0.8 * sw, mucus: 0.7 * muc, air: lerp(10, 3, less), speed: 1 });
     M.text(ctx, 'Side view', 740, 156, { size: 16, weight: 800, color: C.muted });
     riskMeter(ctx, 580, 390, 320, lerp(0.95, 0.3, ease(seg(s, 2, 9.4))), 'Air getting through', 1, true);
     M.pill(ctx, 'It can build up over minutes or hours', 740, 470, { size: 17, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 9.6, 10.2) });
@@ -284,7 +304,7 @@
     const open = ease(seg(s, 3.2, 6.4)), cx = 500, cy = 290;
     ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(200, 330); ctx.lineTo(cx - 150, cy - 80); ctx.moveTo(200, 346); ctx.lineTo(cx - 150, cy + 80); ctx.stroke(); ctx.restore();
-    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.85, 0.12, open), thick: lerp(0.42, 0.32, open), inflam: 0.6, mucus: 0.4, air: Math.round(lerp(2, 7, open)) });
+    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.85, 0.12, open), thick: lerp(0.42, 0.32, open), inflam: 0.6, mucus: 0.4, air: lerp(2, 7, open) });
     for (let i = 0; i < 5; i++) {
       const a = i * 1.25 + 0.3, d = lerp(150, 40, seg(s, 2.2 + i * 0.25, 3.4 + i * 0.25));
       mist(ctx, cx + Math.cos(a) * d * 0.5, cy + Math.sin(a) * d * 0.5, 5, seg(s, 2.2, 2.8) * (1 - seg(s, 7, 8)));
@@ -374,7 +394,7 @@
     M.text(ctx, 'Weeks later', 730, 122, { size: 15, weight: 800, color: C.muted, align: 'right' });
     inhaler(ctx, 180, 300, 1.5, seg(s, 2.6, 3.2));
     M.wrap(ctx, 'Inhaled medicines, used as prescribed', 190, 410, 220, { size: 17, weight: 800, color: '#1f4fa8', alpha: seg(s, 2.6, 3.2) });
-    airwayCross(ctx, 480, 300, 120, s, { muscle: lerp(0.2, 0.02, calm), thick: lerp(0.45, 0.12, calm), inflam: lerp(0.7, 0.1, calm), air: Math.round(lerp(4, 8, calm)) });
+    airwayCross(ctx, 480, 300, 120, s, { muscle: lerp(0.2, 0.02, calm), thick: lerp(0.45, 0.12, calm), inflam: lerp(0.7, 0.1, calm), air: lerp(4, 8, calm) });
     M.text(ctx, calm > 0.6 ? 'Calmer airway' : 'Swollen airway', 480, 458, { size: 17, weight: 800, color: calm > 0.6 ? '#1d7a4c' : '#a3261f' });
     riskMeter(ctx, 650, 260, 250, lerp(0.75, 0.3, ease(seg(s, 8.4, 10.6))), 'Chance of a flare-up');
     M.wrap(ctx, 'Good control also helps protect your airways over the years', 775, 360, 250, { size: 15, weight: 700, color: C.muted, alpha: seg(s, 10.4, 11) });

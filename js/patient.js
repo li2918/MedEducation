@@ -9,14 +9,39 @@
 
   const player = new Player($('player'), {
     voice: true,
-    // After a part ends, point to the next part; after the last one, to the quiz.
+    // After a part ends, an end screen points to the next part; after the last one, to the quiz.
     onEnd: () => {
-      const next = current && $('video-tabs').querySelector(`[data-k="${current.k + 1}"]`);
-      if (next) next.classList.add('pulse'); else $('quiz').classList.add('pulse');
+      if (!current) return;
+      const { d, k } = current, vids = videosOf(d), next = vids[k + 1];
+      const tab = $('video-tabs').querySelector(`[data-k="${k + 1}"]`);
+      if (tab) tab.classList.add('pulse'); else $('quiz').classList.add('pulse');
+      const el = endCard();
+      el.innerHTML = next
+        ? `<p class="end-kicker">✓ Part ${k + 1} done</p><p class="end-title">Up next: Part ${k + 2} · ${next.title}</p>
+           <div class="end-btns"><button class="btn primary" type="button" data-act="next">▶ Watch Part ${k + 2}</button><button class="btn" type="button" data-act="replay">↻ Watch again</button></div>`
+        : `<p class="end-kicker">✓ You watched ${vids.length > 1 ? `all ${vids.length} parts` : 'the video'}</p><p class="end-title">Now check what you learned</p>
+           <div class="end-btns"><button class="btn primary" type="button" data-act="quiz">Take the quick quiz ↓</button><button class="btn" type="button" data-act="replay">↻ Watch again</button></div>`;
+      el.hidden = false;
+      el.querySelectorAll('button').forEach((b) => {
+        b.onclick = () => {
+          if (b.dataset.act === 'next') { loadVideo(d, k + 1); player.play(); }
+          else if (b.dataset.act === 'quiz') { el.hidden = true; $('quiz').scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+          else player.play();
+        };
+      });
     },
   });
+  function endCard() {
+    let el = $('player').querySelector('.end-card');
+    if (!el) { el = document.createElement('div'); el.className = 'end-card'; el.hidden = true; $('player').querySelector('.stage').appendChild(el); }
+    return el;
+  }
+  // Starting playback any way (button, canvas, chapter) clears the end screen.
+  const play = player.play.bind(player);
+  player.play = () => { endCard().hidden = true; play(); };
 
   function loadVideo(d, k) {
+    endCard().hidden = true;
     const vids = videosOf(d), v = vids[k] || vids[0];
     k = vids.indexOf(v);
     current = { d, k };

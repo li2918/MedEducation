@@ -165,6 +165,13 @@ a { color: var(--blue); }
 .video-tabs button span { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .video-tabs button.active { border-color: var(--blue); background: #e8f0fd; color: var(--blue-dark); }
 .video-tabs button.pulse { animation: pulse 1.4s ease 2; }
+/* End screen of a video part: points to the next part, or to the quiz after the last one. */
+.end-card { position: absolute; inset: 0; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; background: rgba(247, 250, 255, 0.95); }
+.end-card[hidden] { display: none; }
+.end-kicker { margin: 0; font-size: 0.9rem; font-weight: 800; letter-spacing: 0.05em; text-transform: uppercase; color: var(--green, #1d7a4c); }
+.end-title { margin: 0; font-size: clamp(1.1rem, 3vw, 1.6rem); font-weight: 800; color: var(--ink); }
+.end-btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-top: 6px; }
+.end-btns .btn:not(.primary) { background: #fff; border: 1px solid var(--line); color: var(--ink); }
 .player:fullscreen { display: flex; flex-direction: column; justify-content: center; background: #0f1722; border-radius: 0; }
 .player:fullscreen .stage canvas { max-height: 78vh; object-fit: contain; }
 .player:fullscreen .caption { font-size: 1.5rem; }

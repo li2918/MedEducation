@@ -16,7 +16,7 @@
   // started), matched to when the narrator says each word. Comparison panels draw in
   // card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
-  const { wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungsFilled, lungLegend, puffLines, riskMeter, mist, inhaleMedicine } = Lungs;
+  const { part, wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungsFilled, lungLegend, puffLines, riskMeter, mist, inhaleMedicine } = Lungs;
   // Stretchy fiber between two air sacs: a zigzag spring, or a broken one.
   function spring(ctx, x1, y1, x2, y2, broken, alpha = 1) {
     const n = 8, dx = x2 - x1, dy = y2 - y1, L = Math.hypot(dx, dy) || 1, nx = -dy / L, ny = dx / L;
@@ -39,7 +39,7 @@
     M.dot(ctx, x - r * 0.35, y - r * 0.38, r * 0.15, 'rgba(255,255,255,0.75)');
     for (let i = 0; i < nAir; i++) {
       const a = i * 2.4 + t * 0.6, d = r * (0.2 + 0.45 * ((i % 3) / 3));
-      air(ctx, x + Math.cos(a) * d, y + Math.sin(a) * d, Math.max(3.5, r * 0.12), 1, trapped && i % 2 ? TRAP : AIR);
+      air(ctx, x + Math.cos(a) * d, y + Math.sin(a) * d, Math.max(3.5, r * 0.12), part(nAir, i), trapped && i % 2 ? TRAP : AIR);
     }
   }
 
@@ -62,7 +62,7 @@
         const gx = gone.reduce((t, q) => t + q[0], 0) / gone.length, gy = gone.reduce((t, q) => t + q[1], 0) / gone.length;
         sac(ctx, gx, gy, R * 0.3 * Math.sqrt(gone.length) * 0.95, true, Math.round(gone.length * 1.5), t, true);
       }
-      P.slice(0, nh).forEach(([x, y], i) => sac(ctx, x, y, r, false, Math.round(fill * 3), t + i));
+      P.slice(0, nh).forEach(([x, y], i) => sac(ctx, x, y, r, false, fill * 3, t + i));
       return;
     }
     const ah = 1 - damage, ad = damage;
@@ -70,14 +70,14 @@
       ctx.save(); ctx.globalAlpha *= ah;
       const r = R * 0.3 * (0.55 + 0.45 * fill), P = SAC_H.map(([u, v]) => [cx + u * R * (0.86 + 0.14 * fill), cy + v * R * (0.84 + 0.16 * fill)]);
       [[0, 1], [0, 2], [1, 3], [2, 4], [3, 6], [4, 6], [1, 5], [2, 5]].forEach(([a, b]) => spring(ctx, P[a][0], P[a][1], P[b][0], P[b][1], false));
-      P.forEach(([x, y], i) => sac(ctx, x, y, r, false, Math.round(fill * 3), t + i));
+      P.forEach(([x, y], i) => sac(ctx, x, y, r, false, fill * 3, t + i));
       ctx.restore();
     }
     if (ad > 0.01) {
       ctx.save(); ctx.globalAlpha *= ad;
       const full = o.air == null ? fill : o.air, r = R * 0.46 * (0.9 + 0.1 * full), P = SAC_D.map(([u, v]) => [cx + u * R, cy + v * R]);
       [[0, 1], [0, 2], [1, 2]].forEach(([a, b]) => spring(ctx, P[a][0], P[a][1], P[b][0], P[b][1], true));
-      P.forEach(([x, y], i) => sac(ctx, x, y, r, true, Math.round(full * 6), t + i, o.trapped));
+      P.forEach(([x, y], i) => sac(ctx, x, y, r, true, full * 6, t + i, o.trapped));
       ctx.restore();
     }
   }
@@ -140,9 +140,9 @@
   // 3. Healthy vs. COPD small airway: thick, swollen walls and mucus leave less room for air.
   function airwayPanel(ctx, p, s, copd, W) {
     const thick = copd ? ease(seg(s, 2.6, 4.2)) : 0, muc = copd ? ease(seg(s, 4.4, 5.6)) : 0;
-    airwayCross(ctx, 100, 150, 78, s, { thick, inflam: thick, mucus: muc, air: Math.round(lerp(6, 2, thick)) });
+    airwayCross(ctx, 100, 150, 78, s, { thick, inflam: thick, mucus: muc, air: lerp(6, 2, thick) });
     M.text(ctx, 'Inside view', 100, 246, { size: 14, weight: 800, color: C.muted });
-    airwayTube(ctx, 200, 92, 225, 120, s, { thick, inflam: thick, mucus: muc, air: Math.round(lerp(9, 3, thick)), speed: lerp(70, 25, thick) });
+    airwayTube(ctx, 200, 92, 225, 120, s, { thick, inflam: thick, mucus: muc, air: lerp(9, 3, thick), speed: lerp(70, 25, thick) });
     M.text(ctx, 'Side view', 312, 246, { size: 14, weight: 800, color: C.muted });
     air(ctx, 60, 290, 7); M.text(ctx, '= air', 74, 290, { size: 15, weight: 800, align: 'left', color: '#2f6f9e' });
     mucus(ctx, 170, 290, 10, s); M.text(ctx, '= mucus', 186, 290, { size: 15, weight: 800, align: 'left', color: '#7c8a22' });
@@ -158,7 +158,8 @@
     const keep = 0.65 * dmg;
     sacCluster(ctx, W / 2, 196, 96, Math.max(b, keep), dmg, s, { air: Math.max(b, keep), trapped: true, squeeze: out ? dmg * 0.9 : 0 });
     // air leaving on the breath out: lots when healthy, little with COPD
-    if (out) for (let i = 0; i < (copd ? Math.round(lerp(4, 1, dmg)) : 4); i++) { const q = wrapX(ph * 2 + i / 4, 1); air(ctx, W / 2, lerp(150, 52, q), 6, 1 - seg(q, 0.8, 1)); }
+    const nOut = copd ? lerp(4, 1, dmg) : 4;
+    if (out) for (let i = 0; i < nOut; i++) { const q = wrapX(ph * 2 + i / 4, 1); air(ctx, W / 2, lerp(150, 52, q), 6, part(nOut, i) * (1 - seg(q, 0.8, 1))); }
     M.text(ctx, 'Air out', W / 2 + 40, 64, { size: 14, weight: 800, color: '#2f6f9e' });
     if (copd) S.phasePill(ctx, W / 2, 330, s, [[0.5, 'Breathing in and out'], [6.2, 'Air sacs lose their spring'], [10.4, 'Harder to push air out'], [13.2, 'Some air gets trapped', '#4d5f86']]);
     else S.phasePill(ctx, W / 2, 330, s, [[0.5, 'Breathing in and out', C.green], [5.4, 'Air sacs spring back', C.green]]);
@@ -251,7 +252,8 @@
       mucus(ctx, x, liningTop - 18 - (big ? 6 : 0), big ? lerp(8, 20, extra) : 8, s + i, big ? extra : 1);
     }
     const speed = lerp(70, 22, less);
-    for (let i = 0; i < Math.round(lerp(10, 4, less)); i++) air(ctx, 40 + wrapX(rnd(i + 40) * 880 + s * speed, 880), top + 30 + rnd(i + 41) * (liningTop - top - 70), 7);
+    const nAir = lerp(10, 4, less);
+    for (let i = 0; i < nAir; i++) air(ctx, 40 + wrapX(rnd(i + 40) * 880 + s * speed, 880), top + 30 + rnd(i + 41) * (liningTop - top - 70), 7, part(nAir, i));
     M.text(ctx, 'Air', 76, top + 22, { size: 18, weight: 800, color: '#2f6f9e' });
     M.text(ctx, 'Airway lining', 860, liningTop + lt + 26, { size: 16, weight: 800, color: '#a5534a', align: 'right' });
   }
@@ -264,8 +266,8 @@
     ctx.save(); ctx.strokeStyle = '#e87a7a'; ctx.lineWidth = 18; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(10, 292); ctx.quadraticCurveTo(W / 2, 262, W - 10, 292); ctx.stroke(); ctx.restore();
     for (let i = 0; i < 4; i++) M.rbc(ctx, 10 + wrapX(rnd(i + 30) * (W - 20) + s * 50, W - 20), 280 + Math.sin(i) * 4, 8);
-    const ox = damaged ? Math.round(lerp(4, 1, ease(seg(s, 7.4, 8.8)))) : 4;
-    for (let i = 0; i < ox; i++) { const q = wrapX(s * 0.5 + i / 4, 1); air(ctx, W / 2 - 60 + i * 40, lerp(214, 272, q), 5, 1 - seg(q, 0.8, 1)); }
+    const ox = damaged ? lerp(4, 1, ease(seg(s, 7.4, 8.8))) : 4;
+    for (let i = 0; i < ox; i++) { const q = wrapX(s * 0.5 + i / 4, 1); air(ctx, W / 2 - 60 + i * 40, lerp(214, 272, q), 5, part(ox, i) * (1 - seg(q, 0.8, 1))); }
     M.text(ctx, 'Blood', W - 46, 312, { size: 14, weight: 800, color: '#b3453c' });
     if (damaged) S.phasePill(ctx, W / 2, 340, s, [[1, 'Small, springy air sacs'], [2.2, 'Some walls break down'], [3.4, 'Sacs join into bigger, floppy ones'], [5.8, 'They lose their spring'], [7.4, 'Less oxygen gets into the blood']]);
     else S.phasePill(ctx, W / 2, 340, s, [[1, 'Many small, springy air sacs', C.green]]);
@@ -307,7 +309,7 @@
     M.text(ctx, 'Flare-ups', 480, 50, { size: 30, weight: 800 });
     const bad = ease(seg(s, 3, 4.6));
     for (let i = 0; i < 4; i++) { const k = ease(seg(s, 1 + i * 0.3, 2.4 + i * 0.3)); germ(ctx, lerp(80 + i * 30, 230 + i * 40, k), lerp(110 + i * 20, 230 + (i % 2) * 70, k), 14, s, seg(s, 1 + i * 0.3, 1.4 + i * 0.3) * (1 - 0.6 * bad)); }
-    airwayCross(ctx, 300, 290, 150, s, { thick: lerp(0.45, 0.8, bad), inflam: lerp(0.4, 1, bad), mucus: lerp(0.4, 1, bad), air: Math.round(lerp(4, 1, bad)) });
+    airwayCross(ctx, 300, 290, 150, s, { thick: lerp(0.45, 0.8, bad), inflam: lerp(0.4, 1, bad), mucus: lerp(0.4, 1, bad), air: lerp(4, 1, bad) });
     M.text(ctx, 'Airway', 300, 462, { size: 16, weight: 800, color: '#a5534a' });
     M.pill(ctx, 'Flare-up: suddenly worse', 690, 150, { size: 20, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, 4.8, 5.4) });
     [['More short of breath', 6.3], ['More cough', 7], ['Mucus changes', 7.6]].forEach(([t, at], i) =>
@@ -394,7 +396,7 @@
     const open = ease(seg(s, 4.6, 7.4)), cx = 500, cy = 290;
     ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(200, 330); ctx.lineTo(cx - 150, cy - 80); ctx.moveTo(200, 346); ctx.lineTo(cx - 150, cy + 80); ctx.stroke(); ctx.restore();
-    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.55, 0.1, open), thick: 0.35, inflam: lerp(0.5, 0.35, open), mucus: 0.3, air: Math.round(lerp(2, 6, open)) });
+    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.55, 0.1, open), thick: 0.35, inflam: lerp(0.5, 0.35, open), mucus: 0.3, air: lerp(2, 6, open) });
     for (let i = 0; i < 5; i++) {
       const a = i * 1.25 + 0.3, d = lerp(150, 40, seg(s, 2.4 + i * 0.25, 3.6 + i * 0.25));
       mist(ctx, cx + Math.cos(a) * d * 0.5, cy + Math.sin(a) * d * 0.5, 5, seg(s, 2.4, 3) * (1 - seg(s, 7.4, 8.4)));

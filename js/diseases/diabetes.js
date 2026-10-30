@@ -451,13 +451,15 @@
     return 1 - 0.85 * hurt;
   }
 
-  // Heart: a blood vessel feeding the heart. High sugar damages the wall, gunk builds up, a clot blocks it.
+  // Heart: a blood vessel feeding the heart. High sugar harms the wall, which (with other causes
+  // such as blood pressure and cholesterol) lets plaque build up; a clot can then block it.
+  // Sugar itself does not turn into plaque, so the two keep different shapes and labels.
   function heartPanel(ctx, p, s, sick, W) {
-    const coat = hurtOf(p, sick, 0.08, 0.3), gunk = hurtOf(p, sick, 0.2, 0.62), clot = sick ? M.back(seg(p, 0.62, 0.72)) : 0;
-    const hurt = hurtOf(p, sick, 0.66, 0.8);
-    const sClot = p > 0 ? 0.68 * s / p : s, tEff = !sick || s < sClot ? s : sClot + (s - sClot) * 0.06;
+    const coat = hurtOf(p, sick, 0.06, 0.3), build = hurtOf(p, sick, 0.3, 0.64), clot = sick ? M.back(seg(p, 0.68, 0.78)) : 0;
+    const hurt = hurtOf(p, sick, 0.72, 0.86);
+    const sClot = p > 0 ? 0.74 * s / p : s, tEff = !sick || s < sClot ? s : sClot + (s - sClot) * 0.06;
     M.vessel(ctx, 20, 45, W - 40, 120, {
-      t: tEff, wall: 18, wallColor: M.mix('#f2b8ae', '#e3b04f', coat * 0.8), plaque: gunk * 0.85, plaqueX: 0.55,
+      t: tEff, wall: 18, wallColor: M.mix('#f2b8ae', '#e3b04f', coat * 0.8), plaque: build * 0.85, plaqueX: 0.55,
       items: [{ kind: 'rbc', n: 13, speed: 90, r: 10 }, { kind: 'glucose', n: sick ? 9 : 2, speed: 70, r: SUGAR }],
     });
     const px = 20 + (W - 40) * 0.55;
@@ -465,12 +467,17 @@
       ctx.save(); ctx.beginPath(); ctx.ellipse(px, 105, 22 * clot, 38 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); ctx.restore();
     }
     M.text(ctx, 'Blood pipe', 70, 32, { size: 14, weight: 800, color: C.muted });
-    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'High sugar damages the vessel wall'], [0.25, 'Gunk builds up inside'], [0.62, 'A clot blocks the pipe!']]);
+    // Legend: sugar and plaque are different things (sugar does not turn into plaque).
+    if (sick) {
+      M.glucose(ctx, W - 196, 30, 7); M.text(ctx, '= sugar', W - 184, 30, { size: 13, align: 'left', color: C.muted, weight: 700 });
+      M.dot(ctx, W - 106, 30, 8, '#f3d27a', seg(p, 0.3, 0.36)); M.text(ctx, '= plaque', W - 94, 30, { size: 13, align: 'left', color: C.muted, weight: 700, alpha: seg(p, 0.3, 0.36) });
+    }
+    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.06, 'High sugar harms the vessel wall'], [0.3, 'Plaque builds up over years'], [0.68, 'A clot blocks the pipe!']]);
     else S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Smooth pipe, blood zooms by', C.green]]);
     // branch that feeds the heart muscle; blood stops when the pipe is blocked
-    const flow = 1 - seg(p, 0.66, 0.72) * sick;
+    const flow = 1 - seg(p, 0.72, 0.78) * sick;
     ctx.fillStyle = '#f2b8ae'; ctx.fillRect(349, 165, 22, 70);
-    for (let i = 0; i < 3; i++) M.rbc(ctx, 360, 168 + wrapX(s * 60 * flow + i * 23, 66), 7, sick ? 1 - 0.7 * seg(p, 0.66, 0.72) : 1);
+    for (let i = 0; i < 3; i++) M.rbc(ctx, 360, 168 + wrapX(s * 60 * flow + i * 23, 66), 7, sick ? 1 - 0.7 * seg(p, 0.72, 0.78) : 1);
     heartBuddy(ctx, 360, 290, 46, sick ? 1 - hurt : 1, s, { dizzy: hurt > 0.8, rate: sick && hurt > 0 ? 11 : 6.5 });
     if (hurt > 0) {
       ctx.save(); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 4; ctx.globalAlpha = hurt; ctx.lineJoin = 'round';
@@ -798,7 +805,7 @@
     },
     {
       label: 'Heart',
-      caption: 'High sugar can also help fatty gunk build up in blood vessels. If one that feeds the heart gets blocked, it can damage the heart.',
+      caption: 'Over time, high blood sugar can harm blood vessel walls. Along with things like high blood pressure and cholesterol, this makes it easier for plaque to build up. If a vessel that feeds the heart gets blocked, it can damage the heart.',
       draw: S.versus({ title: 'Heart', panel: heartPanel, bar: 'Heart health' }),
     },
     {
@@ -1356,7 +1363,9 @@
         'Chest pain, or face drooping / weakness on one side: call 911',
       ],
       quiz: [
-        { q: 'In the animation, what does insulin act like?', options: ['A key that opens cells', 'A wall that blocks sugar', 'A type of sugar'], answer: 0, explain: 'Insulin works like a key that lets sugar move from your blood into your cells.' },
+        { q: 'Why does sugar build up in the blood in type 2 diabetes?', options: ['The body eats too little', 'Cells do not respond well to the insulin key, so sugar has trouble getting in', 'Insulin turns into sugar'], answer: 1, explain: 'Insulin works like a key. In type 2 diabetes the doors are harder to open, so more sugar stays in the blood.' },
+        { q: 'Why does moving your body help?', options: ['Muscles use sugar for energy, and moving helps insulin work better', 'Sweating washes sugar out', 'It only matters for weight'], answer: 0, explain: 'Active muscles pull sugar out of the blood, and regular movement makes cells respond better to insulin.' },
+        { q: 'Why keep managing your blood sugar even when you feel fine?', options: ['Feeling fine means sugar is in range', 'High sugar often has no symptoms at first, but over years it can harm blood vessels and nerves', 'Sugar only matters after meals'], answer: 1, explain: 'The harm builds slowly and quietly. Keeping sugar in range day after day lowers the risk to your eyes, kidneys, nerves, heart, and brain.' },
         { q: 'If blood sugar stays high for many years, which parts of the body are at higher risk?', options: ['Only the stomach', 'Eyes, kidneys, nerves, heart, and brain', 'Only the skin'], answer: 1, explain: 'Blood reaches every organ, so sugar that stays high for years raises the risk for the tiny vessels in the eyes and kidneys, the nerves in the feet, and the arteries to the heart and brain. Keeping sugar in range lowers that risk.' },
         { q: 'Which of these is a reason to call your doctor?', options: ['Feeling hungry before lunch', 'A foot sore that will not heal', 'Walking after dinner'], answer: 1, explain: 'Foot sores can get infected quickly when you have diabetes. Get them checked early.' },
       ],

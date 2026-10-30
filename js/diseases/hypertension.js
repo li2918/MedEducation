@@ -51,11 +51,11 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (90 s), simple enough for a 10-year-old. Most of the time
-  // explains blood pressure itself: what it is, why it gets too high, and why you
-  // can't feel it. Long-term problems share one scene and are framed as risks after
-  // many years without control. The heart, vessels, and organs stay characters.
-  // Scene times follow the storyboard: 15 + 15 + 13 + 25 + 15 + 7 s.
+  // Patient portal: three videos, simple enough for a 10-year-old. Part 1 explains blood
+  // pressure itself (what it is, why it gets too high, why you can't feel it). Part 2 shows
+  // what years without control can do, framed as risk, with zoomed close-ups of the vessel
+  // wall, the heart wall, and a kidney filter changing slowly. Part 3 is how to protect your
+  // body. The heart, vessels, and organs stay characters.
   // ---------------------------------------------------------------------------
   const { heartBuddy, kidneyBuddy, brainBuddy, runner } = S;
   const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
@@ -100,7 +100,7 @@
   // Scene 2: why pressure gets too high: narrow, stiff vessels and extra salt-held water,
   // so the heart has to push harder.
   function whyHighPanel(ctx, p, s, sick, W) {
-    const k = sick ? ease(seg(s, 1.5, 6)) : 0, beat = beatOf(s, sick ? lerp(6.5, 9, k) : 6.5);
+    const k = sick ? ease(seg(s, 1.5, 6)) : 0, beat = beatOf(s);
     M.salt(ctx, 30, 36, 7); M.text(ctx, 'salt', 44, 36, { size: 13, align: 'left', color: C.muted, weight: 700 });
     M.drop(ctx, 92, 37, 7); M.text(ctx, 'water', 106, 36, { size: 13, align: 'left', color: C.muted, weight: 700 });
     const d = beat * lerp(3, 7, k);
@@ -153,7 +153,7 @@
       M.card(ctx, x, 128, 280, 362, { alpha: a, border: '#f3d2a2', r: 22 });
       ctx.save(); ctx.globalAlpha *= a;
       M.text(ctx, name, cx, 156, { size: 20, weight: 800 });
-      if (i === 0) heartBuddy(ctx, cx, 250, lerp(44, 54, k), 1 - 0.6 * k, s, { rate: lerp(6.5, 8.5, k) });
+      if (i === 0) heartBuddy(ctx, cx, 250, lerp(44, 54, k), 1 - 0.6 * k, s);
       if (i === 1) {
         brainBuddy(ctx, cx, 224, 52, 1 - 0.55 * k, s);
         M.vessel(ctx, x + 30, 300, 220, 40, { t: s, wall: 8, plaque: k * 0.7, plaqueX: 0.55, items: [{ kind: 'rbc', n: 5, speed: lerp(60, 25, k), r: 6 }] });
@@ -176,7 +176,7 @@
   const bloodCell = (ctx, x, y, on) => M.rbc(ctx, x, y, on ? 7 : 5, on ? 1 : 0.6);
   function protect(ctx, p, s) {
     const k = ease(seg(s, 1, 8)), x = 200, y = 300, sc = 105, hy = y - 1.62 * sc;
-    const pts = S.bodyWithBlood(ctx, x, y, sc, s * lerp(1.8, 1, k), { density: 0.8, item: bloodCell });
+    const pts = S.bodyWithBlood(ctx, x, y, sc, s, { density: 0.8, item: bloodCell });
     BADGES.forEach(([at, col], i) => {
       const [bx, by] = at === 'brain' ? [x, hy - 24] : pts[at];
       M.dot(ctx, bx, by, 18, M.mix('#8b8f99', col, k));
@@ -202,7 +202,146 @@
     M.text(ctx, 'blood pressure.', 560, 326, { size: 32, weight: 700, color: M.C.blue, alpha: a });
   }
 
-  const patientScenes = [
+  // ---- Close-ups: what years of high pressure do inside the body ----------------------
+  // Each one zooms from a small body into a round lens. A timeline across the top runs from
+  // "Now" to "Many years of high pressure" while the structure inside the lens slowly
+  // changes; nothing changes instantly. The heart keeps the same beat speed throughout:
+  // high blood pressure means a harder push, not a faster heartbeat.
+  const LENS = { x: 480, y: 300, R: 186 };
+  const wrapX = (v, w) => ((v % w) + w) % w;
+  const fadeIn = (n, i) => Math.min(1, n - i); // item i of a fractional count n
+  function zoomLens(ctx, s, title, spot, icon, yr, inside) {
+    M.text(ctx, title, 480, 44, { size: 28, weight: 800 });
+    M.rr(ctx, 260, 72, 640, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    if (yr > 0.01) { M.rr(ctx, 260, 72, 640 * yr, 10, 5); ctx.fillStyle = C.amber; ctx.fill(); }
+    M.text(ctx, 'Now', 260, 96, { size: 13, weight: 700, color: C.muted, align: 'left' });
+    M.text(ctx, 'Many years of high pressure', 900, 96, { size: 13, weight: 700, color: C.muted, align: 'right' });
+    const body = M.person(ctx, 110, 380, 72, { color: '#dfe7f3' });
+    const [sx, sy] = typeof spot === 'string' ? body[spot] : spot, { x, y, R } = LENS;
+    icon(ctx, sx, sy);
+    ctx.save(); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(sx, sy, 17, 0, M.TAU); ctx.stroke();
+    ctx.setLineDash([5, 6]); ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx + 12, sy - 12); ctx.lineTo(x - R * 0.72, y - R * 0.7); ctx.moveTo(sx + 12, sy + 12); ctx.lineTo(x - R * 0.72, y + R * 0.7); ctx.stroke();
+    ctx.restore();
+    M.dot(ctx, x, y, R + 6, '#ffffff');
+    ctx.save(); ctx.beginPath(); ctx.arc(x, y, R, 0, M.TAU); ctx.clip();
+    inside(x, y, R);
+    ctx.restore();
+    ctx.save(); ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, R + 2, 0, M.TAU); ctx.stroke(); ctx.restore();
+  }
+  function stepPills(ctx, s, items, col) {
+    items.forEach(([t, at], i) => M.pill(ctx, t, 812, 160 + i * 62, { size: 15, bg: '#fff', border: col, color: col, alpha: seg(s, at, at + 0.5) }));
+  }
+  function pushMeter(ctx, x, y, w, v, label, alpha = 1) {
+    M.text(ctx, label, x, y - 18, { size: 14, weight: 800, color: C.muted, align: 'left', alpha });
+    ctx.save(); ctx.globalAlpha *= alpha;
+    M.rr(ctx, x, y - 8, w, 16, 8); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    M.rr(ctx, x, y - 8, w * v, 16, 8); ctx.fillStyle = M.mix('#f2b705', '#e5484d', v); ctx.fill();
+    ctx.restore();
+  }
+
+  // Close-up 1: every beat pushes hard on the vessel wall. Over years the wall thickens and
+  // stiffens (it stretches less with each beat), the lining gets tiny injuries, and plaque
+  // can then build up more easily.
+  const TV = { push: 4.4, years: 6.8, thick: 8.3, injury: 10.7, plaque: 13.9 };
+  function vesselZoom(ctx, p, s) {
+    const k = ease(seg(s, TV.years, TV.years + 5)), inj = ease(seg(s, TV.injury, TV.injury + 1.6));
+    zoomLens(ctx, s, 'Zoom in: a blood vessel wall', [162, 344], (c, x, y) => { M.vessel(c, x - 16, y - 7, 32, 14, { t: s, wall: 4, items: [] }); }, k, (cx, cy, R) => {
+      ctx.fillStyle = '#fff5f3'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+      const beat = beatOf(s), stretch = lerp(9, 2, k) * beat, h = 170 + 2 * stretch, wall = lerp(16, 42, k), top = cy - h / 2;
+      M.vessel(ctx, cx - R - 10, top, 2 * R + 20, h, { t: s, wall, wallColor: M.mix('#f2b8ae', '#c9837a', k), plaque: 0.4 * ease(seg(s, TV.plaque, TV.plaque + 2)), plaqueX: 0.66, items: [{ kind: 'rbc', n: 12, speed: 90, r: 9 }] });
+      M.pressureArrows(ctx, cx - R + 40, cy, 2 * R - 80, 20 + beat * 20, { n: 5, alpha: 0.85 * seg(s, TV.push, TV.push + 0.6) });
+      if (inj > 0) {
+        ctx.save(); ctx.strokeStyle = '#c62f2f'; ctx.lineWidth = 3; ctx.globalAlpha *= inj; ctx.lineJoin = 'round';
+        for (let i = 0; i < 5; i++) {
+          const x = cx - R + 70 + i * 62, up = i % 2 === 0, y = up ? top + wall : top + h - wall, d = up ? 1 : -1;
+          ctx.beginPath(); ctx.moveTo(x - 10, y); ctx.lineTo(x - 4, y + d * 7); ctx.lineTo(x + 2, y); ctx.lineTo(x + 8, y + d * 7); ctx.stroke();
+        }
+        ctx.restore();
+      }
+    });
+    stepPills(ctx, s, [['Every beat pushes hard', TV.push], ['Walls get thicker and stiffer', TV.thick], ['Tiny injuries in the lining', TV.injury], ['Plaque builds up more easily', TV.plaque]], '#a3261f');
+    pushMeter(ctx, 694, 440, 236, lerp(0.15, 0.8, k), 'Wall stiffness', seg(s, TV.thick, TV.thick + 0.6));
+    S.phasePill(ctx, 480, 514, s, [[0.3, 'Healthy: thin, stretchy wall', C.green], [TV.thick + 1.5, 'After years: thick, stiff wall']]);
+  }
+
+  // Close-up 2: the heart pushes against high pressure, so its main pumping wall thickens like
+  // a muscle lifting heavy weights. A thick wall gets stiff and fills less easily. The beat
+  // speed stays the same; each beat pushes harder.
+  const TH = { push: 1.9, years: 7.9, thick: 8.6, stiff: 11.4, less: 13.6, same: 17.2 };
+  function heartZoom(ctx, p, s) {
+    const k = ease(seg(s, TH.years, TH.years + 6.5));
+    zoomLens(ctx, s, 'Zoom in: the heart wall', 'heart', (c, x, y) => heartBuddy(c, x, y, 13, 1, s), k, (cx, cy, R) => {
+      ctx.fillStyle = '#fff5f3'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+      const beat = beatOf(s), Ro = 132 * (1 + 0.02 * beat), wf = lerp(0.2, 0.46, k), Ri = 132 * (1 - wf) * (1 - lerp(0.14, 0.08, k) * beat);
+      M.dot(ctx, cx, cy, Ro, M.mix('#d9534f', '#b8403b', k));
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.28)'; ctx.lineWidth = 2;
+      for (let i = 0; i < 28; i++) { const a = i / 28 * M.TAU; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * (Ri + 6), cy + Math.sin(a) * (Ri + 6)); ctx.lineTo(cx + Math.cos(a) * (Ro - 6), cy + Math.sin(a) * (Ro - 6)); ctx.stroke(); }
+      ctx.restore();
+      M.dot(ctx, cx, cy, Ri, '#f8d4cf');
+      const n = lerp(9, 4, ease(seg(s, TH.less, TH.less + 2)));
+      for (let i = 0; i < n; i++) { const a = i / 9 * M.TAU + s * 0.6; M.rbc(ctx, cx + Math.cos(a) * Ri * 0.64, cy + Math.sin(a) * Ri * 0.64, 9, fadeIn(n, i)); }
+      // squeeze arrows: the same beat rhythm, but a harder push as pressure stays high
+      const pa = seg(s, TH.push, TH.push + 0.6) * beat, len = lerp(14, 30, k);
+      for (let i = 0; i < 4; i++) { const a = i / 4 * M.TAU + M.TAU / 8, far = Ro + 6 + len, near = Ro + 4; M.arrow(ctx, cx + Math.cos(a) * far, cy + Math.sin(a) * far, cx + Math.cos(a) * near, cy + Math.sin(a) * near, { color: '#a3261f', width: 4, head: 10, alpha: pa }); }
+      M.text(ctx, 'Heart wall', cx, cy - Ro + 22 + 30 * k, { size: 15, weight: 800, color: '#ffffff' });
+      M.text(ctx, 'Blood', cx, cy, { size: 14, weight: 800, color: '#a3332e' });
+    });
+    stepPills(ctx, s, [['Pushing against high pressure', TH.push], ['The heart wall gets thicker', TH.thick], ['A thick wall gets stiff', TH.stiff], ['It fills with blood less easily', TH.less]], '#a3261f');
+    pushMeter(ctx, 694, 430, 236, lerp(0.35, 0.85, k), 'Push needed each beat', seg(s, TH.push, TH.push + 0.6));
+    M.pill(ctx, 'Beat speed: about the same', 812, 482, { size: 15, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, TH.same, TH.same + 0.5) });
+    S.phasePill(ctx, 480, 514, s, [[0.3, 'Healthy heart wall', C.green], [TH.thick + 1.5, 'After years: thick, stiff wall']]);
+  }
+
+  // Close-up 3: a kidney filter and the tiny vessel that feeds it. Over years the tiny vessel
+  // wall thickens and its opening narrows, filter loops scar, and less waste leaves in urine,
+  // so more waste stays in the blood.
+  const TK = { feed: 3.6, years: 6.6, narrow: 8.9, scar: 11, less: 13.2 };
+  const WASTE = '#8a6a4a';
+  function kidneyZoom(ctx, p, s) {
+    const k = ease(seg(s, TK.years, TK.years + 4)), scar = ease(seg(s, TK.scar, TK.scar + 2.4)), less = ease(seg(s, TK.less, TK.less + 2));
+    zoomLens(ctx, s, 'Zoom in: a kidney filter', 'kidney', (c, x, y) => M.kidney(c, x, y, 12), Math.max(k, scar), (cx, cy, R) => {
+      ctx.fillStyle = '#fdf3ec'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+      const fx = cx + 24, fy = cy - 6, FR = 92;
+      const tube = (pts, outer, inner, wallCol, lumCol) => {
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        [[outer, wallCol], [inner, lumCol]].forEach(([w, col]) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); });
+        ctx.restore();
+      };
+      const along = (pts, q) => { const [a, b] = pts; return [lerp(a[0], b[0], q), lerp(a[1], b[1], q)]; };
+      // the tiny feeding vessel: its wall thickens and its opening narrows
+      const IN = [[cx - R - 10, cy + 40], [fx - FR + 10, fy + 6]], inner = lerp(18, 7, k);
+      tube(IN, lerp(30, 36, k), inner, M.mix('#e8a9a4', '#b97c74', k), '#f7d9d5');
+      const nIn = lerp(4, 1.6, k);
+      for (let i = 0; i < nIn; i++) { const [x, y] = along(IN, wrapX(s * lerp(0.45, 0.2, k) + i / 4, 1)); M.rbc(ctx, x, y, inner * 0.42 + 2, fadeIn(nIn, i)); }
+      // blood leaving the filter: carries more waste once filtering drops
+      const OUT = [[fx + FR - 20, fy - FR + 30], [cx + R + 10, cy - 150]];
+      tube(OUT, 26, 14, '#e8a9a4', '#f7d9d5');
+      const wOut = lerp(1, 5, less);
+      for (let i = 0; i < wOut; i++) { const [x, y] = along(OUT, wrapX(s * 0.3 + i / 5, 1)); M.dot(ctx, x, y, 4, WASTE, fadeIn(wOut, i)); }
+      // urine side: waste filtered out of the blood
+      const URINE = [[fx + 40, fy + FR - 12], [cx + R + 10, cy + 160]];
+      tube(URINE, 26, 16, '#f0d9a0', '#f7e39a');
+      const wUr = lerp(5, 1.5, less);
+      for (let i = 0; i < wUr; i++) { const [x, y] = along(URINE, wrapX(s * 0.3 + i / 5, 1)); M.dot(ctx, x, y, 4, WASTE, fadeIn(wUr, i)); }
+      // the filter: a cup around a ball of tiny looping vessels; loops scar one by one
+      M.dot(ctx, fx, fy, FR, '#f6dccd');
+      ctx.save(); ctx.strokeStyle = '#d9a98f'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(fx, fy, FR, 0, M.TAU); ctx.stroke(); ctx.restore();
+      const loops = [[0, 0], [-34, -30], [32, -32], [-40, 18], [38, 16], [-6, 44], [4, -52]], nScar = scar * 4;
+      loops.forEach(([u, v], i) => {
+        const g = i < 4 ? Math.max(0, Math.min(1, nScar - i)) : 0, x = fx + u, y = fy + v;
+        M.dot(ctx, x, y, 24, M.mix('#e57b70', '#a59ea8', g));
+        M.dot(ctx, x, y, 13, M.mix('#fbe0db', '#c9c3cc', g));
+        if (g < 0.5) M.rbc(ctx, x + Math.cos(s * 2 + i) * 5, y + Math.sin(s * 2 + i) * 5, 5, 1 - 2 * g);
+      });
+    });
+    M.dot(ctx, 724, 128, 6, WASTE); M.text(ctx, '= waste', 736, 128, { size: 14, weight: 700, color: C.muted, align: 'left' });
+    stepPills(ctx, s, [['Tiny vessels feed each filter', TK.feed], ['They get thick and narrow', TK.narrow], ['The filters get scarred', TK.scar], ['Less waste is cleaned out', TK.less]], '#8a4b2b');
+    pushMeter(ctx, 694, 440, 236, lerp(0.1, 0.7, less), 'Waste left in the blood', seg(s, TK.less, TK.less + 0.6));
+    S.phasePill(ctx, 480, 514, s, [[0.3, 'Healthy filter', C.green], [TK.scar + 1, 'After years: scarred filter']]);
+  }
+
+  const patientScenesA = [
     {
       label: 'What is blood pressure?',
       dur: 15,
@@ -221,12 +360,33 @@
       caption: 'High blood pressure usually has no symptoms. You can feel totally fine, and only a blood pressure check shows the high number.',
       draw: cantFeelIt,
     },
+  ];
+
+  const patientScenesB = [
     {
       label: 'Over many years',
       dur: 25,
       caption: "If high blood pressure isn't controlled for many years, the risk of problems goes up. The heart can wear out, a blood vessel in the brain can get blocked or break, which is a stroke, and the kidneys' filters can get damaged.",
       draw: overYears,
     },
+    {
+      label: 'Blood vessel walls',
+      caption: "Let's zoom in on a blood vessel. With high blood pressure, every heartbeat pushes hard on its walls. Over many years, the walls get thicker and stiffer, and the inside lining can get tiny injuries. That makes it easier for plaque to build up.",
+      draw: vesselZoom,
+    },
+    {
+      label: 'The heart wall',
+      caption: "Now zoom into the heart. Pushing against high pressure is hard work. Like a muscle lifting heavy weights every day, the heart wall gets thicker. Over time, a thick wall gets stiff, so the heart can't fill with blood as easily. High blood pressure doesn't mean a faster heartbeat. Each beat has to push harder.",
+      draw: heartZoom,
+    },
+    {
+      label: 'Kidney filters',
+      caption: 'Each kidney has about a million tiny filters, and each one is fed by tiny blood vessels. Years of high pressure can make these tiny vessels thick and narrow, and the filters can get scarred. Then the kidneys clean less waste out of the blood.',
+      draw: kidneyZoom,
+    },
+  ];
+
+  const patientScenesC = [
     {
       label: 'Protect your body',
       dur: 15,
@@ -528,13 +688,17 @@
     aliases: ['hypertension', 'htn', 'high bp', 'elevated blood pressure', 'essential hypertension', 'primary hypertension', 'blood pressure'],
     patient: {
       tagline: 'Blood pushes too hard on your artery walls, often without any symptoms.',
-      length: 90, // seconds; scenes stretch to a calmer pace
-      audio: 'audio/htn/', // recorded narration from tools/make-narration.py
-      scenes: patientScenes,
+      // Three shorter videos, each around one question. length: seconds (scenes stretch to a
+      // calmer pace); audio: recorded narration from tools/make-narration.py.
+      videos: [
+        { title: 'What is high blood pressure?', length: 48, audio: 'audio/htn-a/', scenes: patientScenesA },
+        { title: 'What can it do over many years?', length: 100, audio: 'audio/htn-b/', scenes: patientScenesB },
+        { title: 'How can I protect my body?', length: 25, audio: 'audio/htn-c/', scenes: patientScenesC },
+      ],
       keyPoints: [
-        'Blood pressure is written as two numbers, like 120/80. High blood pressure is 130/80 or higher.',
+        'Blood pressure is written as two numbers, like 120/80. For adults, high blood pressure is 130/80 or higher. Children are checked with different charts based on age, height, and sex.',
         'It usually causes no symptoms. Checking it is the only way to know.',
-        'If it stays uncontrolled for years, it raises the risk of heart, brain (stroke), and kidney problems. Treatment lowers that risk.',
+        'If it stays uncontrolled for years, vessel walls and the heart wall get thicker and stiffer, and kidney filters can scar. This raises the risk of heart, brain (stroke), and kidney problems. Treatment lowers that risk.',
         'Less salt, more activity, and daily medicines can bring it down. Many people need more than one medicine.',
       ],
       questions: [
@@ -552,8 +716,10 @@
       ],
       quiz: [
         { q: 'What does high blood pressure mean?', options: ['Blood pushes too hard on artery walls', 'Your heart beats too slowly', 'You have too much blood'], answer: 0, explain: 'High blood pressure means the force of blood against your artery walls is too high.' },
-        { q: 'Which reading is high blood pressure?', options: ['115 / 75', '118 / 78', '138 / 86'], answer: 2, explain: '130/80 or higher counts as high blood pressure. 138/86 is Stage 1.' },
+        { q: 'For an adult, which reading is high blood pressure?', options: ['115 / 75', '118 / 78', '138 / 86'], answer: 2, explain: 'For adults, 130/80 or higher counts as high blood pressure, so 138/86 is Stage 1. Children use different charts based on age, height, and sex.' },
+        { q: 'Why does the heart wall get thicker when blood pressure stays high?', options: ['The heart beats much faster', 'Each beat has to push against high pressure, like lifting heavy weights', 'Salt sticks to the heart'], answer: 1, explain: 'High pressure means a harder push, not a faster beat. Over years the wall thickens and gets stiff, so it fills less easily.' },
         { q: 'Why is checking your blood pressure important?', options: ['It always causes headaches', 'It usually has no symptoms', 'It only matters in older adults'], answer: 1, explain: 'Most people feel fine, so measuring is the only way to know.' },
+        { q: 'Why keep taking your blood pressure medicine when you feel fine?', options: ['Feeling fine means your pressure is normal', 'High pressure usually has no symptoms, and keeping it down protects your vessels, heart, brain, and kidneys over the years', 'Medicine only works when you feel sick'], answer: 1, explain: 'The damage builds slowly and silently. Following your plan every day lowers the risk over time.' },
       ],
     },
     clinician: {

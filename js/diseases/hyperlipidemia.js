@@ -348,20 +348,28 @@
     });
   }
 
-  // 3. The buildup becomes plaque over years; the open space narrows and flow slows.
+  // 3. The buildup becomes plaque slowly, in stages over many years (often starting young);
+  //    the open space narrows and flow slows. Milestones on the timeline name each stage.
+  const TP = { start: 2.2, narrow: 8.2, slow: 10.3 };
   function plaqueGrows(ctx, p, s) {
-    M.text(ctx, 'Plaque builds up over years', 480, 50, { size: 30, weight: 800 });
-    timeline(ctx, 280, 96, 400, ease(seg(s, 0.5, 8)), 'Years go by', C.amber);
-    const g = ease(seg(s, 1, 8));
+    M.text(ctx, 'Plaque builds up over many years', 480, 46, { size: 30, weight: 800 });
+    const yr = ease(seg(s, TP.start, TP.slow + 1));
+    timeline(ctx, 160, 96, 640, yr, 'Years go by', C.amber);
+    [['Early: a thin streak', 0.08], ['Years later: small plaque', 0.5], ['Many years: bigger plaque', 0.94]].forEach(([t, at], i) => {
+      const a = seg(yr, at - 0.06, at), x = 160 + 640 * at;
+      M.dot(ctx, x, 100, 7, C.amber, a);
+      M.text(ctx, t, x, 124, { size: 13, weight: 800, color: '#8a5a00', alpha: a, align: i === 0 ? 'left' : i === 2 ? 'right' : 'center' });
+    });
+    const g = yr;
     arteryCross(ctx, 250, 310, 150, s, { plaque: 0.15 + 0.7 * g, inflam: 0.4 * g, flow: 1 - 0.6 * g });
-    M.pill(ctx, 'Plaque', 330, 152, { size: 18, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, 1.4, 2) });
+    M.pill(ctx, 'Plaque', 330, 160, { size: 18, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, 1.4, 2) });
     ctx.save(); ctx.strokeStyle = '#e09400'; ctx.lineWidth = 2; ctx.globalAlpha *= seg(s, 1.4, 2);
-    ctx.beginPath(); ctx.moveTo(318, 168); ctx.lineTo(292, 236); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.moveTo(318, 176); ctx.lineTo(292, 236); ctx.stroke(); ctx.restore();
     M.text(ctx, 'Side view', 710, 196, { size: 16, weight: 800, color: C.muted });
-    const t = travelled(s, (q) => 1 - 0.65 * ease(seg(q, 1, 8)));
+    const t = travelled(s, (q) => 1 - 0.65 * ease(seg(q, TP.start, TP.slow + 1)));
     M.vessel(ctx, 500, 220, 420, 140, { t, wall: 18, plaque: (0.15 + 0.7 * g) * 0.85, plaqueX: 0.5, items: [{ kind: 'rbc', n: 12, speed: 80, r: 10 }] });
-    M.pill(ctx, 'Narrower artery', 710, 398, { size: 18, bg: '#fff', border: '#e09400', color: '#8a5a00', alpha: seg(s, 5, 5.6) });
-    M.pill(ctx, 'Blood flow slows', 710, 446, { size: 18, bg: '#fff', border: '#e09400', color: '#8a5a00', alpha: seg(s, 7, 7.6) });
+    M.pill(ctx, 'Narrower artery', 710, 398, { size: 18, bg: '#fff', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP.narrow, TP.narrow + 0.6) });
+    M.pill(ctx, 'Blood flow slows', 710, 446, { size: 18, bg: '#fff', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP.slow, TP.slow + 0.6) });
   }
 
   // 4. A plaque can trigger a clot. Heart: a coronary artery is blocked and part of the heart
@@ -411,16 +419,18 @@
     }
   }
 
-  // 5. Over years: lower LDL slows future plaque growth; it does not erase plaque overnight.
+  // 5. Over years: lower LDL slows future plaque growth and lowers future risk; plaque that is
+  //    already there does not vanish overnight, so the managed side keeps its early plaque.
   const HABITS = [['🥗 Heart-healthy food', 0.3], ['🌾 More soluble fiber', 0.7], ['🫒 Healthier fats', 1.1], ['🏃 Regular movement', 1.6], ['🚭 No tobacco', 2.2], ['🩺 Your care plan', 3.6]];
   function managePanel(ctx, p, s, high, W) {
     const yr = ease(seg(s, 0.5, 9.5));
     timeline(ctx, 60, 44, W - 120, yr, 'Over the years', high ? C.amber : C.green);
-    arteryCross(ctx, W / 2, 148, 74, s, { plaque: 0.3 + (high ? 0.5 : 0.08) * yr, inflam: high ? 0.4 * yr : 0, flow: high ? 1 - 0.5 * yr : 1 });
-    if (high) S.phasePill(ctx, W / 2, 246, s, [[0.3, 'LDL stays high', '#b86a00'], [5, 'Plaque keeps growing']]);
-    else S.phasePill(ctx, W / 2, 246, s, [[0.3, 'LDL lower', C.green], [6, 'Plaque grows more slowly', C.green]]);
-    if (high) M.text(ctx, 'Higher future risk', W / 2, 300, { size: 17, weight: 800, color: '#a3261f', alpha: seg(s, 6, 6.6) });
+    arteryCross(ctx, W / 2, 138, 66, s, { plaque: 0.3 + (high ? 0.5 : 0.08) * yr, inflam: high ? 0.4 * yr : 0, flow: high ? 1 - 0.5 * yr : 1 });
+    if (high) S.phasePill(ctx, W / 2, 246, s, [[0.3, 'LDL stays high', '#b86a00'], [7.4, 'Plaque keeps growing']]);
+    else S.phasePill(ctx, W / 2, 246, s, [[0.3, 'LDL lower', C.green], [8.6, 'Plaque grows more slowly', C.green]]);
+    if (high) M.text(ctx, 'Higher future risk', W / 2, 300, { size: 17, weight: 800, color: '#a3261f', alpha: seg(s, 10.4, 11) });
     else HABITS.forEach(([t, at], i) => M.pill(ctx, t, 116 + (i % 2) * 208, 282 + Math.floor(i / 2) * 30, { size: 13, bg: '#fff', border: '#bfe3cf', alpha: seg(s, at, at + 0.5) }));
+    if (!high) M.text(ctx, "Plaque already there won't vanish overnight", W / 2, 222, { size: 13, weight: 800, color: C.muted, alpha: seg(s, 12, 12.6) });
     return high ? 0.7 - 0.45 * yr : 0.78 - 0.06 * yr;
   }
 
@@ -487,7 +497,7 @@
     },
     {
       label: 'Plaque forms',
-      caption: 'This buildup is called plaque. As plaque grows, an artery can become narrower and blood may have a harder time getting through.',
+      caption: 'This buildup is called plaque. It forms slowly, over many years, and can start when people are young. As plaque grows, an artery can become narrower, and blood may have a harder time getting through.',
       draw: plaqueGrows,
     },
     {
@@ -497,7 +507,7 @@
     },
     {
       label: 'Why lifestyle matters',
-      caption: 'Healthy food choices, regular movement, and the care plan you follow with your healthcare team can help lower cholesterol and protect your blood vessels over time.',
+      caption: "Healthy food choices, regular movement, and the care plan you follow with your healthcare team can help lower cholesterol. Over the years, this slows plaque growth and lowers your future risk. Plaque that's already there won't vanish overnight, so keep going.",
       draw: S.versus({ title: 'Over the years', panel: managePanel, left: 'Lower LDL over time', right: 'LDL stays high', bar: 'Artery health' }),
     },
     {
@@ -523,7 +533,7 @@
       keyPoints: [
         'Your body needs cholesterol. Your liver makes most of it, and lipoprotein particles such as LDL and HDL carry it in the blood.',
         'Genes, your liver, and food all affect LDL. Some people have high LDL even when they eat healthy foods.',
-        'When LDL stays high for years, it can enter artery walls and build up as plaque. Plaque can narrow an artery or trigger a blood clot.',
+        'When LDL stays high for years, it can enter artery walls and slowly build up as plaque, often starting when people are young. Plaque can narrow an artery or trigger a blood clot.',
         'High cholesterol usually has no symptoms. A blood test shows your levels. Managing your risk lowers, but does not remove, the chance of a heart attack or stroke.',
         'These videos focus on LDL. Triglycerides are a different blood fat that your care team may also check.',
       ],
@@ -542,6 +552,7 @@
         { q: 'Why can LDL be high?', options: ['Only from eating greasy food', 'Genes, the liver, and food can all play a part', 'Only from not exercising'], answer: 1, explain: 'LDL levels depend on your genes, how your liver makes and clears LDL, and food over time. Some people have high LDL even with healthy eating.' },
         { q: 'Where does plaque form?', options: ['Floating loose in the blood', 'Inside the artery wall', 'In the stomach'], answer: 1, explain: 'LDL particles can enter the artery wall. The body reacts, and cholesterol and immune cells build up there as plaque.' },
         { q: 'Why get your cholesterol tested even if you feel fine?', options: ['High cholesterol usually has no symptoms', 'Tests lower your LDL', 'Only people who feel sick need tests'], answer: 0, explain: 'High cholesterol usually does not make you feel sick, so a blood test is the way to know your levels.' },
+        { q: 'Your cholesterol number got better. Why keep up your plan?', options: ['Plaque builds over many years, and staying on track keeps lowering your future risk', 'Once the number is good, plaque is gone', 'There is no reason to keep going'], answer: 0, explain: 'Lower LDL slows new plaque, but plaque already there does not vanish overnight. Keeping LDL down for years is what lowers the risk.' },
         { q: 'What can long-term management do?', options: ['Remove all plaque right away', 'Lower the risk of heart attack and stroke over time', 'Guarantee you never have a problem'], answer: 1, explain: 'Healthy habits and your care plan can lower LDL and slow plaque growth, which lowers your risk over time. It is risk reduction, not a guarantee.' },
       ],
     },

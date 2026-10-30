@@ -21,6 +21,9 @@
     M.dot(ctx, x - r * 0.3, y - r * 0.3, r * 0.32, '#ffffff', alpha * 0.8);
   }
 
+  // Item i of a fractional count n: whole items are 1, the last partial one fades in.
+  const part = (n, i) => Math.min(1, n - i);
+
   function mucus(ctx, x, y, r, t, alpha = 1) {
     ctx.save(); ctx.globalAlpha *= alpha; ctx.beginPath();
     for (let k = 0; k <= 14; k++) { const a = k / 14 * M.TAU, rr = r * (1 + 0.14 * Math.sin(a * 3 + t * 2 + x)); k ? ctx.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr * 0.8) : ctx.moveTo(x + rr, y); }
@@ -76,8 +79,8 @@
     }
     ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, lr, 0, M.TAU); ctx.fillStyle = '#e8f5fd'; ctx.fill(); ctx.clip();
     const n = o.air == null ? 6 : o.air;
-    for (let i = 0; i < n; i++) { const a = i * 2.1 + s * 0.8, d = lr * (0.2 + 0.5 * rnd(i + 3)); air(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d, Math.max(4, R * 0.07)); }
-    for (let i = 0; i < Math.round(muc * 6); i++) { const a = i * 1.05 + 0.4; mucus(ctx, cx + Math.cos(a) * lr * 0.82, cy + Math.sin(a) * lr * 0.82, lr * 0.3, s + i); }
+    for (let i = 0; i < n; i++) { const a = i * 2.1 + s * 0.8, d = lr * (0.2 + 0.5 * rnd(i + 3)); air(ctx, cx + Math.cos(a) * d, cy + Math.sin(a) * d, Math.max(4, R * 0.07), part(n, i)); }
+    for (let i = 0; i < muc * 6; i++) { const a = i * 1.05 + 0.4, k = part(muc * 6, i); mucus(ctx, cx + Math.cos(a) * lr * 0.82, cy + Math.sin(a) * lr * 0.82, lr * 0.3 * (0.4 + 0.6 * k), s + i, k); }
     ctx.restore();
     ctx.save(); ctx.strokeStyle = '#fbe0db'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, lr, 0, M.TAU); ctx.stroke(); ctx.restore();
   }
@@ -104,11 +107,12 @@
     const n = o.air == null ? 8 : o.air, dir = o.dir || 1;
     for (let i = 0; i < n; i++) {
       const px = x + wrapX(rnd(i) * w + dir * s * (o.speed || 60), w);
-      air(ctx, px, cy + (rnd(i + 3) - 0.5) * 1.6 * Math.max(0, half(px) - 6), 6);
+      air(ctx, px, cy + (rnd(i + 3) - 0.5) * 1.6 * Math.max(0, half(px) - 6), 6, part(n, i));
     }
-    for (let i = 0; i < Math.round((o.mucus || 0) * 6); i++) {
-      const px = x + 30 + rnd(i + 20) * (w - 60), top = i % 2 === 0;
-      mucus(ctx, px, top ? cy - half(px) + 6 : cy + half(px) - 6, 11, s + i);
+    const mn = (o.mucus || 0) * 6;
+    for (let i = 0; i < mn; i++) {
+      const px = x + 30 + rnd(i + 20) * (w - 60), top = i % 2 === 0, k = part(mn, i);
+      mucus(ctx, px, top ? cy - half(px) + 6 : cy + half(px) - 6, 11 * (0.4 + 0.6 * k), s + i, k);
     }
     ctx.restore();
   }
@@ -189,5 +193,5 @@
       mist(ctx, pt[0], pt[1], 4.5, flow * (1 - seg(q, 0.88, 1)));
     }
   }
-  window.Lungs = { wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungPath, lungsFilled, lungLegend, puffLines, riskMeter, inhaler, mist, inhaleMedicine };
+  window.Lungs = { part, wrapX, AIR, TRAP, breathOf, exhaling, phaseOf, air, mucus, smokePuff, germ, cigarette, airwayCross, airwayTube, lungPath, lungsFilled, lungLegend, puffLines, riskMeter, inhaler, mist, inhaleMedicine };
 })();
