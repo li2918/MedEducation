@@ -487,7 +487,7 @@
   // ---- Part 3: How can I protect my arteries? ---------------------------------------------
   // Five connected scenes that show what each step changes inside the body: food (healthier
   // fats and soluble fiber, which carries bile acids out so the liver pulls in more LDL),
-  // movement (modest changes in blood fats, a stronger heart; no plaque wash-out), knowing
+  // exercise (modest changes in blood fats, a stronger heart; no plaque wash-out), knowing
   // your numbers (a test informs the plan; it does not lower cholesterol), long-term artery
   // protection (two arteries with the same early plaque over years), and keeping going.
   // Measured lipids change over weeks; cardiovascular risk changes over years. Gauges and
@@ -570,11 +570,11 @@
     M.text(ctx, 'LDL slowly goes down over weeks', 700, 528, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TF.remove + 1, TF.remove + 1.6) });
   }
 
-  // 2. Regular movement: a stronger heart and vessels, and modest changes in blood fats. It
+  // 2. Regular exercise: a stronger heart and vessels, and modest changes in blood fats. It
   //    does not wash plaque away.
   const TE = { heart: 0.4, fats: 3.9, plaque: 9.5, support: 11.8 };
   function moveScene(ctx, p, s) {
-    M.text(ctx, 'Regular movement', 480, 44, { size: 28, weight: 800 });
+    M.text(ctx, 'Regular exercise', 480, 44, { size: 28, weight: 800 });
     ctx.fillStyle = '#c9e7b5'; ctx.fillRect(30, 470, 250, 12);
     S.runner(ctx, 150, 470, s * 8, 0.8, 0.12, 1, s);
     const ha = ease(seg(s, TE.heart, TE.heart + 0.6)), k = ease(seg(s, TE.fats, TE.fats + 4));
@@ -601,7 +601,7 @@
     const pa = seg(s, TE.plaque, TE.plaque + 0.6);
     ctx.save(); ctx.globalAlpha *= pa; arteryCross(ctx, 400, 470, 44, s, { plaque: 0.4, flow: 0.9 }); ctx.restore();
     M.text(ctx, 'Plaque already there does not wash away', 460, 462, { size: 14, weight: 800, align: 'left', alpha: pa });
-    M.text(ctx, 'Movement supports heart health over time', 460, 486, { size: 14, weight: 800, align: 'left', color: '#1d7a4c', alpha: seg(s, TE.support, TE.support + 0.6) });
+    M.text(ctx, 'Exercise supports heart health over time', 460, 486, { size: 14, weight: 800, align: 'left', color: '#1d7a4c', alpha: seg(s, TE.support, TE.support + 0.6) });
   }
 
   // 3. Know your numbers: a blood test gives information, the care team reviews it with your
@@ -646,7 +646,7 @@
     const a4 = st(TN.working);
     M.card(ctx, 714, 78, 222, 250, { r: 18, alpha: a4 });
     M.text(ctx, 'Your plan', 825, 104, { size: 16, weight: 800, alpha: a4 });
-    [['🥗', 'Food and movement', TN.working], ['💊', 'Medicine, if prescribed', TN.medicine], ['🩸', 'Next check', TN.working + 0.6]].forEach(([ic, t, at], i) => {
+    [['🥗', 'Food and exercise', TN.working], ['💊', 'Medicine, if prescribed', TN.medicine], ['🩸', 'Next check', TN.working + 0.6]].forEach(([ic, t, at], i) => {
       const a = seg(s, at, at + 0.5), y = 146 + i * 50;
       M.emoji(ctx, ic, 742, y, 22, a); M.wrap(ctx, t, 834, y, 150, { size: 14, weight: 800, alpha: a });
     });
@@ -695,7 +695,7 @@
     S.brainBuddy(ctx, x, y - 1.98 * sc - 10, 20, lerp(0.7, 1, k), s);
     S.heartBuddy(ctx, pts.heart[0], pts.heart[1], 18, lerp(0.7, 1, k), s);
     M.pill(ctx, 'Feel fine? Numbers better? Keep going.', 660, 96, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TK.fine, TK.fine + 0.5) });
-    [['🥗', 'Heart-healthy food', TK.food], ['🏃', 'Regular movement', TK.food + 0.5], ['🩸', 'Checking cholesterol', TK.checks], ['📋', 'Your treatment plan', TK.treat]].forEach(([ic, t, at], i) => {
+    [['🥗', 'Heart-healthy food', TK.food], ['🏃', 'Regular exercise', TK.food + 0.5], ['🩸', 'Checking cholesterol', TK.checks], ['📋', 'Your treatment plan', TK.treat]].forEach(([ic, t, at], i) => {
       const a = ease(seg(s, at, at + 0.5)), cx = 545 + (i % 2) * 230, cy = 176 + Math.floor(i / 2) * 110;
       M.card(ctx, cx - 100, cy - 40, 200, 84, { r: 18, alpha: a, border: '#bfe3cf' });
       M.emoji(ctx, ic, cx - 64, cy + 2, 28, a);
@@ -773,8 +773,8 @@
       draw: foodScene,
     },
     {
-      label: 'Regular movement',
-      caption: 'Regular movement helps your heart and blood vessels work well. It may modestly improve LDL, HDL, and triglycerides. It does not instantly wash plaque away, but it supports your heart health over time.',
+      label: 'Regular exercise',
+      caption: 'Regular exercise helps your heart and blood vessels work well. It may modestly improve LDL, HDL, and triglycerides. It does not instantly wash plaque away, but it supports your heart health over time.',
       draw: moveScene,
     },
     {
@@ -814,7 +814,7 @@
         'When LDL stays high for years, it can enter artery walls and slowly build up as plaque, often starting when people are young. Plaque can narrow an artery or trigger a blood clot.',
         'High cholesterol usually has no symptoms. A blood test shows your levels. Managing your risk lowers, but does not remove, the chance of a heart attack or stroke.',
         'Triglycerides are not cholesterol. They are a different blood fat used for energy. A lipid panel checks total cholesterol, LDL, HDL, and triglycerides.',
-        'Healthy food swaps, regular movement, regular checks, and your treatment plan help keep LDL lower over years, which lowers, but does not remove, future risk.',
+        'Healthy food swaps, regular exercise, regular checks, and your treatment plan help keep LDL lower over years, which lowers, but does not remove, future risk.',
       ],
       questions: [
         'What are my LDL and other cholesterol numbers, and what should they be?',
@@ -832,7 +832,7 @@
         { q: 'Why can LDL be high?', options: ['Only from eating greasy food', 'Genes, the liver, and food can all play a part', 'Only from not exercising'], answer: 1, explain: 'LDL levels depend on your genes, how your liver makes and clears LDL, and food over time. Some people have high LDL even with healthy eating.' },
         { q: 'Where does plaque form?', options: ['Floating loose in the blood', 'Inside the artery wall', 'In the stomach'], answer: 1, explain: 'LDL particles can enter the artery wall. The body reacts, and cholesterol and immune cells build up there as plaque.' },
         { q: 'How can healthy food choices help LDL?', options: ['More soluble fiber, and healthier fats in place of some saturated fat, can help lower LDL over time', 'Fiber pulls LDL straight out of the blood', 'One healthy meal clears plaque'], answer: 0, explain: 'Fiber carries some bile acids out of the gut, so the liver uses cholesterol to make more and takes up more LDL from the blood. Changes show up over weeks.' },
-        { q: 'Why is moving your body worth it, even if HDL barely changes?', options: ['It helps your heart and blood vessels work well and may modestly improve blood fats', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise supports heart health in many ways. A big HDL change is not needed for it to help.' },
+        { q: 'Why is exercise worth it, even if HDL barely changes?', options: ['It helps your heart and blood vessels work well and may modestly improve blood fats', 'It washes plaque out of the arteries', 'It only matters for weight'], answer: 0, explain: 'Exercise supports heart health in many ways. A big HDL change is not needed for it to help.' },
         { q: 'Why get your cholesterol checked, even if you feel fine?', options: ['High cholesterol usually has no symptoms, and results show whether your plan is working', 'The test itself lowers cholesterol', 'Only people who feel sick need tests'], answer: 0, explain: 'A test gives information. Your care team uses it, with your overall risk, to set or change your plan.' },
         { q: 'If medicine is prescribed, why follow your specific schedule?', options: ['It works as intended only when taken the way your care team prescribed', 'You can take it only when you remember', 'Taking extra works faster'], answer: 0, explain: 'Each plan is personal. Following your schedule keeps LDL where your care team is aiming, over time.' },
         { q: 'Why does keeping LDL lower for years matter?', options: ['It removes all plaque right away', 'Less LDL over time tends to slow plaque growth and lower the chance of a heart attack or stroke', 'It guarantees you will never have a problem'], answer: 1, explain: 'It is about lowering risk over many years, not a perfectly clean artery or a guarantee.' },

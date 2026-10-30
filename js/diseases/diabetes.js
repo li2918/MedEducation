@@ -576,7 +576,7 @@
     M.cell(ctx, 250, 370, 84, { nucleus: false, glow: k * 0.7 });
     M.face(ctx, 262, 374, 58, lerp(0.2, 1, k), s, { seed: 5 });
     if (k > 0.5) for (let i = 0; i < 3; i++) { const q = wrapX(s * 0.5 + i / 3, 1); M.glucose(ctx, lerp(120, 200, q), 370 + (i - 1) * 24, 9, 1 - seg(q, 0.8, 1)); }
-    ['💊  Medicine, when needed', '🏃  Staying active', '🥗  Balanced meals', '🩺  Seeing your doctor'].forEach((t, i) =>
+    ['💊  Medicine, when needed', '🏃  Exercise', '🥗  Balanced meals', '🩺  Seeing your doctor'].forEach((t, i) =>
       M.pill(ctx, t, 520, 170 + i * 76, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 21, alpha: ease(seg(p, 0.2 + i * 0.12, 0.28 + i * 0.12)) }));
   }
 
@@ -614,7 +614,7 @@
   // Working muscles move extra sugar doors (GLUT4) to their surface and pull more sugar out
   // of the blood: exercise changes how the body uses sugar, not just burns calories.
   function exerciseScene(ctx, p, s) {
-    M.text(ctx, 'Moving helps muscles use sugar', 480, 52, { size: 30, weight: 800 });
+    M.text(ctx, 'Exercise helps muscles use sugar', 480, 52, { size: 30, weight: 800 });
     M.pill(ctx, 'More than burning calories', 480, 92, { size: 16, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.6, 1.2) });
     const go = ease(seg(s, 0.5, 2)), doors = ease(seg(s, 4.4, 6.5)), down = ease(seg(s, 8, 11));
     ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, 446, 250, 10);
@@ -785,7 +785,7 @@
     },
     {
       label: 'It can be managed',
-      caption: 'The good news: type 2 diabetes can be managed. Medicine, staying active, and balanced meals help bring sugar back into range.',
+      caption: 'The good news: type 2 diabetes can be managed. Medicine, exercise, and balanced meals help bring sugar back into range.',
       draw: managedScene,
     },
   ];
@@ -825,7 +825,7 @@
     },
     {
       label: 'Protect your body',
-      caption: 'Diabetes can be managed. Taking medicine when needed, staying active, eating balanced meals, and seeing your doctor can help protect your body.',
+      caption: 'Diabetes can be managed. Taking medicine when needed, exercising, eating balanced meals, and seeing your doctor can help protect your body.',
       draw(ctx, p, s) {
         const k = ease(seg(p, 0.08, 0.55));
         const pts = S.bodyWithBlood(ctx, 230, 300, 105, s, { density: lerp(1.3, 0.3, k), sugarR: 9 });
@@ -1364,7 +1364,7 @@
       ],
       quiz: [
         { q: 'Why does sugar build up in the blood in type 2 diabetes?', options: ['The body eats too little', 'Cells do not respond well to the insulin key, so sugar has trouble getting in', 'Insulin turns into sugar'], answer: 1, explain: 'Insulin works like a key. In type 2 diabetes the doors are harder to open, so more sugar stays in the blood.' },
-        { q: 'Why does moving your body help?', options: ['Muscles use sugar for energy, and moving helps insulin work better', 'Sweating washes sugar out', 'It only matters for weight'], answer: 0, explain: 'Active muscles pull sugar out of the blood, and regular movement makes cells respond better to insulin.' },
+        { q: 'Why does exercise help?', options: ['Muscles use sugar for energy, and exercise helps insulin work better', 'Sweating washes sugar out', 'It only matters for weight'], answer: 0, explain: 'Active muscles pull sugar out of the blood, and regular exercise makes cells respond better to insulin.' },
         { q: 'Why keep managing your blood sugar even when you feel fine?', options: ['Feeling fine means sugar is in range', 'High sugar often has no symptoms at first, but over years it can harm blood vessels and nerves', 'Sugar only matters after meals'], answer: 1, explain: 'The harm builds slowly and quietly. Keeping sugar in range day after day lowers the risk to your eyes, kidneys, nerves, heart, and brain.' },
         { q: 'If blood sugar stays high for many years, which parts of the body are at higher risk?', options: ['Only the stomach', 'Eyes, kidneys, nerves, heart, and brain', 'Only the skin'], answer: 1, explain: 'Blood reaches every organ, so sugar that stays high for years raises the risk for the tiny vessels in the eyes and kidneys, the nerves in the feet, and the arteries to the heart and brain. Keeping sugar in range lowers that risk.' },
         { q: 'Which of these is a reason to call your doctor?', options: ['Feeling hungry before lunch', 'A foot sore that will not heal', 'Walking after dinner'], answer: 1, explain: 'Foot sores can get infected quickly when you have diabetes. Get them checked early.' },

@@ -186,7 +186,7 @@
     pressureDial(ctx, 480, 172, 56, lerp(150, 118, k), lerp(95, 76, k));
     M.text(ctx, ADULT_NOTE, 480, 228, { size: 12, color: C.muted });
     M.healthBar(ctx, 580, 164, 330, lerp(0.35, 1, k), { label: 'Body health', right: k > 0.7 ? 'Protected!' : 'At risk' });
-    [['🏃  Move every day', 2], ['🧂  Eat less salt', 3], ['🩺  Check your blood pressure', 4.2], ['💊  Take medicine as your doctor says', 5.6]].forEach(([t, at], i) =>
+    [['🏃  Exercise most days', 2], ['🧂  Eat less salt', 3], ['🩺  Check your blood pressure', 4.2], ['💊  Take medicine as your doctor says', 5.6]].forEach(([t, at], i) =>
       M.pill(ctx, t, 400, 278 + i * 58, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(s, at, at + 0.6)) }));
   }
 
@@ -447,7 +447,7 @@
     {
       label: 'Protect your body',
       dur: 15,
-      caption: 'You can protect your body. Move every day, eat less salt, check your blood pressure, and take medicine the way your doctor says.',
+      caption: 'You can protect your body. Exercise most days, eat less salt, check your blood pressure, and take medicine the way your doctor says.',
       draw: protect,
     },
     {

@@ -604,7 +604,7 @@
     },
     {
       label: 'The takeaway',
-      caption: 'COPD damage may not fully go away, but protecting your lungs, staying active, and following your care plan can help you breathe and live better.',
+      caption: 'COPD damage may not fully go away, but protecting your lungs, exercising, and following your care plan can help you breathe and live better.',
       draw: takeaway,
     },
   ];
