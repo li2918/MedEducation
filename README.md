@@ -40,10 +40,22 @@ js/clinician.js    Clinician portal page logic
 
 A scene is `{ label, caption, draw(ctx, p, s) }`. `p` is progress (0–1) through the scene and `s` is seconds elapsed. Scene length stretches automatically so the narration can finish. Randomness is seeded, so scrubbing always shows the same frame.
 
+### Narration
+
+Patient videos play pre-recorded MP3 narration from `audio/<id>/<n>.mp3` (one file per scene) in a natural neural voice. If the files are missing, the player falls back to the browser's speech voices, which differ by device and can sound robotic. To create or refresh the audio after editing captions:
+
+```
+pip install edge-tts
+python tools/make-narration.py
+```
+
+**Download video:** the `⬇ Video` button plays the video once in real time while recording it, then saves an MP4 (or WebM) with the narration and burned-in captions. Keep the tab visible while it records. The narration is only captured from the website (http/https), not from a page opened as a local file.
+
 ### Adding a condition
 
 1. Create `js/diseases/<name>.js` and call `MedData.register({ id, name, icd10, aliases, patient, clinician })`. Use `diabetes.js` as the template. A condition with only `patient` (or only `clinician`) content shows as coming soon in the other portal.
 2. Add a `<script>` tag for it to `patient.html` and `clinician.html`.
+   To split the patient story into parts, give `patient.videos: [{ title, length, audio, scenes }, ...]` instead of `scenes` (see `diabetes.js`). Name the arrays `patientScenesA`, `patientScenesB`, ... so `tools/make-narration.py` writes `audio/<id>-a/`, `audio/<id>-b/`.
 3. Remove it from the `comingSoon` list in `js/registry.js`.
 
 ## Important limitations

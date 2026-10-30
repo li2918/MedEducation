@@ -190,10 +190,11 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~90 s), simple enough for a 10-year-old. Every scene
-  // puts two cards side by side, normal sugar vs. too much sugar. Organs are
-  // characters with faces and a health bar, and each card acts out the organ's
-  // job and how sugar breaks it. Panels draw in card-local coordinates (440x420).
+  // Patient portal: two videos, simple enough for a 10-year-old. Part 1 explains what
+  // type 2 diabetes is; Part 2 explains how sugar that stays high for years can affect
+  // the body (a risk, not a certainty). Comparison scenes put two cards side by side,
+  // normal vs. too much sugar; organs are characters with faces and a health bar.
+  // Panels draw in card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
   const SUGAR = 11; // sugar molecules in the patient video are big and glowing
   const wrapX = (v, w) => ((v % w) + w) % w;
@@ -313,7 +314,7 @@
     const coat = hurtOf(p, sick, 0.12, 0.35), tear = hurtOf(p, sick, 0.36, 0.6), clog = hurtOf(p, sick, 0.62, 0.85);
     kidneyBuddy(ctx, 70, 92, 56, 1 - 0.95 * hurt, s, hurt);
     M.text(ctx, 'Kidney', 64, 156, { size: 15, weight: 800, color: C.muted });
-    const msg = !sick ? 'I keep the\ngood stuff!' : p < 0.36 ? 'Yuck, sticky\nsugar!' : p < 0.62 ? 'My holes\nare tearing!' : "I'm so\ntired...";
+    const msg = !sick ? 'I keep the\ngood stuff!' : p < 0.36 ? 'Too much\nsugar!' : p < 0.62 ? 'My holes\nare tearing!' : "I'm so\ntired...";
     M.say(ctx, msg, 68, 178, seg(p, 0.12, 0.18), sick ? C.red : '#1d7a4c');
     // zoom lines from the kidney into its strainer
     ctx.save(); ctx.strokeStyle = 'rgba(47,111,222,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
@@ -445,7 +446,7 @@
     return 1 - 0.85 * hurt;
   }
 
-  // Scene 4: a blood pipe feeding the heart. Sugar makes it sticky, gunk builds up, a clot blocks it.
+  // Heart: a blood pipe feeding the heart. High sugar hurts the wall, gunk builds up, a clot blocks it.
   function heartPanel(ctx, p, s, sick, W) {
     const coat = hurtOf(p, sick, 0.08, 0.3), gunk = hurtOf(p, sick, 0.2, 0.62), clot = sick ? M.back(seg(p, 0.62, 0.72)) : 0;
     const hurt = hurtOf(p, sick, 0.66, 0.8);
@@ -459,7 +460,7 @@
       ctx.save(); ctx.beginPath(); ctx.ellipse(px, 105, 22 * clot, 38 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); ctx.restore();
     }
     M.text(ctx, 'Blood pipe', 70, 32, { size: 14, weight: 800, color: C.muted });
-    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Sugar makes the pipe sticky'], [0.25, 'Gunk builds up inside'], [0.62, 'A clot blocks the pipe!']]);
+    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'High sugar hurts the pipe wall'], [0.25, 'Gunk builds up inside'], [0.62, 'A clot blocks the pipe!']]);
     else S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Smooth pipe, blood zooms by', C.green]]);
     // branch that feeds the heart muscle; blood stops when the pipe is blocked
     const flow = 1 - seg(p, 0.66, 0.72) * sick;
@@ -474,45 +475,184 @@
       });
       ctx.restore();
     }
-    M.say(ctx, sick ? (hurt > 0.3 ? 'Ouch! No blood\nis getting in!' : 'Ugh, my pipe\nis sticky...') : 'Lots of blood,\nI feel great!', 140, 248, seg(p, 0.14, 0.2), sick ? C.red : '#1d7a4c');
+    M.say(ctx, sick ? (hurt > 0.3 ? 'Ouch! No blood\nis getting in!' : 'My pipe wall is\ngetting hurt...') : 'Lots of blood,\nI feel great!', 140, 248, seg(p, 0.14, 0.2), sick ? C.red : '#1d7a4c');
     if (sick) M.pill(ctx, 'Heart attack!', 140, 325, { size: 16, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.74, 0.8) });
     return 1 - 0.9 * hurtOf(p, sick, 0.1, 0.8);
   }
 
-  const patientScenes = [
+  // ---- Part 1 extras: what type 2 diabetes is ----------------------------------
+
+  // Food turns into sugar; the blood carries it to a cell that uses it for energy.
+  function foodToSugar(ctx, p, s) {
+    M.text(ctx, 'Food becomes sugar', 480, 64, { size: 30, weight: 800 });
+    const st = (i) => ease(seg(p, 0.05 + i * 0.16, 0.15 + i * 0.16));
+    ctx.save(); ctx.beginPath(); ctx.ellipse(150, 212, 88, 38, 0, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#c9d3e2'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
+    ['🍞', '🍚', '🍎'].forEach((ch, i) => { const a = M.back(seg(p, 0.03 + i * 0.04, 0.1 + i * 0.04)); if (a > 0) M.emoji(ctx, ch, 100 + i * 50, 200, 38 * a); });
+    M.text(ctx, '1. Food', 150, 272, { size: 18, weight: 800, color: C.muted });
+    M.arrow(ctx, 250, 210, 318, 210, { color: '#9fb0c6', width: 4, alpha: st(1) });
+    M.stomach(ctx, 400, 196, 66, { alpha: st(1) });
+    M.text(ctx, '2. Turns into sugar', 470, 180, { size: 18, weight: 800, color: C.muted, align: 'left', alpha: st(1) });
+    M.vessel(ctx, 300, 335, 430, 84, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 60, r: 8 }], alpha: st(2) });
+    M.text(ctx, '3. Blood carries it', 515, 446, { size: 18, weight: 800, color: C.muted, alpha: st(2) });
+    const eat = ease(seg(p, 0.6, 0.75));
+    M.cell(ctx, 820, 377, 92, { nucleus: false, glow: eat * 0.8, alpha: st(3) });
+    if (st(3) > 0.5) M.face(ctx, 832, 381, 64, 0.6 + 0.4 * eat, s, { seed: 2 });
+    M.text(ctx, '4. Cells use it for energy', 820, 498, { size: 18, weight: 800, color: C.muted, alpha: st(3) });
+    if (eat > 0) M.pill(ctx, '⚡ Energy!', 820, 262, { size: 18, bg: '#fff8db', border: '#f2b705', color: '#8a5a00', alpha: eat });
+    // sugar: out of the stomach, down into the blood, along to the cell, and in
+    if (p > 0.3) for (let i = 0; i < 6; i++) {
+      const q = wrapX(s * 0.2 + i / 6, 1);
+      let x, y, a = seg(p, 0.3, 0.36);
+      if (q < 0.25) { x = 405; y = lerp(250, 377, q / 0.25); }
+      else if (q < 0.85) { x = lerp(405, 735, (q - 0.25) / 0.6); y = 377 + Math.sin(s * 2 + i) * 8; }
+      else { x = lerp(735, 800, (q - 0.85) / 0.15); y = 377; a *= p > 0.6 ? 1 - seg(q, 0.9, 1) : 1; }
+      M.glucose(ctx, x, y, 10, a);
+    }
+  }
+
+  // Insulin, made by the pancreas, is the key that opens the cell door so sugar can get in.
+  function insulinKey(ctx, p, s) {
+    M.text(ctx, 'Insulin is the key', 480, 64, { size: 30, weight: 800 });
+    M.pancreas(ctx, 150, 180, 80);
+    M.text(ctx, 'Pancreas', 150, 236, { size: 18, weight: 800, color: C.muted });
+    M.pill(ctx, 'Makes insulin keys', 150, 272, { size: 16, bg: '#e6f6f3', border: C.teal, color: '#0d6e5d' });
+    ctx.save(); ctx.translate(300, 80); ctx.scale(1.15, 1.15); cellPanel(ctx, p, s, false, 440); ctx.restore();
+    M.pill(ctx, 'The key opens the door, and sugar goes in', 560, 496, { size: 18, bg: '#fff', border: C.green, color: '#1d7a4c', alpha: seg(p, 0.45, 0.52) });
+  }
+
+  // Blood-sugar meter: in range when cells take sugar in; high when it stays in the blood.
+  function bloodPanel(ctx, p, s, sick, W) {
+    const k = hurtOf(p, sick, 0.1, 0.7), high = sick && k > 0.5;
+    M.glucose(ctx, 34, 36, 9); M.text(ctx, '= sugar', 50, 36, { size: 14, align: 'left', color: C.muted, weight: 700 });
+    M.text(ctx, 'Blood sugar meter', W / 2, 76, { size: 14, weight: 800, color: C.muted });
+    M.gauge(ctx, 60, 112, W - 120, sick ? lerp(0.35, 0.9, k) : 0.35);
+    M.text(ctx, high ? 'High blood sugar!' : 'In range', W / 2, 142, { size: 17, weight: 800, color: high ? C.red : C.green });
+    M.vessel(ctx, -10, 166, W + 20, 110, { t: s, wall: 14, items: [{ kind: 'rbc', n: 7, speed: 60, r: 9 }, { kind: 'glucose', n: sick ? lerp(3, 16, k) : 3, speed: 50, r: SUGAR }] });
+    [100, 340].forEach((cx, j) => {
+      M.cell(ctx, cx, 322, 28, { nucleus: false, fill: sick ? M.mix('#dbe7fb', '#e4dfe6', k) : '#dbe7fb' });
+      M.face(ctx, cx, 324, 22, sick ? 1 - 0.8 * k : 1, s, { seed: j + 3 });
+      if (!sick) { const q = wrapX(s * 0.6 + j * 0.5, 1); M.glucose(ctx, cx, lerp(280, 316, q), 8, 1 - q); }
+    });
+    M.text(ctx, sick ? 'Cells stay hungry' : 'Cells get fed', W / 2, 322, { size: 15, weight: 800, color: sick ? '#a3261f' : '#1d7a4c' });
+    return sick ? 1 - 0.7 * k : 1;
+  }
+
+  // The good news: medicine, activity, and balanced meals bring sugar back into range.
+  function managedScene(ctx, p, s) {
+    const k = ease(seg(p, 0.15, 0.7));
+    M.text(ctx, 'Type 2 diabetes can be managed', 480, 64, { size: 30, weight: 800 });
+    M.text(ctx, 'Blood sugar', 250, 132, { size: 15, weight: 800, color: C.muted });
+    M.gauge(ctx, 80, 172, 340, lerp(0.9, 0.35, k));
+    M.text(ctx, k > 0.6 ? 'Back in range!' : 'Too high', 250, 204, { size: 18, weight: 800, color: k > 0.6 ? C.green : C.red });
+    M.cell(ctx, 250, 370, 84, { nucleus: false, glow: k * 0.7 });
+    M.face(ctx, 262, 374, 58, lerp(0.2, 1, k), s, { seed: 5 });
+    if (k > 0.5) for (let i = 0; i < 3; i++) { const q = wrapX(s * 0.5 + i / 3, 1); M.glucose(ctx, lerp(120, 200, q), 370 + (i - 1) * 24, 9, 1 - seg(q, 0.8, 1)); }
+    ['💊  Medicine, when needed', '🏃  Staying active', '🥗  Balanced meals', '🩺  Seeing your doctor'].forEach((t, i) =>
+      M.pill(ctx, t, 520, 170 + i * 76, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 21, alpha: ease(seg(p, 0.2 + i * 0.12, 0.28 + i * 0.12)) }));
+  }
+
+  // ---- Part 2 extra: risk, not certainty --------------------------------------
+  // Over many years of high sugar, some organs may get hurt (not all, and not everyone);
+  // keeping sugar in range protects them. [label, color, when it starts, how much]
+  const RISK = [['Eyes', '#5b8def', 0.3, 0.9], ['Kidneys', '#c0655a', 0.48, 0.9], ['Heart', '#e5484d', 0.62, 0.4], ['Nerves', '#8a6bc9', 0.72, 0.35]];
+  function riskPanel(ctx, p, s, high, W) {
+    const yr = ease(seg(p, 0.08, 0.85));
+    M.text(ctx, 'Over many years', W / 2, 44, { size: 14, weight: 800, color: C.muted });
+    M.rr(ctx, 50, 62, W - 100, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    if (yr > 0.02) { M.rr(ctx, 50, 62, (W - 100) * yr, 10, 5); ctx.fillStyle = high ? C.red : C.green; ctx.fill(); }
+    M.text(ctx, 'Now', 50, 90, { size: 13, color: C.muted, align: 'left', weight: 700 });
+    M.text(ctx, '20 years', W - 50, 90, { size: 13, color: C.muted, align: 'right', weight: 700 });
+    let sum = 0;
+    RISK.forEach(([label, col, at, max], i) => {
+      const hurt = high ? max * ease(seg(p, at, at + 0.15)) : 0, x = 70 + i * 100, y = 178;
+      const wob = hurt > 0 && hurt < max ? Math.sin(s * 25) * 2 : 0;
+      M.dot(ctx, x + wob, y, 34, M.mix(col, '#8b8f99', hurt * 0.5));
+      M.face(ctx, x + wob, y + 2, 31, 1 - hurt, s, { seed: i });
+      M.text(ctx, label, x, y + 52, { size: 15, weight: 800 });
+      sum += hurt;
+    });
+    M.pill(ctx, high ? 'Higher risk' : 'Lower risk', W / 2, 286,
+      { size: 18, bg: high ? '#fdecea' : '#e9f7ef', border: high ? C.red : C.green, color: high ? '#a3261f' : '#1d7a4c', alpha: seg(p, 0.2, 0.26) });
+    M.text(ctx, high ? 'Some problems may happen' : 'Organs are better protected', W / 2, 326, { size: 15, weight: 700, color: C.muted, alpha: seg(p, 0.5, 0.56) });
+    return 1 - (sum / RISK.length) * 0.9;
+  }
+
+
+  // Part 1 (~65 s): what type 2 diabetes is, and why sugar stays in the blood.
+  const patientScenesA = [
     {
-      label: 'Sugar is food for cells',
-      caption: "Sugar is food for your cells, and insulin is the key. With diabetes, the doors get stuck, so sugar piles up.",
-      draw: S.versus({ panel: cellPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Cell energy' }),
+      label: 'Food becomes sugar',
+      caption: 'Food turns into sugar in your body. Your blood carries the sugar to your cells, which use it for energy.',
+      draw: foodToSugar,
     },
     {
-      label: 'Sugar goes everywhere',
-      caption: "All that extra sugar makes your blood sticky, like syrup. It flows everywhere and slowly hurts your body.",
-      draw: S.versus({ panel: bodyPanel, bar: 'Body health' }),
+      label: 'Insulin is the key',
+      caption: "Insulin is like a key. It's made by the pancreas, and it opens your cells so sugar can get in.",
+      draw: insulinKey,
+    },
+    {
+      label: 'Stuck doors',
+      caption: "In type 2 diabetes, the key doesn't work well. The cell doors stay stuck, so sugar can't get in.",
+      draw: S.versus({ title: 'Type 2 diabetes', panel: cellPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Cell energy' }),
+    },
+    {
+      label: 'Sugar stays in the blood',
+      caption: 'With nowhere to go, sugar builds up in the blood. Doctors call this high blood sugar.',
+      draw: S.versus({ title: 'Sugar stays in the blood', panel: bloodPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Sugar balance' }),
+    },
+    {
+      label: 'Why it happens',
+      caption: 'Type 2 diabetes is more likely if it runs in your family, if you eat lots of sugary food and drinks, or if you move very little.',
+      draw: S.iconRow([
+        { icon: '👪', label: 'Runs in the family' },
+        { icon: '🥤', label: 'Lots of sugary food and drinks' },
+        { icon: '🛋️', label: 'Moving very little' },
+      ], { title: 'Why does it happen?', footer: 'It usually develops slowly, over many years.' }),
+    },
+    {
+      label: 'It can be managed',
+      caption: 'The good news: type 2 diabetes can be managed. Medicine, staying active, and balanced meals help bring sugar back into range.',
+      draw: managedScene,
+    },
+  ];
+
+  // Part 2 (~85 s): why sugar that stays high for a long time can affect the eyes, heart,
+  // kidneys, and nerves. These are risks, not certainties, and good care lowers them.
+  const patientScenesB = [
+    {
+      label: 'Over a long time',
+      caption: 'When too much sugar stays in your blood for a long time, it can slowly damage your blood vessels.',
+      draw: S.versus({ title: 'Over a long time', panel: bodyPanel, bar: 'Body health' }),
     },
     {
       label: 'Eyes',
-      caption: "In your eyes, tiny blood pipes swell and leak. Then the picture you see gets blurry.",
+      caption: 'Over time, tiny blood vessels in your eyes can swell and leak. Then things may look blurry.',
       draw: S.versus({ title: 'Eyes', panel: eyePanel, bar: 'Eye health' }),
     },
     {
       label: 'Heart',
-      caption: "Sticky sugar helps gunk build up in your blood pipes. If a pipe gets blocked, your heart gets hurt.",
+      caption: 'High sugar can also help fatty gunk build up in blood vessels. If one that feeds the heart gets blocked, the heart can be hurt.',
       draw: S.versus({ title: 'Heart', panel: heartPanel, bar: 'Heart health' }),
     },
     {
       label: 'Kidneys',
-      caption: "Your kidneys are strainers that clean your blood. Sugar clogs and tears them, so good protein falls into your pee.",
+      caption: 'Your kidneys are strainers that clean your blood. Over time, high sugar can damage them, so good protein leaks into your pee.',
       draw: S.versus({ title: 'Kidneys', panel: kidneyPanel, bar: 'Kidney health' }),
     },
     {
       label: 'Nerves',
-      caption: "Nerves are wires to your brain. Sugar damages them, so the ouch message never arrives, and cuts get worse.",
+      caption: 'Nerves are wires to your brain. High sugar can damage them, so an ouch message may not get through, and cuts can get worse.',
       draw: S.versus({ title: 'Nerves', panel: nervePanel, bar: 'Nerve health' }),
     },
     {
+      label: 'A risk, not a sure thing',
+      caption: "High sugar raises the risk of these problems, but it doesn't mean they will happen. Keeping sugar in range lowers or delays the risk.",
+      draw: S.versus({ title: 'A risk, not a sure thing', panel: riskPanel, left: 'Sugar kept in range', right: 'Sugar high for years', bar: 'Body health' }),
+    },
+    {
       label: 'Protect your body',
-      caption: "The good news? Medicine, healthy food, and moving every day keep sugar in range, and keep your body happy.",
+      caption: 'Diabetes can be managed. Taking medicine when needed, staying active, eating balanced meals, and seeing your doctor can help protect your body.',
       draw(ctx, p, s) {
         const k = ease(seg(p, 0.08, 0.55));
         const pts = S.bodyWithBlood(ctx, 230, 300, 105, s, { density: lerp(1.3, 0.3, k), sugarR: 9 });
@@ -521,8 +661,8 @@
           M.dot(ctx, x, y, 19, M.mix('#8b8f99', col, k));
           M.face(ctx, x, y + 1, 18, lerp(0.1, 1, k), s, { seed: i });
         });
-        M.healthBar(ctx, 470, 120, 420, lerp(0.25, 1, k), { label: 'Body health', right: k > 0.7 ? 'Strong!' : 'Getting hurt' });
-        ['💊  Take your medicine', '🥗  Eat colorful, healthy food', '⚽  Move and play every day', '🩺  Go to your checkups', '🦶  Check your feet every day'].forEach((t, i) =>
+        M.healthBar(ctx, 470, 120, 420, lerp(0.25, 1, k), { label: 'Body health', right: k > 0.7 ? 'Protected!' : 'At risk' });
+        ['💊  Medicine, when needed', '🏃  Stay active', '🥗  Eat balanced meals', '🩺  See your doctor', '🦶  Check your feet every day'].forEach((t, i) =>
           M.pill(ctx, t, 470, 195 + i * 62, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(p, 0.25 + i * 0.1, 0.33 + i * 0.1)) }));
       },
     },
@@ -996,11 +1136,15 @@
     aliases: ['type 2 diabetes mellitus', 't2d', 't2dm', 'diabetes', 'diabetes type 2', 'type ii diabetes', 'sugar diabetes', 'high blood sugar', 'adult onset diabetes', 'dm2', 'niddm'],
     patient: {
       tagline: 'Your body has trouble using insulin, so sugar builds up in your blood.',
-      length: 90, // seconds; scenes stretch to a calmer pace
-      scenes: patientScenes,
+      // Two shorter videos, each around one question. length: seconds (scenes stretch to a
+      // calmer pace); audio: recorded narration from tools/make-narration.py.
+      videos: [
+        { title: 'What is type 2 diabetes?', length: 68, audio: 'audio/t2d-a/', scenes: patientScenesA },
+        { title: 'How high sugar can affect your body', length: 85, audio: 'audio/t2d-b/', scenes: patientScenesB },
+      ],
       keyPoints: [
         'Insulin is like a key that lets sugar into your cells. In type 2 diabetes, the cells do not respond well to it.',
-        'High sugar usually has no symptoms at first, but over years it can harm the eyes, kidneys, nerves, and heart.',
+        'Sugar that stays high for years raises the risk of problems with the eyes, kidneys, nerves, and heart. It does not mean they will happen.',
         'Medicines, activity, and food choices work together. Many people keep diabetes well controlled for decades.',
         'An A1C test shows your average blood sugar over about 3 months.',
       ],

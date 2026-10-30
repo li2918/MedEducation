@@ -1,10 +1,13 @@
 // Timeline player: turns a scene script into a scrubbable, narrated canvas animation.
-// Script shape: { title, length?, scenes: [{ label, caption, dur?, draw(ctx, p, s) }] }
+// Script shape: { title, length?, audio?, scenes: [{ label, caption, dur?, draw(ctx, p, s) }] }
 //   length: optional target running time in seconds; scenes stretch evenly to reach it.
+//   audio: optional folder of pre-recorded narration, one file per scene (<folder><n>.mp3).
+//     It plays instead of the browser voice; if a file is missing, the browser voice takes over.
 //   p = 0..1 progress through the scene, s = seconds since the scene started.
 (function () {
   const W = 960, H = 540;
   const WORDS_PER_SEC = 2.6;
+  const CAP_H = 96; // caption band added under the picture in downloaded videos
 
   // Scene length is at least long enough for the narration to finish.
   function sceneLength(sc) {
@@ -27,7 +30,8 @@
     /Premium|Enhanced/i,
     /Samantha|Allison|Evan|Zoe|Ava/i,
   ];
-  const VOICE_KEY = 'medmotion.voice';
+  const VOICE_KEY = 'medmotion.narrator';
+  const RECORDED = '__recorded__'; // picker value for the pre-recorded narrator
 
   function englishVoices() {
     if (!('speechSynthesis' in window)) return [];
@@ -38,10 +42,12 @@
     return (us.length ? us : en).sort((a, b) => rank(a) - rank(b)).slice(0, 12);
   }
 
+  function savedVoice() {
+    try { return localStorage.getItem(VOICE_KEY); } catch (e) { return null; /* storage unavailable */ }
+  }
+
   function pickVoice() {
-    const voices = englishVoices();
-    let saved = null;
-    try { saved = localStorage.getItem(VOICE_KEY); } catch (e) { /* storage unavailable */ }
+    const voices = englishVoices(), saved = savedVoice();
     return voices.find((v) => v.name === saved) || voices[0] || null;
   }
 
@@ -65,6 +71,7 @@
           <button class="btn-voice" type="button" title="Narration">Voice</button>
           <select class="voice-pick" aria-label="Narrator voice" title="Narrator voice" hidden></select>
           <button class="btn-cc" type="button" title="Captions">CC</button>
+          <button class="btn-dl" type="button" title="Download video">⬇ Video</button>
           <button class="btn-full" type="button" title="Full screen">⛶</button>
         </div>
         <ol class="chapters"></ol>
@@ -80,7 +87,10 @@
     this.bigPlay = root.querySelector('.big-play');
     this.btnVoice = root.querySelector('.btn-voice');
     this.btnCC = root.querySelector('.btn-cc');
-    this.voice = opts.voice !== false && 'speechSynthesis' in window;
+    this.voice = opts.voice !== false;
+    this.audio = new Audio();
+    this.audio.preload = 'auto';
+    this._clip = 0;
     this.cc = true;
     this.playing = false;
     this.t = 0;
@@ -93,11 +103,13 @@
     this.btnPlay.onclick = toggle;
     this.bigPlay.onclick = toggle;
     this.canvas.onclick = toggle;
-    this.scrub.oninput = () => { this.seek((this.scrub.value / 1000) * this.total); };
+    this.scrub.oninput = () => { if (!this.recording) this.seek((this.scrub.value / 1000) * this.total); };
+    this.btnDl = root.querySelector('.btn-dl');
+    this.btnDl.onclick = () => this.download();
     this.btnVoice.onclick = () => {
       this.voice = !this.voice;
       if (!this.voice) this._stopSpeech();
-      else if (this.playing && this.cur >= 0) this._speak(this.scenes[this.cur].caption);
+      else if (this.playing && this.cur >= 0) this._speak(this.cur);
       this._syncButtons();
     };
     this.btnCC.onclick = () => { this.cc = !this.cc; this.captionEl.hidden = !this.cc; this._syncButtons(); };
@@ -108,14 +120,10 @@
     this.voiceSel = root.querySelector('.voice-pick');
     this.voiceSel.onchange = () => {
       try { localStorage.setItem(VOICE_KEY, this.voiceSel.value); } catch (e) { /* storage unavailable */ }
-      if (this.playing && this.voice && this.cur >= 0) this._speak(this.scenes[this.cur].caption);
+      if (this.playing && this.voice && this.cur >= 0) this._speak(this.cur);
     };
-    if ('speechSynthesis' in window) {
-      this._fillVoices();
-      speechSynthesis.addEventListener('voiceschanged', () => this._fillVoices());
-    } else {
-      this.btnVoice.disabled = true;
-    }
+    this._fillVoices();
+    if ('speechSynthesis' in window) speechSynthesis.addEventListener('voiceschanged', () => this._fillVoices());
     this._resize();
     window.addEventListener('resize', () => this._resize());
     document.addEventListener('fullscreenchange', () => this._resize());
@@ -124,9 +132,10 @@
   Player.prototype._resize = function () {
     const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
     const cssW = this.canvas.clientWidth || W;
-    const scale = Math.max(1, (cssW / W) * dpr);
+    // While recording a download, render a fixed 1920-wide frame with a caption band below.
+    const scale = this.recording ? 2 : Math.max(1, (cssW / W) * dpr);
     this.canvas.width = Math.round(W * scale);
-    this.canvas.height = Math.round(H * scale);
+    this.canvas.height = Math.round((H + (this.recording ? CAP_H : 0)) * scale);
     this.scale = scale;
     this.render();
   };
@@ -137,15 +146,18 @@
     let start = 0;
     const base = script.scenes.map(sceneLength), sum = base.reduce((a, b) => a + b, 0);
     const stretch = script.length > sum ? script.length / sum : 1;
-    this.scenes = script.scenes.map((sc, i) => { const dur = base[i] * stretch; const o = Object.assign({}, sc, { start, dur }); start += dur; return o; });
+    this.scenes = script.scenes.map((sc, i) => { const dur = base[i] * stretch; const audio = script.audio ? `${script.audio}${i + 1}.mp3` : null;
+      const o = Object.assign({}, sc, { start, dur, audio }); start += dur; return o; });
     this.total = start;
     this.t = 0;
     this.cur = -1;
     this.ended = false;
+    this._audioFailed = false;
+    this._fillVoices();
     this.chaptersEl.innerHTML = this.scenes.map((sc, i) =>
       `<li><button type="button" data-i="${i}"><span>${i + 1}</span>${sc.label}</button></li>`).join('');
     this.chaptersEl.querySelectorAll('button').forEach((b) => {
-      b.onclick = () => { this.seek(this.scenes[+b.dataset.i].start + 0.001); if (!this.playing) this.play(); else this._speak(this.scenes[this.cur].caption); };
+      b.onclick = () => { if (this.recording) return; this.seek(this.scenes[+b.dataset.i].start + 0.001); if (!this.playing) this.play(); else this._speak(this.cur); };
     });
     this._resize();
     this._syncButtons();
@@ -157,15 +169,16 @@
     this.playing = true;
     this.ended = false;
     this._last = performance.now();
-    const sc = this.scenes[this._sceneAt(this.t)];
+    const i = this._sceneAt(this.t), sc = this.scenes[i];
     // Re-speak on resume only near the start of a scene, so narration stays aligned.
-    if (sc && this.t - sc.start < sc.dur * 0.3) this._speak(sc.caption);
+    if (sc && this.t - sc.start < sc.dur * 0.3) this._speak(i);
     this.cur = this._sceneAt(this.t);
     requestAnimationFrame(this._frame);
     this._syncButtons();
   };
 
   Player.prototype.pause = function () {
+    if (this.recording) this._finishRecording(false); // pausing cancels a download
     this.playing = false;
     this._stopSpeech();
     this._syncButtons();
@@ -198,7 +211,8 @@
       this.ended = true;
       this.render();
       this._syncButtons();
-      if (this.opts.onEnd) this.opts.onEnd();
+      if (this.recording) setTimeout(() => this._finishRecording(true), 400); // keep the last frame briefly
+      else if (this.opts.onEnd) this.opts.onEnd();
       return;
     }
     this.render();
@@ -230,20 +244,111 @@
 
     if (i !== this.cur) {
       this.cur = i;
-      if (this.playing) this._speak(sc.caption);
+      if (this.playing) this._speak(i);
     }
     if (this._shownCaption !== i) {
       this._shownCaption = i;
       this.captionEl.textContent = sc.caption || '';
       this.chaptersEl.querySelectorAll('li').forEach((li, k) => li.classList.toggle('active', k === i));
     }
+    if (this.recording) {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, H, W, CAP_H);
+      ctx.fillStyle = '#d7e0ec'; ctx.fillRect(0, H, W, 1);
+      M.wrap(ctx, sc.caption || '', W / 2, H + 34, W - 80, { size: 22, weight: 600, color: M.C.ink });
+    }
     this.scrub.value = Math.round((this.t / this.total) * 1000);
-    this.timeEl.textContent = `${fmt(this.t)} / ${fmt(this.total)}`;
+    this.timeEl.textContent = `${this.recording ? '● Recording ' : ''}${fmt(this.t)} / ${fmt(this.total)}`;
   };
 
-  Player.prototype._speak = function (textStr) {
-    if (!this.voice || !textStr) return;
+  // Download: play the whole video once in real time while recording the canvas (plus the
+  // recorded narration), then save it as MP4 where the browser can, otherwise WebM.
+  Player.prototype.download = function () {
+    if (this.recording) { this._finishRecording(false); return; }
+    const types = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
+    const type = window.MediaRecorder && this.canvas.captureStream && types.find((t) => MediaRecorder.isTypeSupported(t));
+    if (!this.scenes.length || !type) { alert('Video download is not supported in this browser. Please try Chrome or Edge.'); return; }
+    this.pause();
+    this.recording = { type, chunks: [], voice: this.voice };
+    this._resize();
+    const stream = this.canvas.captureStream(30), audio = this._audioTrack();
+    if (audio) stream.addTrack(audio);
+    const rec = new MediaRecorder(stream, { mimeType: type, videoBitsPerSecond: 6e6 });
+    rec.ondataavailable = (e) => { if (e.data.size) this.recording && this.recording.chunks.push(e.data); };
+    this.recording.rec = rec;
+    this.recording.stream = stream;
+    this.voice = true;
+    this.seek(0);
+    rec.start(1000);
+    this.play();
+  };
+
+  // Narration track for recordings. Only recorded clips can be captured (browser speech
+  // cannot), and only over http(s): pages opened from file:// block reading the audio.
+  Player.prototype._audioTrack = function () {
+    if (location.protocol === 'file:' || !this._recorded() || !window.AudioContext) return null;
+    if (!this._dest) {
+      const ac = new AudioContext(), src = ac.createMediaElementSource(this.audio);
+      this._dest = ac.createMediaStreamDestination();
+      src.connect(ac.destination); src.connect(this._dest);
+      this._ac = ac;
+    }
+    this._ac.resume();
+    return this._dest.stream.getAudioTracks()[0];
+  };
+
+  Player.prototype._finishRecording = function (save) {
+    const r = this.recording;
+    if (!r) return;
+    this.recording = null;
+    r.rec.onstop = () => {
+      if (!save) return;
+      const blob = new Blob(r.chunks, { type: r.type.split(';')[0] });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `MedMotion - ${this.script.title || 'video'}.${r.type.includes('mp4') ? 'mp4' : 'webm'}`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+    };
+    if (r.rec.state !== 'inactive') r.rec.stop();
+    this.voice = r.voice;
+    r.stream.getVideoTracks().forEach((tr) => tr.stop());
+    if (this.playing) this.pause();
+    this._resize();
+    this._syncButtons();
+    if (save && this.opts.onEnd) this.opts.onEnd();
+  };
+
+  // Recorded narration is the default whenever this video has it and a file has not failed.
+  Player.prototype._recorded = function () {
+    const saved = savedVoice();
+    return !!(this.script && this.script.audio) && !this._audioFailed && (!saved || saved === RECORDED);
+  };
+
+  // Narrate scene i: its recorded clip if available, otherwise the browser voice.
+  Player.prototype._speak = function (i) {
+    const sc = this.scenes[i];
+    if (!this.voice || !sc || !sc.caption) return;
     this._stopSpeech();
+    if (sc.audio && this._recorded()) {
+      const id = this._clip, a = this.audio;
+      a.onended = () => { if (this._clip === id) this._speaking = false; };
+      a.onerror = () => {
+        if (this._clip !== id) return;
+        this._audioFailed = true; // files missing (not generated yet): fall back to the browser voice
+        this._fillVoices();
+        this._speakText(sc.caption);
+      };
+      a.src = sc.audio;
+      this._speaking = true;
+      const pr = a.play();
+      if (pr) pr.catch(() => {});
+      return;
+    }
+    this._speakText(sc.caption);
+  };
+
+  Player.prototype._speakText = function (textStr) {
+    if (!('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(textStr.replace(/[↑↓]/g, ''));
     const v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
@@ -259,14 +364,20 @@
   Player.prototype._stopSpeech = function () {
     this._speaking = false;
     this._utter = null;
+    this._clip++;
+    this.audio.pause();
     if ('speechSynthesis' in window) speechSynthesis.cancel();
   };
 
   Player.prototype._fillVoices = function () {
-    const voices = englishVoices(), cur = pickVoice();
-    this.voiceSel.hidden = voices.length < 2;
-    this.voiceSel.innerHTML = voices.map((v) =>
-      `<option value="${v.name.replace(/"/g, '&quot;')}"${cur && v.name === cur.name ? ' selected' : ''}>${voiceLabel(v)}</option>`).join('');
+    const recorded = this._recorded(), cur = recorded ? null : pickVoice();
+    const opts = englishVoices().map((v) =>
+      `<option value="${v.name.replace(/"/g, '&quot;')}"${cur && v.name === cur.name ? ' selected' : ''}>${voiceLabel(v)}</option>`);
+    if (this.script && this.script.audio && !this._audioFailed) {
+      opts.unshift(`<option value="${RECORDED}"${recorded ? ' selected' : ''}>Natural narrator</option>`);
+    }
+    this.voiceSel.hidden = opts.length < 2;
+    this.voiceSel.innerHTML = opts.join('');
   };
 
   Player.prototype._syncButtons = function () {
@@ -280,6 +391,9 @@
     this.btnVoice.textContent = this.voice ? '🔊 Voice' : '🔇 Voice';
     this.btnCC.classList.toggle('on', this.cc);
     this.btnCC.setAttribute('aria-pressed', String(this.cc));
+    this.btnDl.textContent = this.recording ? '■ Stop' : '⬇ Video';
+    this.btnDl.title = this.recording ? 'Cancel download' : 'Download video (plays through once while recording)';
+    this.btnDl.classList.toggle('on', !!this.recording);
   };
 
   Player.prototype.stop = function () { this.pause(); };

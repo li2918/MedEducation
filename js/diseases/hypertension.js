@@ -657,6 +657,7 @@
     patient: {
       tagline: 'Blood pushes too hard on your artery walls, often without any symptoms.',
       length: 90, // seconds; scenes stretch to a calmer pace
+      audio: 'audio/htn/', // recorded narration from tools/make-narration.py
       scenes: patientScenes,
       keyPoints: [
         'Blood pressure is written as two numbers, like 120/80. High blood pressure is 130/80 or higher.',

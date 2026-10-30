@@ -360,6 +360,7 @@
     patient: {
       tagline: 'Too much waxy fat in your blood sticks to your artery walls, usually without any symptoms.',
       length: 90, // seconds; scenes stretch to a calmer pace
+      audio: 'audio/hyperlipidemia/', // recorded narration from tools/make-narration.py
       scenes: patientScenes,
       keyPoints: [
         'Cholesterol is a waxy fat. Your body needs some, but too much LDL ("bad") cholesterol builds up in artery walls.',

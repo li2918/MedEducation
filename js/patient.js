@@ -3,10 +3,31 @@
   const $ = (id) => document.getElementById(id);
   MedData.portal = 'patient';
 
+  // A condition has one video (patient.scenes) or several shorter parts (patient.videos).
+  const videosOf = (d) => d.patient.videos || [{ title: d.name, length: d.patient.length, audio: d.patient.audio, scenes: d.patient.scenes }];
+  let current = null; // { d, k }: condition and part being shown
+
   const player = new Player($('player'), {
     voice: true,
-    onEnd: () => $('quiz').classList.add('pulse'),
+    // After a part ends, point to the next part; after the last one, to the quiz.
+    onEnd: () => {
+      const next = current && $('video-tabs').querySelector(`[data-k="${current.k + 1}"]`);
+      if (next) next.classList.add('pulse'); else $('quiz').classList.add('pulse');
+    },
   });
+
+  function loadVideo(d, k) {
+    const vids = videosOf(d), v = vids[k] || vids[0];
+    k = vids.indexOf(v);
+    current = { d, k };
+    const tabs = $('video-tabs');
+    tabs.hidden = vids.length < 2;
+    tabs.innerHTML = vids.map((x, i) =>
+      `<button type="button" data-k="${i}" class="${i === k ? 'active' : ''}"><span>Part ${i + 1}</span>${x.title}</button>`).join('');
+    tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => loadVideo(d, +b.dataset.k); });
+    history.replaceState(null, '', '#' + d.id + (k ? '/' + (k + 1) : ''));
+    player.load({ title: vids.length > 1 ? `Part ${k + 1}: ${v.title}` : d.name, length: v.length, audio: v.audio, scenes: v.scenes });
+  }
 
   function renderQuiz(quiz) {
     const body = $('quiz-body');
@@ -32,7 +53,7 @@
     });
   }
 
-  function show(entry) {
+  function show(entry, part = 0) {
     if (!entry) return;
     history.replaceState(null, '', '#' + entry.id);
     if (!entry.available) {
@@ -55,7 +76,7 @@
     $('d-flags-wrap').hidden = !flags.length;
     $('d-flags').innerHTML = flags.map((k) => `<li>${k}</li>`).join('');
     renderQuiz(d.patient.quiz);
-    player.load({ title: d.name, length: d.patient.length, scenes: d.patient.scenes });
+    loadVideo(d, part);
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
@@ -66,6 +87,6 @@
   });
   SearchBox.chips($('chips'), show);
 
-  const initial = location.hash.slice(1);
-  if (initial) show(MedData.entries().find((e) => e.id === initial));
+  const [initial, partNo] = location.hash.slice(1).split('/');
+  if (initial) show(MedData.entries().find((e) => e.id === initial), Math.max(0, (+partNo || 1) - 1));
 })();

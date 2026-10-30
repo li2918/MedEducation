@@ -149,6 +149,13 @@ a { color: var(--blue); }
 .chapters span { background: #eef3fb; border-radius: 99px; width: 22px; height: 22px; display: inline-grid; place-items: center; font-weight: 700; font-size: 0.75rem; }
 .chapters li.active button { border-color: var(--blue); color: var(--blue-dark); font-weight: 700; }
 .chapters li.active span { background: var(--blue); color: #fff; }
+.video-col { min-width: 0; }
+.video-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.video-tabs[hidden] { display: none; }
+.video-tabs button { font: inherit; font-size: 0.92rem; font-weight: 700; text-align: left; border: 1px solid var(--line); background: #fff; border-radius: 12px; padding: 8px 14px; cursor: pointer; color: var(--ink); display: flex; flex-direction: column; gap: 2px; }
+.video-tabs button span { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.video-tabs button.active { border-color: var(--blue); background: #e8f0fd; color: var(--blue-dark); }
+.video-tabs button.pulse { animation: pulse 1.4s ease 2; }
 .player:fullscreen { display: flex; flex-direction: column; justify-content: center; background: #0f1722; border-radius: 0; }
 .player:fullscreen .stage canvas { max-height: 78vh; object-fit: contain; }
 .player:fullscreen .caption { font-size: 1.5rem; }
