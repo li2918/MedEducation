@@ -10,7 +10,7 @@
 
   // ---------------------------------------------------------------------------
   // Patient portal: Part 1 "How do your muscles work?" and Part 2 "What happens when you strain
-  // a muscle?". Muscles are red-pink with fiber lines,
+  // a muscle?", Part 3 "How can a muscle strain improve?". Muscles are red-pink with fiber lines,
   // tendons cream, bones beige, nerves yellow. Cues use s (seconds since the narration
   // started), matched to the narrator's words.
   // ---------------------------------------------------------------------------
@@ -487,6 +487,256 @@
     M.pill(ctx, 'What can you do to help?', 740, 300, { size: 18, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TS6.recover - 1, TS6.recover - 0.5) });
   }
 
+  // ---- Part 3: How can a muscle strain improve? -----------------------------------------
+  // Protect first (ease off what makes it much worse, without bed rest), then the body repairs
+  // the muscle (immune cells clear damage, satellite cells build new fibers, tissue slowly
+  // remodels; overlapping steps, not always perfect), gentle movement, gradual strengthening
+  // chosen for the person, symptom care and time, and a gradual return to daily life. The same
+  // patient (orange shirt) as Part 2. Warning signs are in the separate safety box.
+  const SAT = '#4fbf8a', MAC = '#9a7fd6', NEWF = '#f2a9a0';
+  const crossOut = (ctx, x, y, r, a = 1) => { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = C.red; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - r, y - r); ctx.lineTo(x + r, y + r); ctx.stroke(); ctx.restore(); };
+  const barM = (ctx, x, y, w, v, label, col, a = 1) => {
+    if (a <= 0) return;
+    M.text(ctx, label, x, y - 16, { size: 14, weight: 800, color: C.muted, align: 'left', alpha: a });
+    ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, x, y - 7, w, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    M.rr(ctx, x, y - 7, w * Math.max(0.02, v), 14, 7); ctx.fillStyle = col; ctx.fill(); ctx.restore();
+  };
+  // Muscle repair up close. debris (0..1 damaged bits left), mac (0..1 immune cells arrive and
+  // clear), sat (0..1 satellite cells wake up and gather), grow (0..1 new fibers bridge the
+  // gap), remodel (0..1 new fibers thicken and line up), scar (0..1 a small leftover patch).
+  function repairStrip(ctx, x, y, w, h, o = {}) {
+    const n = 8, fh = h / n, mid = x + w * 0.52, s = o.s || 0, gap = 70;
+    const grow = o.grow || 0, rem = o.remodel || 0, sat = o.sat || 0, mac = o.mac || 0, debris = o.debris == null ? 1 : o.debris;
+    ctx.save(); M.rr(ctx, x, y, w, h, 18); ctx.clip();
+    ctx.fillStyle = '#f6d6cf'; ctx.fillRect(x, y, w, h);
+    const sw = 1 - rem;
+    if (sw > 0.05) { const g = ctx.createRadialGradient(mid, y + h / 2, 4, mid, y + h / 2, w * 0.35); g.addColorStop(0, `rgba(229,72,77,${0.35 * sw * Math.max(debris, 0.4)})`); g.addColorStop(1, 'rgba(229,72,77,0)'); ctx.fillStyle = g; ctx.fillRect(x, y, w, h); }
+    const broken = [1, 2, 3, 4, 5, 6];
+    for (let i = 0; i < n; i++) {
+      const fy = y + fh * (i + 0.5), br = broken.includes(i), off = (i % 2 ? 1 : -1) * 6;
+      const seg2 = (x0, x1, col, th) => { M.rr(ctx, x0, fy - fh * th, x1 - x0, fh * th * 2, fh * th); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = MUS_D; ctx.lineWidth = 1.2; ctx.stroke(); };
+      if (!br) { seg2(x - 10, x + w + 10, MUS, 0.36); continue; }
+      const a0 = mid - gap / 2 + off, a1 = mid + gap / 2 + off;
+      seg2(x - 10, a0, MUS, 0.36); seg2(a1, x + w + 10, MUS, 0.36);
+      // new fiber growing across the gap from both ends, thin and light at first
+      const g2 = Math.min(1, grow * 1.15 - (i % 3) * 0.08);
+      if (g2 > 0) {
+        const th = lerp(0.18, 0.34, rem), col = M.mix(NEWF, MUS, rem * 0.85), half = (gap / 2) * g2 + 2;
+        const wav = (o.scar || 0) * (i === 3 || i === 4 ? 1 : 0);
+        ctx.save(); ctx.translate(0, wav * Math.sin(s * 0.5 + i) * 2);
+        seg2(a0 - 4, a0 + half, col, th); seg2(a1 - half, a1 + 4, col, th);
+        ctx.restore();
+      }
+    }
+    // damaged bits in the gap, cleared by immune cells
+    for (let i = 0; i < 12; i++) {
+      const dx = mid + Math.cos(i * 2.4) * 24, dy = y + h * (0.2 + 0.6 * ((i * 0.37) % 1));
+      M.dot(ctx, dx, dy, 5 + (i % 3), '#9c3b33', debris * 0.85);
+    }
+    // immune cells move in from the edges and gather around the damage, then leave
+    for (let i = 0; i < 6; i++) {
+      const q = Math.min(1, mac * 1.6 - i * 0.1), leave = o.leave || 0;
+      if (q <= 0) continue;
+      const tx = mid + Math.cos(i * 1.05 + s * 0.6) * 30, ty = y + h / 2 + Math.sin(i * 1.05 + s * 0.6) * h * 0.3;
+      const sx = i % 2 ? x - 30 : x + w + 30, sy = y + h * ((i * 0.31) % 1);
+      const px = lerp(sx, tx, Math.min(1, q)) + leave * (i % 2 ? -1 : 1) * 320, py = lerp(sy, ty, Math.min(1, q));
+      if (leave >= 1) continue;
+      M.dot(ctx, px, py, 11, MAC, 0.95); M.dot(ctx, px - 3, py - 3, 4, '#ffffff', 0.8); M.dot(ctx, px + 3, py + 2, 3.5, '#5b3a90', 0.8);
+    }
+    // satellite cells resting along fibers wake up (glow), then gather at the repair site
+    for (let i = 0; i < 8; i++) {
+      const fy = y + fh * ((i % 7) + 1), home = [x + 40 + i * (w - 80) / 7, fy];
+      const q = Math.max(0, Math.min(1, sat * 1.4 - 0.25)), tgt = [mid + (i % 2 ? 1 : -1) * (gap / 2 + 4), y + fh * ((i % 6) + 1.5)];
+      const px = lerp(home[0], tgt[0], q), py = lerp(home[1], tgt[1], q), on = Math.min(1, sat * 3);
+      if (on <= 0) continue;
+      M.dot(ctx, px, py, 7, SAT, on * (1 - 0.7 * grow)); if (on > 0.3) M.dot(ctx, px, py, 12, `rgba(79,191,138,${0.3 * (0.6 + 0.4 * Math.sin(s * 4 + i)) * (1 - grow)})`);
+    }
+    if (o.scar > 0) { ctx.beginPath(); ctx.ellipse(mid, y + h * 0.5, 22, h * 0.14, 0, 0, M.TAU); ctx.fillStyle = `rgba(230,214,205,${0.85 * o.scar})`; ctx.fill(); }
+    ctx.restore();
+    M.rr(ctx, x, y, w, h, 18); ctx.strokeStyle = '#d9a99f'; ctx.lineWidth = 3; ctx.stroke();
+  }
+  // A small side view of the lower spine (front of body to the right) that bends forward by
+  // flex, with back muscles behind, belly muscles in front, and a hip muscle at the base.
+  function miniSpine(ctx, x, y, k, flex, g = {}) {
+    const N = 6, segL = 46 * k, pts = [[x, y]];
+    let ang = -Math.PI / 2;
+    for (let i = 0; i < N; i++) { ang += flex * 0.16; const [px, py] = pts[i]; pts.push([px + Math.cos(ang) * segL, py + Math.sin(ang) * segL]); }
+    const back = (u) => { const i = Math.min(N - 1, Math.floor(u * N)), f = u * N - i, a = pts[i], b = pts[i + 1], d = Math.atan2(b[1] - a[1], b[0] - a[0]); return [lerp(a[0], b[0], f) + Math.cos(d - Math.PI / 2) * 46 * k, lerp(a[1], b[1], f) + Math.sin(d - Math.PI / 2) * 46 * k]; };
+    const front = (u) => { const i = Math.min(N - 1, Math.floor(u * N)), f = u * N - i, a = pts[i], b = pts[i + 1], d = Math.atan2(b[1] - a[1], b[0] - a[0]); return [lerp(a[0], b[0], f) + Math.cos(d + Math.PI / 2) * 100 * k, lerp(a[1], b[1], f) + Math.sin(d + Math.PI / 2) * 100 * k]; };
+    const strip = (fn, w, col, glow) => {
+      ctx.save(); ctx.lineCap = 'round';
+      const path = () => { ctx.beginPath(); for (let i = 0; i <= 20; i++) { const q = fn(0.05 + 0.9 * i / 20); i ? ctx.lineTo(...q) : ctx.moveTo(...q); } };
+      if (glow > 0) { ctx.strokeStyle = `rgba(255,200,90,${0.55 * glow})`; ctx.lineWidth = w + 16; path(); ctx.stroke(); }
+      ctx.strokeStyle = col; ctx.lineWidth = w; path(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 2; path(); ctx.stroke();
+      ctx.restore();
+    };
+    strip(back, 30 * k, M.mix(MUS, '#d1453b', g.sore || 0), g.back || 0);
+    if (g.front != null) strip(front, 18 * k, MUS, g.front);
+    for (let i = 0; i < N; i++) {
+      const a = pts[i], b = pts[i + 1], d = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      ctx.save(); ctx.translate((a[0] + b[0]) / 2, (a[1] + b[1]) / 2); ctx.rotate(d);
+      M.rr(ctx, -segL * 0.4, -22 * k, segL * 0.8, 44 * k, 8 * k); ctx.fillStyle = BONE; ctx.fill(); ctx.strokeStyle = BONE_S; ctx.lineWidth = 2; ctx.stroke();
+      M.rr(ctx, -segL * 0.3, -34 * k, segL * 0.6, 12 * k, 5 * k); ctx.fillStyle = BONE; ctx.fill(); ctx.stroke();
+      if (i < N - 1) { M.rr(ctx, segL * 0.4, -20 * k, segL * 0.2, 40 * k, 4 * k); ctx.fillStyle = '#8fd0f2'; ctx.fill(); }
+      ctx.restore();
+    }
+    if (g.hip != null) { ctx.save(); if (g.hip > 0) M.dot(ctx, x - 10 * k, y + 40 * k, 50 * k, `rgba(255,200,90,${0.5 * g.hip})`); ctx.beginPath(); ctx.ellipse(x - 10 * k, y + 40 * k, 38 * k, 28 * k, 0.3, 0, M.TAU); ctx.fillStyle = MUS; ctx.fill(); ctx.strokeStyle = MUS_D; ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
+    M.dot(ctx, x + 6 * k, y + 10 * k, 30 * k, BONE); ctx.strokeStyle = BONE_S; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x + 6 * k, y + 10 * k, 30 * k, 0, M.TAU); ctx.stroke();
+    return { back, front };
+  }
+  const lowBackR = (x, ground, lean) => { const a = lean * 0.9; return [x + Math.sin(a) * 18 - 10, ground - 70 - Math.cos(a) * 18]; };
+  // Small front and back bodies with the common strain spots (from Part 2). heal (0..1) turns
+  // the spots from red to green.
+  function strainSpots(ctx, fx, bx, y, sc, a, heal, s) {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a;
+    M.person(ctx, fx, y, sc, { t: s, alpha: 0.6 }); backPerson(ctx, bx, y, sc, { alpha: 0.6 });
+    const col = M.mix('#e5484d', '#3fb37a', heal);
+    [[bx, y - 1.18 * sc, 0.4, 0.15], [bx, y - 0.15 * sc, 0.3, 0.15], [fx - 0.14 * sc, y + 0.4 * sc, 0.08, 0.2], [bx + 0.26 * sc, y + 0.55 * sc, 0.15, 0.3], [bx - 0.26 * sc, y + 1.22 * sc, 0.13, 0.22]].forEach(([px, py, rx, ry], i) => {
+      ctx.beginPath(); ctx.ellipse(px, py, rx * sc, ry * sc, 0, 0, M.TAU); ctx.fillStyle = col; ctx.globalAlpha = a * (0.55 + 0.25 * Math.sin(s * 3 + i)); ctx.fill(); ctx.globalAlpha = a;
+    });
+    ctx.restore();
+  }
+
+  // 1. Protect: strains happen in many places; for the same patient's lower back strain, ease
+  //    off what makes it much worse for a few days, but don't stay in bed.
+  const TR1 = { protect: 2.5, spots: 4.3, low: 9.5, ease: 11.2, bed: 14.8, gentle: 16.4 };
+  function protectScene(ctx, p, s) {
+    M.text(ctx, 'Step 1: Protect the muscle', 480, 44, { size: 28, weight: 800 });
+    const spotsA = hump(s, TR1.spots - 0.5, TR1.spots, TR1.low - 0.4, TR1.low + 0.2);
+    strainSpots(ctx, 340, 620, 300, 80, spotsA, 0, s);
+    const pa = ease(seg(s, TR1.low - 0.4, TR1.low + 0.2)) + (s < TR1.spots - 0.5 ? 1 : 0), ground = 450;
+    if (pa > 0) {
+      ctx.save(); ctx.globalAlpha *= Math.min(1, pa);
+      ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, ground, 280, 12);
+      const walking = s > TR1.gentle, lean = walking ? 0.12 : 0.32;
+      runner(ctx, walking ? 150 + (s - TR1.gentle) * 18 : 190, ground, walking ? s * 4 : 0, walking ? 0.3 : 0.05, lean, walking ? 0.8 : 0.45, s);
+      ache(ctx, ...lowBackR(walking ? 150 + (s - TR1.gentle) * 18 : 190, ground, lean), 28, walking ? 0.5 : 1, s);
+      ctx.restore();
+    }
+    const ca = (at) => ease(seg(s, at, at + 0.5));
+    M.card(ctx, 400, 110, 250, 200, { r: 18, alpha: ca(TR1.ease), border: '#f3c9a0' });
+    M.emoji(ctx, '📦', 525, 180, 50, ca(TR1.ease)); crossOut(ctx, 525, 180, 30, ca(TR1.ease));
+    M.wrap(ctx, 'Ease off what makes it much worse, for a few days', 525, 262, 220, { size: 15, weight: 800, alpha: ca(TR1.ease) });
+    M.card(ctx, 680, 110, 250, 200, { r: 18, alpha: ca(TR1.bed), border: '#f3c9a0' });
+    M.emoji(ctx, '🛏️', 805, 180, 50, ca(TR1.bed)); crossOut(ctx, 805, 180, 30, ca(TR1.bed));
+    M.text(ctx, "Don't stay in bed", 805, 262, { size: 16, weight: 800, alpha: ca(TR1.bed) });
+    M.pill(ctx, 'Gentle, comfortable activity is usually better than complete rest', 600, 360, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: ca(TR1.gentle) });
+    M.pill(ctx, 'Strains can happen in many places', 480, 500, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: spotsA });
+  }
+
+  // 2. Muscle repair, up close: from the back into the fibers (continuous zoom), then the
+  //    overlapping repair steps over days to weeks.
+  const TR2 = { inside: 0.1, starts: 1.4, immune: 3.4, clear: 4.9, sat: 7.1, wake: 10.2, build: 11.3, weeks: 13.3, stronger: 15.9, organized: 17.2, overlap: 18.3, perfect: 21 };
+  function repairScene(ctx, p, s) {
+    M.text(ctx, 'Inside: how a muscle repairs', 480, 44, { size: 28, weight: 800 });
+    // zoom: small patient, then a lens into the back muscle fibers
+    const zoom = ease(seg(s, 0, 1.2)), ground = 300;
+    ctx.save(); ctx.globalAlpha *= 1 - 0.5 * zoom; runner(ctx, 90, ground, 0, 0.05, 0.3, 0.5, s); ctx.restore();
+    const lb = lowBackR(90, ground, 0.3);
+    ache(ctx, lb[0], lb[1], 22, 1 - 0.6 * zoom, s);
+    ctx.save(); ctx.globalAlpha *= zoom; ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(lb[0], lb[1]); ctx.lineTo(180, 120); ctx.moveTo(lb[0], lb[1]); ctx.lineTo(180, 400); ctx.stroke(); ctx.restore();
+    const mac = ease(seg(s, TR2.immune, TR2.sat + 1.5)), debris = 1 - ease(seg(s, TR2.clear, TR2.sat + 0.5));
+    const sat = ease(seg(s, TR2.sat, TR2.wake + 0.6)), grow = ease(seg(s, TR2.build, TR2.weeks + 1.5)), rem = ease(seg(s, TR2.weeks + 1, TR2.organized + 1));
+    ctx.save(); ctx.globalAlpha *= zoom;
+    M.card(ctx, 180, 80, 560, 380, { r: 22 });
+    repairStrip(ctx, 210, 120, 500, 300, { s, debris, mac, sat, grow, remodel: rem, leave: ease(seg(s, TR2.wake, TR2.weeks + 1)), scar: seg(s, TR2.perfect - 0.8, TR2.perfect) * 0.7 });
+    ctx.restore();
+    // a timeline that shows the steps overlapping
+    const tl = ease(seg(s, TR2.starts, TR2.organized + 1));
+    M.rr(ctx, 210, 482, 500, 8, 4); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 210, 482, 500 * tl, 8, 4); ctx.fillStyle = C.green; ctx.fill();
+    M.text(ctx, 'Days', 210, 506, { size: 12, weight: 800, color: C.muted, align: 'left' }); M.text(ctx, 'Weeks', 710, 506, { size: 12, weight: 800, color: C.muted, align: 'right' });
+    [['Immune cells clear damaged tissue', TR2.immune, MAC, '#5b3a90'], ['Satellite cells wake up', TR2.sat, SAT, '#1d7a4c'], ['New fibers grow', TR2.build, NEWF, '#a3461f'], ['Tissue gets stronger and more organized', TR2.weeks, MUS, '#a3461f']].forEach(([t, at, col, ink], i) => {
+      const a = seg(s, at, at + 0.5), y = 130 + i * 66;
+      if (a <= 0) return;
+      M.dot(ctx, 768, y, 11, col, a);
+      M.wrap(ctx, t, 862, y, 165, { size: 14, weight: 800, color: ink, alpha: a });
+    });
+    M.wrap(ctx, "Steps overlap. Healing is not always perfect.", 850, 420, 180, { size: 14, weight: 800, color: "#8a5a00", alpha: seg(s, TR2.overlap, TR2.overlap + 0.5) });
+  }
+
+  // 3. Gentle movement: short walks and comfortable everyday movement keep the back muscles
+  //    working and the spine moving smoothly; no hard stretching of a fresh injury.
+  const TR3 = { settles: 0.7, walks: 3.4, everyday: 5.1, muscles: 6.9, spine: 8.4, range: 10.9, stretch: 12.9 };
+  function gentleScene(ctx, p, s) {
+    M.text(ctx, 'Step 2: Gentle movement', 480, 44, { size: 28, weight: 800 });
+    const mode = s < TR3.everyday ? 0 : Math.floor((s - TR3.everyday) / 3) % 2, ground = 450, cyc = 0.5 - 0.5 * Math.cos(s * 2);
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, ground, 300, 12);
+    const lean = mode === 0 ? 0.08 : 0.1 + 0.3 * cyc, flex = mode === 0 ? 0.12 * Math.sin(s * 5) : 0.45 * cyc;
+    runner(ctx, 200, ground, mode === 0 ? s * 5 : 0, mode === 0 ? 0.45 : 0.05, lean, 0.95, s);
+    M.pill(ctx, mode === 0 ? '🚶 Short walks' : '🙇 Comfortable everyday movement', 210, 120, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TR3.walks, TR3.walks + 0.4) });
+    const work = seg(s, TR3.muscles, TR3.muscles + 0.5) * (mode === 0 ? 0.5 + 0.5 * Math.abs(Math.sin(s * 5)) : 0.3 + 0.7 * cyc);
+    lens(ctx, 620, 280, 190, () => miniSpine(ctx, 590, 420, 1.0, flex, { back: work }));
+    M.text(ctx, 'Back muscles working, spine moving', 620, 494, { size: 14, weight: 800, color: '#a3461f', alpha: seg(s, TR3.spine, TR3.spine + 0.5) });
+    M.pill(ctx, 'Move in a comfortable range', 210, 170, { size: 14, bg: '#fff', border: '#bfe3cf', color: '#1d7a4c', alpha: seg(s, TR3.range, TR3.range + 0.4) });
+    const xa = seg(s, TR3.stretch, TR3.stretch + 0.4);
+    M.emoji(ctx, '🤸', 870, 120, 34, xa); crossOut(ctx, 870, 120, 22, xa);
+    M.wrap(ctx, 'No hard stretching of a fresh injury', 870, 176, 150, { size: 13, weight: 800, color: '#a3261f', alpha: xa });
+  }
+
+  // 4. Progressive strengthening: back, belly, and hip muscles work together; easy movements
+  //    first, then harder ones like lifting and carrying; exercises chosen for the person.
+  const TR4 = { step: 1.7, back: 3.3, belly: 4, hip: 4.8, together: 5.4, easy: 8.2, harder: 10.6, lift: 11.9, carry: 12.7, pt: 13.7, fit: 16.6 };
+  function strengthScene(ctx, p, s) {
+    M.text(ctx, 'Step 3: Build strength gradually', 480, 44, { size: 28, weight: 800 });
+    const cyc = 0.5 - 0.5 * Math.cos(s * 1.8), on = (at) => seg(s, at, at + 0.5), work = s > TR4.together ? 0.4 + 0.6 * cyc : 1;
+    lens(ctx, 260, 270, 180, () => miniSpine(ctx, 220, 370, 0.85, 0.25 * cyc, { back: on(TR4.back) * work, front: on(TR4.belly) * work, hip: on(TR4.hip) * work }));
+    [['Back', TR4.back], ['Belly', TR4.belly], ['Hip', TR4.hip]].forEach(([t, at], i) => M.pill(ctx, t + ' muscles', 90 + i * 130, 480, { size: 14, bg: '#fff', border: MUS, color: '#a3461f', alpha: on(at) }));
+    M.text(ctx, 'Working together', 260, 516, { size: 14, weight: 800, color: '#1d7a4c', alpha: on(TR4.together) });
+    // steps from easy to harder
+    const lv = ease(seg(s, TR4.easy, TR4.carry + 1));
+    [['🪑', 'Sit to stand', 0], ['🚶', 'Longer walks', 1], ['📦', 'Light lifting', 2], ['🛍️', 'Carrying', 3]].forEach(([ic, t, i]) => {
+      const x = 520 + i * 105, h = 60 + i * 50, a = Math.max(0.25, Math.min(1, lv * 4.2 - i));
+      M.rr(ctx, x, 440 - h, 92, h, 10); ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = M.mix('#cfe6d8', '#57c27a', i / 3); ctx.fill(); ctx.restore();
+      M.emoji(ctx, ic, x + 46, 440 - h - 26, 30, a); M.text(ctx, t, x + 46, 462, { size: 12, weight: 800, color: C.muted, alpha: a });
+    });
+    M.text(ctx, 'Easy → harder, over time', 728, 136, { size: 14, weight: 800, color: '#1f4fa8', alpha: on(TR4.easy) });
+    M.pill(ctx, '🩺 A physical therapist can choose exercises that fit you', 700, 508, { size: 13, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: on(TR4.pt) });
+  }
+
+  // 5. Symptom care and time: change bothersome activities, short breaks, heat or cold; a mild
+  //    strain may improve in a few weeks, a bigger one can take longer.
+  const TR5 = { change: 1.2, breaks: 3.3, heat: 4.7, time: 7.1, mild: 8.6, bigger: 11.3 };
+  function careScene(ctx, p, s) {
+    M.text(ctx, 'Step 4: Ease symptoms, give it time', 480, 44, { size: 28, weight: 800 });
+    [['🔄', 'Change activities that bother you', TR5.change], ['⏸️', 'Take short breaks', TR5.breaks], ['♨️🧊', 'Heat or cold, if it feels good', TR5.heat], ['📅', 'Give your body time', TR5.time]].forEach(([ic, t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), x = 24 + i * 232, cx = x + 110;
+      M.card(ctx, x, 84, 220, 190, { r: 18, alpha: a });
+      M.emoji(ctx, ic, cx, 140, 40, a);
+      M.wrap(ctx, t, cx, 220, 190, { size: 15, weight: 800, alpha: a });
+    });
+    const ta = seg(s, TR5.mild - 0.3, TR5.mild + 0.3);
+    M.text(ctx, 'Recovery time depends on how bad the strain is', 480, 318, { size: 16, weight: 800, color: C.muted, alpha: ta });
+    [['Mild strain', 0.35, TR5.mild, C.green, 'A few weeks'], ['Bigger strain', 0.85, TR5.bigger, '#e09400', 'Can take longer']].forEach(([t, w, at, col, d], i) => {
+      const a = seg(s, at, at + 0.5), y = 370 + i * 70, v = w * ease(seg(s, at, at + 1.6));
+      M.text(ctx, t, 120, y, { size: 16, weight: 800, align: 'left', alpha: a });
+      ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, 260, y - 9, 560, 18, 9); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 260, y - 9, 560 * v, 18, 9); ctx.fillStyle = col; ctx.fill(); ctx.restore();
+      M.text(ctx, d, 840, y, { size: 14, weight: 800, align: 'left', color: col, alpha: a });
+    });
+  }
+
+  // 6. Return to function: work, walks, carrying groceries, things they enjoy; the strain spots
+  //    from Part 2 turn green; less pain does not always mean fully healed.
+  const TR6 = { step: 0.1, work: 2.7, walks: 3.5, groceries: 4.4, enjoy: 5.8, other: 6.7, less: 10, gradually: 14.4 };
+  function returnScene(ctx, p, s) {
+    M.text(ctx, 'Back to daily life', 480, 44, { size: 28, weight: 800 });
+    const ground = 420;
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, ground, 400, 12);
+    const k = s < TR6.walks ? 0 : s < TR6.groceries ? 1 : s < TR6.enjoy ? 2 : 3;
+    const x = k === 1 ? 120 + ((s - TR6.walks) % 3) * 70 : 220;
+    if (k === 0) { M.rr(ctx, 270, 330, 120, 10, 4); ctx.fillStyle = '#b08a64'; ctx.fill(); ctx.fillRect(320, 340, 10, 80); M.emoji(ctx, '💻', 310, 314, 30); }
+    const h = runner(ctx, x, ground, k === 0 ? 0 : s * 5, k === 0 ? 0.05 : 0.45, 0.06, 1, s);
+    if (k === 2) M.emoji(ctx, '🛍️', h[0] + 26, h[1] + 70, 34);
+    if (k === 3) M.emoji(ctx, '⚽', x + 50, ground - 14, 28);
+    [['💼 Work', TR6.work], ['🚶 Walks', TR6.walks], ['🛍️ Groceries', TR6.groceries], ['⚽ Things you enjoy', TR6.enjoy]].forEach(([t, at], i) => M.pill(ctx, t, 80 + i * 128, 110, { size: 13, bg: k === i ? '#e9f7ef' : '#fff', border: k === i ? C.green : '#d7e0ec', color: k === i ? '#1d7a4c' : '#4d5f86', alpha: seg(s, at, at + 0.4) }));
+    const oa = seg(s, TR6.other - 0.4, TR6.other + 0.2);
+    strainSpots(ctx, 600, 820, 300, 70, oa, ease(seg(s, TR6.other, TR6.other + 2)), s);
+    M.text(ctx, 'The same ideas help strains in other places', 710, 466, { size: 14, weight: 800, color: '#1d7a4c', alpha: oa });
+    M.pill(ctx, "Less pain doesn't always mean fully healed: build back up gradually", 480, 512, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TR6.less, TR6.less + 0.5) });
+  }
+
   const patientScenesA = [
     { label: 'Muscles throughout your body', caption: 'Muscles are found throughout your body. They help you walk, lift, bend, and move.', draw: muscledBody },
     { label: 'What is a muscle made of?', caption: 'Inside each muscle are thousands of tiny muscle fibers, grouped into bundles. Each fiber is packed with even smaller strands that can slide together, so the fiber gets shorter.', draw: madeOf },
@@ -505,6 +755,15 @@
     { label: 'What happens next?', caption: 'So how does your body repair an injured muscle, and what can you do to help it recover?', draw: whatNext },
   ];
 
+  const patientScenesC = [
+    { label: 'Protect', caption: 'After a strain, the first step is to protect the injured muscle. Strains can happen in your neck, back, groin, thigh, or calf. For a lower back strain, ease off the activities that make the pain much worse for a few days, but don\'t stay in bed. Gentle, comfortable activity is usually better than complete rest.', draw: protectScene },
+    { label: 'Muscle repair', caption: 'Inside the muscle, repair starts right away. Immune cells move in to clear away damaged tissue. Special repair cells, called satellite cells, wake up and help build new muscle fibers. Over weeks, the new tissue slowly gets stronger and more organized. These steps overlap, and healing is not always perfect.', draw: repairScene },
+    { label: 'Gentle movement', caption: 'As the pain settles, gentle movement helps. Short walks and comfortable everyday movements keep your back muscles working and your spine moving smoothly. Move within a comfortable range, and avoid hard stretching of a fresh injury.', draw: gentleScene },
+    { label: 'Progressive strengthening', caption: 'Next, strength is built up step by step. Your back, belly, and hip muscles work together to support your spine. Start with easy movements, then slowly move on to harder ones, like lifting and carrying. A physical therapist can choose exercises that fit you.', draw: strengthScene },
+    { label: 'Symptom care and time', caption: 'While you heal, change the activities that bother you, take short breaks, and use heat or cold if it feels good. Give your body time. A mild strain may get better in a few weeks, while a bigger one can take longer.', draw: careScene },
+    { label: 'Return to function', caption: 'Step by step, many people get back to work, walks, carrying groceries, and the things they enjoy. The same ideas help strains in other places too. Less pain doesn\'t always mean a muscle has fully healed, so build back up gradually.', draw: returnScene },
+  ];
+
   MedData.register({
     id: 'muscle-pain',
     name: 'Muscle pain and strains',
@@ -512,10 +771,12 @@
     aliases: ['muscle pain', 'muscle strain', 'pulled muscle', 'strain', 'sore muscles', 'myalgia', 'hamstring strain', 'muscle injury', 'muscle cramp'],
     patient: {
       tagline: 'Muscles move your bones, steady your joints, and keep you upright. They can also get sore, tight, or strained.',
-      // Part 1 explains muscles; Part 2 explains muscle strains, with a lower back strain.
+      // Part 1 explains muscles; Part 2 explains muscle strains, with a lower back strain; Part 3
+      // shows how a strain improves.
       videos: [
         { title: 'How do your muscles work?', length: 80, audio: 'audio/muscle-pain-a/', scenes: patientScenesA },
         { title: 'What happens when you strain a muscle?', length: 92, audio: 'audio/muscle-pain-b/', scenes: patientScenesB },
+        { title: 'How can a muscle strain improve?', length: 108, audio: 'audio/muscle-pain-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Muscles are found throughout your body. Each muscle is made of bundles of thousands of tiny fibers.',
@@ -524,6 +785,7 @@
         'Muscles also steady your joints, help you hold your posture, and make heat.',
         'A strain (pulled muscle) happens when a muscle takes more force than it can handle and some fibers are hurt. A mild strain affects a small area; a larger tear can cause bleeding and swelling.',
         'Strains are common in the neck, upper and lower back, groin, back of the thigh, and calf. Not every back pain is a strain, and many strains improve with the right care.',
+        'To recover: protect the muscle at first (without bed rest), move gently in a comfortable range, then build strength step by step with exercises that fit you. The body repairs muscle gradually over weeks, and less pain does not always mean fully healed.',
       ],
       questions: [
         'Is my pain from a muscle, or something else?',
@@ -536,11 +798,26 @@
         'Severe muscle pain with very dark (tea- or cola-colored) urine',
         'A red, hot, swollen area with a fever',
       ],
+      // Shown in a separate tap-to-open box on the patient page, not only inside the video.
+      emergency: {
+        title: 'When to get a muscle injury checked',
+        items: [
+          'You cannot move the area or put weight on it',
+          'You felt a pop, followed by sudden weakness or a dent or lump in the muscle',
+          'Large or fast-spreading swelling or bruising',
+          'Severe muscle pain with very dark (tea- or cola-colored) urine',
+          'Back pain with numbness in the groin, new bladder or bowel trouble, or leg weakness',
+          'Pain after a major fall or accident, or pain that is not improving after a few weeks',
+        ],
+        action: 'Get checked by a healthcare professional. For severe symptoms, call 911 or go to the emergency room.',
+      },
       quiz: [
         { q: 'What is a muscle made of?', options: ['One solid piece', 'Bundles of thousands of tiny fibers', 'Only tendons'], answer: 1, explain: 'Each muscle is made of bundles of fibers, and each fiber has tiny strands inside that slide together.' },
         { q: 'How does a muscle move a bone?', options: ['It pushes the bone', 'A nerve signal makes the fibers contract, and a tendon carries the pull to the bone', 'The bone moves on its own'], answer: 1, explain: 'Muscles pull, not push. The tendon passes the pull to the bone.' },
         { q: 'What is a muscle strain?', options: ['A muscle snapping completely in half', 'Some muscle fibers get hurt when the muscle takes more force than it can handle', 'A broken bone'], answer: 1, explain: 'A mild strain affects a small area. More serious strains can tear more fibers.' },
         { q: 'Why can a strained back feel tight?', options: ['Nearby muscles tighten to guard the hurt area', 'The bones get bigger', 'It always means a disc problem'], answer: 0, explain: 'After a strain, nerves send pain signals and nearby muscles may tighten, so the back can feel sore, tight, or hard to move.' },
+        { q: 'After a back strain, should you stay in bed until it stops hurting?', options: ['Yes, complete rest is best', 'No, ease off what makes it much worse, but keep gently active', 'Stretch it hard right away'], answer: 1, explain: 'Protect the muscle at first without bed rest. Gentle, comfortable activity is usually better than complete rest.' },
+        { q: 'Does less pain mean the muscle has fully healed?', options: ['Yes, always', 'Not always, so build back up gradually', 'Pain has nothing to do with healing'], answer: 1, explain: 'Muscle repair takes weeks. Building strength step by step helps the muscle handle more again.' },
         { q: 'Besides movement, what else do muscles do?', options: ['Nothing else', 'Steady your joints, hold your posture, and make heat', 'Make blood'], answer: 1, explain: 'Muscles help keep your body stable and warm, not just moving.' },
       ],
     },
