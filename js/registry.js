@@ -11,7 +11,6 @@
     { id: 'hypothyroid', name: 'Hypothyroidism', icd10: 'E03', aliases: ['underactive thyroid', 'hashimoto'] },
     { id: 't1d', name: 'Type 1 diabetes', icd10: 'E10', aliases: ['t1d', 'juvenile diabetes', 'type one diabetes'] },
     { id: 'depression', name: 'Depression', icd10: 'F32', aliases: ['major depressive disorder', 'mdd'] },
-    { id: 'gerd', name: 'GERD', icd10: 'K21', aliases: ['acid reflux', 'heartburn', 'gastroesophageal reflux disease'] },
     { id: 'osteoarthritis', name: 'Osteoarthritis', icd10: 'M19', aliases: ['oa', 'arthritis', 'joint pain'] },
     { id: 'migraine', name: 'Migraine', icd10: 'G43', aliases: ['migraine headache'] },
     { id: 'stroke', name: 'Stroke', icd10: 'I63', aliases: ['cva', 'brain attack', 'cerebrovascular accident'] },
