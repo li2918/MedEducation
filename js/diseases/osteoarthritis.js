@@ -1,15 +1,18 @@
-// Osteoarthritis (knee first): patient content. Clinician content is not built yet, so the
+// Osteoarthritis: patient content. Clinician content is not built yet, so the
 // provider portal lists this condition as coming soon.
 // Follows NIAMS and ACR guidance: osteoarthritis involves the whole joint (cartilage, the bone
 // underneath, the joint lining, and other joint tissues), not only "wear and tear" of
-// cartilage. The knee is the main example; the same drawing can later show hips and hands.
+// cartilage. It is one type of arthritis and can affect many joints. Part 1 is general; the
+// knee is the worked example in Parts 2 and 3.
 (function () {
   const { C, ease, seg, lerp, rnd } = M;
   const { runner } = S;
 
   // ---------------------------------------------------------------------------
-  // Patient portal: three videos. Part 1 "What is osteoarthritis?", Part 2 "Why does
-  // arthritis hurt?", Part 3 "How can I protect my joints?". The star is
+  // Patient portal: three videos. Part 1 "What is osteoarthritis?" (general: joints around the
+  // body, the whole-joint changes, symptoms, and what makes it more likely), Part 2 "Why does
+  // osteoarthritis hurt?" (the knee as the example), Part 3 "How can you manage
+  // osteoarthritis?" (general advice, with knee exercises as the example). The star is
   // one cartoon knee seen from the front: thigh bone (femur) above, shin bone (tibia) below,
   // blue cartilage caps, menisci, the joint lining with its fluid, ligaments, and muscles.
   // The same knee changes slowly with OA. Cues use s (seconds since the narration started),
@@ -120,146 +123,140 @@
   };
 
   // ---- Part 1: What is osteoarthritis? ----------------------------------------------
+  // General first: osteoarthritis is one type of arthritis that can affect many joints; it
+  // changes the whole joint (not simply wear and tear); symptoms differ from joint to joint,
+  // and some joints with OA cause few or none; several factors make it more likely. The knee
+  // drawing stands in for "a joint" here. Part 2 then uses the knee as the worked example.
+  const JOINT_C = '#4fa7d8', ACHE = '#f08c3a';
+  const JOINTS = (x, y, sc) => [
+    // [label, joint spots, label side, label height]
+    ["Small joints of the hands", [[x - 0.72 * sc, y + 0.16 * sc], [x + 0.72 * sc, y + 0.16 * sc]], -1, y + 0.16 * sc],
+    ["Base of the thumb", [[x - 0.6 * sc, y + 0.02 * sc], [x + 0.6 * sc, y + 0.02 * sc]], 1, y - 0.2 * sc],
+    ["Hips", [[x - 0.3 * sc, y + 0.22 * sc], [x + 0.3 * sc, y + 0.22 * sc]], 1, y + 0.46 * sc],
+    ["Knees", [[x - 0.27 * sc, y + 0.92 * sc], [x + 0.27 * sc, y + 0.92 * sc]], -1, y + 0.92 * sc],
+    ["Spine", [[x, y - 1.22 * sc], [x, y - 0.12 * sc]], -1, y - 1.22 * sc],
+  ];
+  function jointGlow(ctx, x, y, a, s, col = JOINT_C) {
+    if (a <= 0) return;
+    M.dot(ctx, x, y, 14 + 2 * Math.sin(s * 4), col, 0.3 * a);
+    ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, 9, 0, M.TAU); ctx.stroke(); ctx.restore();
+  }
 
-  // 1. The knee bends and straightens with every step; zoom inside.
-  const T1 = { walk: 0.7, stairs: 1.2, sit: 2.5, bends: 3.4, inside: 5.2 };
-  function kneeMoves(ctx, p, s) {
-    M.text(ctx, 'How your knee moves', 480, 44, { size: 28, weight: 800 });
-    [['🚶  Walk', T1.walk], ['🪜  Climb stairs', T1.stairs], ['🪑  Sit down', T1.sit]].forEach(([t, at], i) =>
-      M.pill(ctx, t, 90 + i * 150, 96, { size: 16, bg: '#fff', border: '#c8d6ee', alpha: seg(s, at, at + 0.5) }));
+  // 1. Osteoarthritis is one type of arthritis, the most common one, and it can affect many
+  //    joints: hands, thumb base, hips, knees, and spine.
+  const T1 = { type: 1.7, common: 3.9, many: 5.6, at: [7.8, 9.2, 10.2, 10.9, 11.8] };
+  function jointsAround(ctx, p, s) {
+    M.text(ctx, 'Many joints can be affected', 480, 44, { size: 28, weight: 800 });
+    const x = 480, y = 300, sc = 100;
+    M.person(ctx, x, y, sc, { t: s, alpha: lerp(1, 0.55, ease(seg(s, T1.many - 0.5, T1.many + 0.5))) });
+    JOINTS(x, y, sc).forEach(([t, pts, d, ly], i) => {
+      const a = seg(s, T1.at[i], T1.at[i] + 0.5);
+      pts.forEach(([px, py]) => jointGlow(ctx, px, py, a, s));
+      const [px, py] = d < 0 ? pts[0] : pts[pts.length - 1];
+      label(ctx, t, x + d * 300, ly, px + d * 12, py, a, JOINT_C, "#1f6fa8");
+    });
+    M.pill(ctx, 'One type of arthritis', 160, 100, { size: 16, bg: '#fff', border: '#c8d6ee', alpha: seg(s, T1.type, T1.type + 0.5) });
+    M.pill(ctx, 'The most common one', 800, 100, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, T1.common, T1.common + 0.5) });
+  }
+
+  // 2. Inside a healthy joint: bones capped with smooth cartilage, a lining that makes joint
+  //    fluid, and ligaments and muscles that steady the joint and move it.
+  const T2 = { inside: 0.5, bones: 3.4, cart: 5.1, lining: 6.4, fluid: 7.9, ligaments: 8.6, muscles: 9.4 };
+  function healthyJoint(ctx, p, s) {
+    M.text(ctx, 'Inside a healthy joint', 480, 44, { size: 28, weight: 800 });
+    const a = (at) => ease(seg(s, at, at + 0.7));
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 72, 960, 468); ctx.clip();
+    knee(ctx, 470, 310, 0.84, { bend: 0.1 * Math.sin(s * 1.6), s, meniscus: 0, lining: a(T2.lining), ligament: a(T2.ligaments), muscle: a(T2.muscles), glowCart: seg(s, T2.cart, T2.cart + 0.5) * (1 - seg(s, T2.lining, T2.lining + 0.6)) });
+    ctx.restore();
+    const fa = seg(s, T2.fluid, T2.fluid + 0.6);
+    for (let i = 0; i < 6; i++) M.dot(ctx, 470 - 90 + i * 36, 310 - 70 + Math.sin(s * 1.5 + i) * 10 + (i % 2) * 140, 5, '#7cc7f2', fa * 0.9);
+    label(ctx, 'Bone', 150, 160, 400, 180, seg(s, T2.bones, T2.bones + 0.5), BONE_S, '#6b5e3e');
+    label(ctx, 'Smooth cartilage', 150, 270, 400, 298, seg(s, T2.cart, T2.cart + 0.5), CART_D, '#1f6fa8');
+    label(ctx, 'Lining', 800, 170, 578, 196, seg(s, T2.lining, T2.lining + 0.5), LIN, '#a33a44');
+    label(ctx, 'Slippery joint fluid', 800, 250, 560, 252, seg(s, T2.fluid, T2.fluid + 0.5), '#7cc7f2', '#1f6fa8');
+    label(ctx, 'Ligaments', 150, 380, 380, 330, seg(s, T2.ligaments, T2.ligaments + 0.5), '#cfc6ab', '#6b5e3e');
+    label(ctx, 'Muscles', 810, 380, 610, 380, seg(s, T2.muscles, T2.muscles + 0.5), '#e98b72', '#a3461f');
+    M.text(ctx, 'Example joint: the knee', 480, 520, { size: 14, weight: 700, color: C.muted, alpha: seg(s, T2.inside, T2.inside + 0.5) });
+  }
+
+  // 3. Healthy joint vs. osteoarthritis: the whole joint changes (cartilage, the bone
+  //    underneath with small bumps, an irritated lining). Not simply wear and tear.
+  const T3 = { whole: 1.9, cart: 5.1, bone: 7.5, bumps: 9.4, lining: 10.9, notWear: 12.8 };
+  function vsPanel(ctx, p, s, oa, W) {
+    const k = (at, d = 1.4) => (oa ? ease(seg(s, at, at + d)) : 0);
+    const cart = lerp(1, 0.4, k(T3.cart, 1.6)), rough = k(T3.cart + 0.4), bone = k(T3.bone), spur = k(T3.bumps, 1.1), synov = k(T3.lining, 1.1);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, 30, W, 290); ctx.clip();
+    knee(ctx, W / 2, 196, 0.52, { bend: 0.08 * Math.sin(s * 1.6), s, cart, rough, bone, spur, synov, swell: 0.4 * synov, meniscus: 0 });
+    ctx.restore();
+    if (oa) S.phasePill(ctx, W / 2, 344, s, [[T3.whole, 'The whole joint changes', '#c26a00'], [T3.cart, 'Cartilage: thinner and rough', CART_D], [T3.bone, 'Bone underneath changes', '#7a5a2e'], [T3.bumps, 'Small bony bumps', '#7a5a2e'], [T3.lining, 'Lining gets irritated', '#c0392b'], [T3.notWear, 'Not simply wear and tear', '#1f4fa8']]);
+    else S.phasePill(ctx, W / 2, 344, s, [[0.3, 'Smooth cartilage, calm lining', C.green]]);
+    return oa ? 1 - 0.55 * Math.max(cart < 1 ? (1 - cart) / 0.6 : 0, synov) : 0.95;
+  }
+
+  // 4. Symptoms depend on the joint: hands, hip, knee. Some joints with osteoarthritis cause
+  //    few or no symptoms.
+  const T4 = { hands: 2.2, grip: 6.2, hip: 7.9, knee: 12.3, stiff: 15.4, none: 17.1 };
+  function symptomsBody(ctx, p, s) {
+    M.text(ctx, 'Symptoms depend on the joint', 480, 44, { size: 28, weight: 800 });
+    const x = 480, y = 300, sc = 92;
+    M.person(ctx, x, y, sc, { t: s, alpha: 0.6 });
+    const card = (x0, y0, ic, title, lines, at, tx, ty, d) => {
+      const a = ease(seg(s, at, at + 0.5));
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = '#f3c9a0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(d < 0 ? x0 + 270 : x0, y0 + 50); ctx.lineTo(tx, ty); ctx.stroke(); ctx.restore();
+      jointGlow(ctx, tx, ty, a, s, ACHE);
+      M.card(ctx, x0, y0, 270, 104, { r: 18, alpha: a, border: '#f3c9a0' });
+      M.emoji(ctx, ic, x0 + 34, y0 + 36, 28, a);
+      M.text(ctx, title, x0 + 60, y0 + 34, { size: 17, weight: 800, align: 'left', alpha: a });
+      lines.forEach(([t, lat], i) => M.text(ctx, t, x0 + 20, y0 + 64 + i * 22, { size: 13, weight: 700, align: 'left', color: '#7a4a20', alpha: a * seg(s, lat, lat + 0.5) }));
+    };
+    card(40, 110, '✋', 'Hands', [['Stiff, swollen, or knobby joints', T4.hands + 0.7], ['Gripping gets harder', T4.grip]], T4.hands, x - 0.72 * sc, y + 0.16 * sc, -1);
+    card(650, 220, '🚶', 'Hip', [['Walking may hurt in the groin', T4.hip + 1], ['or the side of the hip', T4.hip + 2.8]], T4.hip, x + 0.3 * sc, y + 0.22 * sc, 1);
+    card(40, 330, '🪜', 'Knee', [['Stairs may hurt', T4.knee + 0.9], ['Stiff after resting', T4.stiff]], T4.knee, x - 0.27 * sc, y + 0.92 * sc, -1);
+    const na = seg(s, T4.none, T4.none + 0.5);
+    [[x + 0.27 * sc, y + 0.92 * sc], [x - 0.3 * sc, y + 0.22 * sc]].forEach(([px, py]) => {
+      jointGlow(ctx, px, py, na, s, '#8a9bb4');
+      M.text(ctx, '✓', px + 18, py - 12, { size: 16, weight: 900, color: '#1d7a4c', alpha: na });
+    });
+    M.pill(ctx, 'Some joints with osteoarthritis cause few or no symptoms', 480, 512, { size: 16, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: na });
+  }
+
+  // 5. Things that make osteoarthritis more likely. Having them does not mean you will get it.
+  const T5 = { likely: 1.1, older: 3.3, injury: 4.1, genes: 5.1, load: 5.9, weight: 7.7, notMean: 9.4 };
+  function riskFactors(ctx, p, s) {
+    M.text(ctx, 'What makes it more likely?', 480, 44, { size: 28, weight: 800 });
+    [['🎂', 'Getting older', '', T5.older], ['🩹', 'An old joint injury', '', T5.injury], ['🧬', 'Your genes', 'It can run in families', T5.genes], ['⚖️', 'Extra load on a joint', 'Like carrying extra weight', T5.load]].forEach(([ic, t, sub, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), x = 24 + i * 232, cx = x + 110;
+      M.card(ctx, x, 110, 220, 250, { r: 20, alpha: a });
+      M.emoji(ctx, ic, cx, 180, 54, a);
+      M.wrap(ctx, t, cx, 262, 190, { size: 18, weight: 800, alpha: a });
+      if (sub) M.wrap(ctx, sub, cx, 318, 190, { size: 14, weight: 700, color: C.muted, alpha: a * seg(s, i === 3 ? T5.weight : at + 0.6, (i === 3 ? T5.weight : at + 0.6) + 0.5) });
+    });
+    M.pill(ctx, "These raise the chance. They don't mean you will get it.", 480, 440, { size: 17, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, T5.notMean, T5.notMean + 0.5) });
+  }
+
+  // 6. Hand-off to Part 2: the knee as the example of why osteoarthritis can hurt.
+  const T6 = { knee: 1.1, example: 1.9, hurt: 3.1 };
+  function toKnee(ctx, p, s) {
+    M.text(ctx, 'Next: the knee as an example', 480, 44, { size: 28, weight: 800 });
     const x = 190, ground = 452, ph = s * 5, amp = 0.5;
     ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, ground, 300, 12);
     runner(ctx, x, ground, ph, amp, 0.05, 1, s);
-    const [kx, ky] = kneeOf(x, ground, ph, amp), ka = seg(s, T1.bends, T1.bends + 0.5);
-    ctx.save(); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 3; ctx.globalAlpha *= ka; ctx.beginPath(); ctx.arc(kx, ky, 16, 0, M.TAU); ctx.stroke(); ctx.restore();
-    M.text(ctx, 'Bends and straightens', x, 168, { size: 15, weight: 800, color: M.C.blue, alpha: ka });
-    const za = ease(seg(s, T1.inside - 0.4, T1.inside + 0.4)), cx = 660, cy = 300, R = 196;
-    if (za <= 0) return;
-    ctx.save(); ctx.globalAlpha *= za;
-    ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(kx + 12, ky - 10); ctx.lineTo(cx - R * 0.72, cy - R * 0.7); ctx.moveTo(kx + 12, ky + 10); ctx.lineTo(cx - R * 0.72, cy + R * 0.7); ctx.stroke(); ctx.setLineDash([]);
-    M.dot(ctx, cx, cy, R + 6, '#ffffff');
-    ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, M.TAU); ctx.clip();
-    ctx.fillStyle = '#fbe9e1'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
-    knee(ctx, cx, cy + 10, 0.62, { bend: 0.1 * Math.sin(ph), s });
-    ctx.restore();
-    ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, cy, R + 2, 0, M.TAU); ctx.stroke();
-    ctx.restore();
-    M.text(ctx, 'Inside the knee joint', cx, 520, { size: 16, weight: 800, color: C.muted, alpha: za });
-  }
-
-  // 2. Cartilage: smooth, slippery cushions on the bone ends so the bones glide easily.
-  const T2 = { bones: 0.6, smooth: 1.9, cart: 3.6, cushion: 5.3, glide: 6.7 };
-  function cartilageCushion(ctx, p, s) {
-    M.text(ctx, 'The cartilage cushion', 480, 44, { size: 28, weight: 800 });
-    const bend = 0.13 * Math.sin(s * 1.6);
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 72, 960, 468); ctx.clip();
-    knee(ctx, 400, 310, 0.85, { bend, s, meniscus: 0, lining: 0, ligament: 0, muscle: 0, glowCart: seg(s, T2.smooth, T2.smooth + 0.6) });
-    ctx.restore();
-    label(ctx, "Thigh bone (femur)", 170, 160, 370, 190, seg(s, T2.bones, T2.bones + 0.5));
-    label(ctx, "Shin bone (tibia)", 170, 440, 380, 410, seg(s, T2.bones + 0.3, T2.bones + 0.8));
-    label(ctx, "Cartilage", 760, 230, 470, 288, seg(s, T2.cart, T2.cart + 0.5), CART_D, '#1f6fa8');
-    M.text(ctx, 'Smooth and slippery', 760, 266, { size: 15, weight: 800, color: '#1f6fa8', alpha: seg(s, T2.smooth, T2.smooth + 0.5) });
-    M.pill(ctx, 'Works like a cushion', 760, 340, { size: 16, bg: '#e8f5fd', border: CART_D, color: '#1f6fa8', alpha: seg(s, T2.cushion, T2.cushion + 0.5) });
-    M.pill(ctx, "The bones glide easily", 760, 410, { size: 16, bg: "#fff", border: CART_D, color: "#1f6fa8", alpha: seg(s, T2.glide, T2.glide + 0.5) });
-  }
-
-  // 3. More than two bones: menisci, the joint lining and its fluid, ligaments, and muscles.
-  const T3 = { more: 0.8, menisci: 2.8, lining: 4.7, fluid: 5.7, ligaments: 7.1, muscles: 8.4, support: 9.7 };
-  function otherParts(ctx, p, s) {
-    M.text(ctx, 'Other parts of the joint', 480, 44, { size: 28, weight: 800 });
-    const a = (at) => ease(seg(s, at, at + 0.7));
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 72, 960, 468); ctx.clip();
-    knee(ctx, 470, 300, 0.85, { bend: 0.1 * Math.sin(s * 1.6), s, meniscus: a(T3.menisci), lining: a(T3.lining), ligament: a(T3.ligaments), muscle: a(T3.muscles) });
-    ctx.restore();
-    // joint fluid: slippery droplets drifting inside the lining
-    const fa = seg(s, T3.fluid, T3.fluid + 0.6);
-    for (let i = 0; i < 6; i++) M.dot(ctx, 470 - 90 + i * 36, 300 - 70 + Math.sin(s * 1.5 + i) * 10 + (i % 2) * 140, 5, '#7cc7f2', fa * 0.9);
-    M.pill(ctx, 'More than two bones', 480, 90, { size: 17, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, T3.more, T3.more + 0.5) });
-    label(ctx, 'Menisci: cushions', 150, 260, 362, 296, seg(s, T3.menisci, T3.menisci + 0.5), '#6fb0d8', '#1f6fa8');
-    label(ctx, 'Lining makes joint fluid', 800, 170, 578, 190, seg(s, T3.lining, T3.lining + 0.5), LIN, '#a33a44');
-    label(ctx, 'Ligaments: strong bands', 150, 360, 372, 320, seg(s, T3.ligaments, T3.ligaments + 0.5), '#cfc6ab', '#6b5e3e');
-    label(ctx, 'Muscles', 810, 360, 612, 360, seg(s, T3.muscles, T3.muscles + 0.5), '#e98b72', '#a3461f');
-    M.pill(ctx, 'They all support the joint', 480, 508, { size: 17, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, T3.support, T3.support + 0.5) });
-  }
-
-  // 4. What changes with OA: the same knee changes slowly. Cartilage thins and gets rough, the
-  //    bone underneath changes and grows small bony bumps, and the lining gets irritated. Not
-  //    just "wear and tear": many parts of the joint change.
-  const T4 = { time: 1.1, cart: 4.8, bone: 7.4, bumps: 10.1, lining: 12.2, pain: 15.4 };
-  function whatChanges(ctx, p, s) {
-    M.text(ctx, 'What changes with osteoarthritis', 480, 44, { size: 28, weight: 800 });
-    const yr = ease(seg(s, T4.time, T4.pain));
-    M.rr(ctx, 150, 76, 500, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill();
-    if (yr > 0.01) { M.rr(ctx, 150, 76, 500 * yr, 10, 5); ctx.fillStyle = C.amber; ctx.fill(); }
-    M.text(ctx, 'Over time', 400, 100, { size: 13, weight: 800, color: C.muted });
-    const cart = lerp(1, 0.35, ease(seg(s, T4.cart, T4.cart + 1.8))), rough = ease(seg(s, T4.cart + 0.6, T4.cart + 2));
-    const bone = ease(seg(s, T4.bone, T4.bone + 1.4)), spur = ease(seg(s, T4.bumps, T4.bumps + 1.2)), synov = ease(seg(s, T4.lining, T4.lining + 1.2));
-    const stiff = ease(seg(s, T4.pain - 0.6, T4.pain + 0.8));
-    ctx.save(); ctx.beginPath(); ctx.rect(0, 112, 960, 390); ctx.clip();
-    knee(ctx, 340, 320, 0.8, { bend: lerp(0.1, 0.04, stiff) * Math.sin(s * 1.6), cart, rough, bone, spur, synov, swell: 0.5 * synov, s });
-    ctx.restore();
-    const pa = seg(s, T4.pain, T4.pain + 0.4);
-    if (pa > 0) [-1, 1].forEach((d) => {
-      ctx.save(); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 4; ctx.globalAlpha *= pa; ctx.lineJoin = 'round';
-      const bx = 340 + d * 136, by = 300 + Math.sin(s * 14) * 2;
-      ctx.beginPath(); ctx.moveTo(bx, by - 20); ctx.lineTo(bx + d * 12, by - 4); ctx.lineTo(bx - d * 2, by); ctx.lineTo(bx + d * 10, by + 20); ctx.stroke(); ctx.restore();
-    });
-    [['Cartilage gets thinner and rough', T4.cart, CART_D], ['The bone underneath changes', T4.bone, '#a07d4c'], ['Small bony bumps can grow', T4.bumps, '#a07d4c'], ['The joint lining gets irritated', T4.lining, '#c0392b'], ['Pain and stiffness', T4.pain, '#c2410c']].forEach(([t, at, col], i) => {
-      const a = seg(s, at, at + 0.5);
-      if (a <= 0) return;
-      M.dot(ctx, 600, 160 + i * 66, 14, col, a); M.text(ctx, i < 4 ? String(i + 1) : "!", 600, 161 + i * 66, { size: 14, weight: 900, color: '#fff', alpha: a });
-      M.text(ctx, t, 624, 160 + i * 66, { size: 17, weight: 800, align: 'left', color: col, alpha: a });
-    });
-    M.text(ctx, 'Not just "wear and tear": many parts of the joint change', 480, 520, { size: 15, weight: 700, color: C.muted, alpha: seg(s, 1.6, 2.2) });
-  }
-
-  // 5. Common symptoms: pain with walking or stairs, stiffness after sitting or in the morning,
-  //    sometimes swelling. Symptoms often come and go.
-  const T5 = { pain: 1.4, stiff: 4.3, morning: 6.4, swell: 8.3, comeGo: 9.3 };
-  function symptoms(ctx, p, s) {
-    M.text(ctx, 'Common symptoms', 480, 44, { size: 28, weight: 800 });
-    const ache = (x, y, a) => {
-      if (a <= 0) return;
-      const g = ctx.createRadialGradient(x, y, 2, x, y, 26);
-      g.addColorStop(0, `rgba(229,72,77,${0.6 * a * (0.7 + 0.3 * Math.sin(s * 5))})`); g.addColorStop(1, 'rgba(229,72,77,0)');
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 26, 0, M.TAU); ctx.fill();
-    };
-    // walking and stairs
-    const a1 = ease(seg(s, T5.pain - 0.4, T5.pain + 0.2));
-    M.card(ctx, 24, 76, 294, 380, { r: 20, alpha: a1 });
-    if (a1 > 0) {
-      ctx.save(); ctx.globalAlpha *= a1;
-      ctx.fillStyle = '#d9e1ee'; [[40, 360, 80], [120, 320, 80], [200, 280, 100]].forEach(([x, y, w]) => ctx.fillRect(x, y, w, 420 - y));
-      const ph = s * 4, amp = 0.4, x = 150, ground = 330;
-      runner(ctx, x, ground, ph, amp, 0.1, 0.55, s);
-      ache(...kneeOf(x, ground, ph, amp), 1);
+    const [kx, ky] = kneeOf(x, ground, ph, amp), ka = seg(s, T6.knee, T6.knee + 0.5);
+    ctx.save(); ctx.strokeStyle = JOINT_C; ctx.lineWidth = 3; ctx.globalAlpha *= ka; ctx.beginPath(); ctx.arc(kx, ky, 16, 0, M.TAU); ctx.stroke(); ctx.restore();
+    const za = ease(seg(s, T6.example - 0.4, T6.example + 0.4)), cx = 660, cy = 290, R = 190;
+    if (za > 0) {
+      ctx.save(); ctx.globalAlpha *= za;
+      ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(kx + 12, ky - 10); ctx.lineTo(cx - R * 0.72, cy - R * 0.7); ctx.moveTo(kx + 12, ky + 10); ctx.lineTo(cx - R * 0.72, cy + R * 0.7); ctx.stroke(); ctx.setLineDash([]);
+      M.dot(ctx, cx, cy, R + 6, '#ffffff');
+      ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, M.TAU); ctx.clip(); ctx.fillStyle = '#fbe9e1'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+      knee(ctx, cx, cy + 10, 0.6, { bend: 0.1 * Math.sin(ph), s, cart: 0.55, rough: 0.8, bone: 0.6, spur: 0.5, synov: 0.5 });
       ctx.restore();
-      M.wrap(ctx, 'Pain when you walk or climb stairs', 171, 428, 250, { size: 16, weight: 800, alpha: a1 });
-    }
-    // stiffness after sitting or in the morning
-    const a2 = ease(seg(s, T5.stiff - 0.4, T5.stiff + 0.2));
-    M.card(ctx, 333, 76, 294, 380, { r: 20, alpha: a2 });
-    if (a2 > 0) {
-      ctx.save(); ctx.globalAlpha *= a2;
-      M.rr(ctx, 380, 290, 80, 16, 6); ctx.fillStyle = '#b08a64'; ctx.fill(); ctx.fillRect(380, 210, 12, 150); ctx.fillRect(448, 300, 10, 60); ctx.fillRect(384, 300, 10, 60);
-      const up = 0.5 + 0.5 * Math.sin(s * 1.2), x = 500, ground = 370;
-      runner(ctx, x, ground, 0, 0.05, lerp(0.5, 0.15, up), 0.5, s);
-      ache(...kneeOf(x, ground, 0, 0.05), 1);
-      M.emoji(ctx, '⏰', 584, 120, 30, seg(s, T5.morning, T5.morning + 0.5));
+      ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(cx, cy, R + 2, 0, M.TAU); ctx.stroke();
       ctx.restore();
-      M.wrap(ctx, 'Stiffness after sitting, or in the morning', 480, 428, 250, { size: 16, weight: 800, alpha: a2 });
     }
-    // sometimes swelling
-    const a3 = ease(seg(s, T5.swell - 0.4, T5.swell + 0.2));
-    M.card(ctx, 642, 76, 294, 380, { r: 20, alpha: a3 });
-    if (a3 > 0) {
-      ctx.save(); ctx.globalAlpha *= a3; ctx.beginPath(); M.rr(ctx, 652, 86, 274, 300, 16); ctx.clip();
-      knee(ctx, 789, 250, 0.5, { cart: 0.5, rough: 0.6, spur: 0.5, bone: 0.5, synov: 0.8, swell: 0.6 + 0.3 * Math.sin(s * 2), s });
-      ctx.restore();
-      M.wrap(ctx, 'Sometimes swelling', 789, 428, 250, { size: 16, weight: 800, alpha: a3 });
-    }
-    M.pill(ctx, 'Symptoms often come and go', 480, 498, { size: 18, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, T5.comeGo, T5.comeGo + 0.5) });
+    M.pill(ctx, 'Why can osteoarthritis hurt?', cx, 508, { size: 17, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, T6.hurt, T6.hurt + 0.5) });
   }
 
   // Load arrows pressing down on the knee (body weight). w: array of arrow sizes (0..1).
@@ -298,9 +295,10 @@
   // have nerves. Cartilage has no nerves, so thinning cartilage is never shown sending pain.
 
   // 1. Healthy movement: smooth cartilage, and each step's load spreads evenly.
-  const TB1 = { smooth: 1.4, glide: 3.2, load: 4.3, evenly: 6.3 };
+  const TB1 = { example: 0.3, smooth: 3.7, glide: 5.5, load: 6.6, evenly: 8.5 };
   function smoothMove(ctx, p, s) {
     M.text(ctx, 'Smooth movement', 480, 44, { size: 28, weight: 800 });
+    M.pill(ctx, 'Example: the knee', 780, 120, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TB1.example, TB1.example + 0.5) });
     const la = seg(s, TB1.load, TB1.load + 0.5);
     clipBelow(ctx, 120, () => knee(ctx, 400, 330, 0.8, { bend: 0.09 * Math.sin(s * 1.6), s, map: s > TB1.load ? 0 : null }));
     loadArrows(ctx, 400, 78, [0.5, 0.5, 0.5, 0.5, 0.5], la);
@@ -436,7 +434,7 @@
   // instantly rebuild cartilage, so the cartilage stays the same throughout.
 
   // 1. Keep moving: stiff after sitting; gentle movement loosens it up.
-  const TC1 = { stiff: 3.4, gentle: 4.4, flexible: 6.3, eases: 7.5 };
+  const TC1 = { stiff: 4.2, gentle: 5.2, flexible: 7.2, eases: 8.5 };
   function keepMoving(ctx, p, s) {
     M.text(ctx, 'Keep moving', 480, 44, { size: 28, weight: 800 });
     const go = ease(seg(s, TC1.gentle, TC1.gentle + 2)), x = 230, ground = 420;
@@ -466,7 +464,7 @@
   // 2. Stronger muscles (the main scene): the knee alone handles a wobbly load; strong thigh
   //    (quadriceps) and hip muscles support and steady it. Over weeks, less pain and more you
   //    can do. The cartilage stays the same: exercise does not instantly rebuild it.
-  const TC2 = { muscles: 0.8, thigh: 2.6, hip: 3.4, support: 4.8, time: 7.6, pain: 10, more: 11.4, rebuild: 13.1 };
+  const TC2 = { muscles: 0.7, support: 2.4, knee: 4.7, thigh: 6.2, hip: 7, time: 8.4, pain: 10.8, more: 12.4, rebuild: 14 };
   function strongerMuscles(ctx, p, s) {
     M.text(ctx, 'Stronger muscles', 480, 44, { size: 28, weight: 800 });
     // the person: thigh and hip muscles light up as they work
@@ -478,6 +476,7 @@
     [-1, 1].forEach((d) => { glowMuscle(x + d * 0.27 * sc, y + 0.6 * sc, (0.2 + 0.05 * grow) * sc, 0.42 * sc, ta); glowMuscle(x + d * 0.3 * sc, y + 0.08 * sc, (0.24 + 0.05 * grow) * sc, 0.16 * sc, ha); });
     M.pill(ctx, 'Thigh muscles', x + 150, y + 50, { size: 14, bg: '#fff', border: '#e98b72', color: '#a3461f', alpha: ta });
     M.pill(ctx, 'Hip muscles', x + 150, y - 10, { size: 14, bg: '#fff', border: '#e98b72', color: '#a3461f', alpha: ha });
+    M.text(ctx, 'For the knee:', x, 112, { size: 15, weight: 800, color: C.muted, alpha: seg(s, TC2.knee, TC2.knee + 0.5) });
     // the knee: wobbly when it takes the load alone; steadier with strong muscles
     const ctrl = ease(seg(s, TC2.support, TC2.support + 1.5)), cx = 640, cy = 290, R = 190;
     M.dot(ctx, cx, cy, R + 6, '#ffffff');
@@ -493,7 +492,7 @@
 
   // 3. Managing joint load: spread out hard tasks, take breaks, supportive shoes; for people
   //    who carry extra weight, losing some takes pressure off the knees.
-  const TC3 = { spread: 2.3, breaks: 3.9, shoes: 5.1, weight: 6.9, off: 9.7 };
+  const TC3 = { spread: 2.4, breaks: 4.1, shoes: 5.2, weight: 6.9, off: 9.8 };
   function jointLoad(ctx, p, s) {
     M.text(ctx, 'Managing joint load', 480, 44, { size: 28, weight: 800 });
     [['🧺', 'Spread out hard tasks', TC3.spread], ['⏸️', 'Take breaks', TC3.breaks], ['👟', 'Wear supportive shoes', TC3.shoes]].forEach(([ic, t, at], i) => {
@@ -506,7 +505,7 @@
     const w = 0.9 - lighter;
     clipBelow(ctx, 136, () => knee(ctx, 690, 350, 0.62, { s, cart: 0.55, rough: 1, bone: 1, spur: 1, synov: 0.4, map: lerp(1, 0.25, lighter / 0.65), bend: 0.07 * Math.sin(s * 1.6) }));
     loadArrows(ctx, 690, 84, [w, w, w, w, w], 1);
-    M.wrap(ctx, 'If you carry extra weight, losing some can take pressure off your knees', 230, 470, 380, { size: 15, weight: 800, color: '#1f4fa8', alpha: seg(s, TC3.weight, TC3.weight + 0.5) });
+    M.wrap(ctx, 'If you carry extra weight, losing some can take pressure off your knees and hips', 230, 470, 380, { size: 15, weight: 800, color: '#1f4fa8', alpha: seg(s, TC3.weight, TC3.weight + 0.5) });
   }
 
   // 4. Managing symptoms during a flare: warmth, short rest breaks, and your care team's
@@ -565,15 +564,16 @@
   }
 
   const patientScenesA = [
-    { label: 'How your knee moves', caption: "Every time you walk, climb stairs, or sit down, your knee bends and straightens. Let's look inside your knee joint.", draw: kneeMoves },
-    { label: 'The cartilage cushion', caption: 'The ends of the bones are covered with smooth, slippery cartilage. It works like a cushion, so the bones can glide past each other easily when your knee moves.', draw: cartilageCushion },
-    { label: 'Other parts of the joint', caption: 'Your knee is more than two bones. Cushions called menisci, a lining that makes slippery joint fluid, strong ligaments, and the muscles around the knee all support the joint.', draw: otherParts },
-    { label: 'What changes with OA', caption: 'Osteoarthritis happens when different parts of the joint change over time. The cartilage gets thinner and rough. The bone underneath changes and can grow small bony bumps. The joint lining can get irritated. These changes can lead to pain and stiffness.', draw: whatChanges },
-    { label: 'Common symptoms', caption: 'Common symptoms include knee pain when you walk or climb stairs, stiffness after sitting or when you get up in the morning, and sometimes swelling. Symptoms often come and go.', draw: symptoms },
+    { label: 'Joints around the body', caption: 'Osteoarthritis is one type of arthritis, and the most common one. It can affect many joints, like the small joints in your hands, the base of your thumb, your hips, your knees, and your spine.', draw: jointsAround },
+    { label: 'Inside a healthy joint', caption: "Let's look inside a healthy joint. The ends of the bones are covered with smooth cartilage. A lining makes slippery joint fluid, and ligaments and muscles hold the joint steady and help it move.", draw: healthyJoint },
+    { label: 'Healthy joint vs. OA', caption: "With osteoarthritis, the whole joint changes, not just the cartilage. The cartilage gets thinner and rough, the bone underneath changes and can grow small bumps, and the lining can get irritated. It's not simply wear and tear.", draw: S.versus({ title: 'Healthy vs. osteoarthritis', panel: vsPanel, left: 'Healthy joint', right: 'Joint with osteoarthritis', bar: 'Joint health', levels: ['Healthy', 'Some changes', 'More changes'] }) },
+    { label: 'Symptoms in different joints', caption: 'Symptoms depend on the joint. In the hands, finger joints can get stiff, swollen, or knobby, and gripping gets harder. In the hip, walking may hurt in the groin or the side of the hip. In the knee, stairs may hurt, and it can feel stiff after resting. Some joints with osteoarthritis cause few or no symptoms.', draw: symptomsBody },
+    { label: 'What makes it more likely', caption: "Many things can make osteoarthritis more likely: getting older, an old joint injury, your genes, and extra load on a joint, like carrying extra weight. Having these doesn't mean you will get it.", draw: riskFactors },
+    { label: 'Next: the knee', caption: "Next, let's use the knee as an example, and see why osteoarthritis can hurt.", draw: toKnee },
   ];
 
   const patientScenesB = [
-    { label: 'Smooth movement', caption: 'In a healthy knee, smooth cartilage lets the bones glide, and the load from each step spreads evenly across the joint.', draw: smoothMove },
+    { label: 'Smooth movement', caption: 'Let\'s use the knee as an example. In a healthy knee, smooth cartilage lets the bones glide, and the load from each step spreads evenly across the joint.', draw: smoothMove },
     { label: 'Cartilage changes', caption: 'With osteoarthritis, some areas of cartilage get thinner and uneven. The load is no longer spread evenly, so some spots carry more pressure. Cartilage itself has no nerves, so it does not send pain signals.', draw: cartChanges },
     { label: 'Changes beneath cartilage', caption: 'The bone beneath the cartilage reacts to the extra pressure and changes. At the edges of the joint, small bony bumps called bone spurs can form.', draw: beneath },
     { label: 'Inflammation and pain', caption: "The joint lining can become irritated and swollen, and make extra fluid. Nerves in the lining, the bone underneath, and other tissues around the joint send pain signals to the brain. That's why arthritis pain isn't always explained by how much cartilage is missing.", draw: inflammationPain },
@@ -582,9 +582,9 @@
   ];
 
   const patientScenesC = [
-    { label: 'Keep moving', caption: 'After sitting still, a knee with arthritis can feel stiff. Gentle movement helps your joints stay flexible, and the stiffness often eases as you get going.', draw: keepMoving },
-    { label: 'Stronger muscles', caption: 'Strengthening the muscles around your knee, like your thigh and hip muscles, helps support and control each movement. Over time, regular exercise can reduce pain and help you do more, even though it does not instantly rebuild damaged cartilage.', draw: strongerMuscles },
-    { label: 'Managing joint load', caption: 'You can manage the load on your knee. Spread out hard tasks, take breaks, and wear supportive shoes. If you carry extra weight, losing some can take pressure off your knees.', draw: jointLoad },
+    { label: 'Keep moving', caption: 'After sitting still, joints with osteoarthritis can feel stiff. Gentle movement helps your joints stay flexible, and the stiffness often eases as you get going.', draw: keepMoving },
+    { label: 'Stronger muscles', caption: 'Strengthening the muscles around a joint helps support and control it. For the knee, that means your thigh and hip muscles. Over time, regular exercise can reduce pain and help you do more, even though it does not instantly rebuild damaged cartilage.', draw: strongerMuscles },
+    { label: 'Managing joint load', caption: 'You can manage the load on your joints. Spread out hard tasks, take breaks, and wear supportive shoes. If you carry extra weight, losing some can take pressure off your knees and hips.', draw: jointLoad },
     { label: 'Managing symptoms', caption: 'During a flare, warmth, short rest breaks, and the treatment plan from your care team can ease your symptoms, so you can keep moving.', draw: flareSymptoms },
     { label: 'Progress over weeks', caption: 'Start slowly and build up over weeks. Step by step, your strength, movement, and everyday activities can improve.', draw: progressWeeks },
     { label: 'Key takeaway', caption: 'You can live well with osteoarthritis. Staying active and strong helps you keep doing the things you love.', draw: oaTakeaway },
@@ -593,23 +593,23 @@
   MedData.register({
     id: 'osteoarthritis',
     name: 'Osteoarthritis',
-    icd10: 'M17.9',
-    aliases: ['oa', 'arthritis', 'joint pain', 'knee arthritis', 'knee osteoarthritis', 'degenerative joint disease', 'knee pain', 'musculoskeletal pain'],
+    icd10: 'M19.90',
+    aliases: ['oa', 'arthritis', 'joint pain', 'knee arthritis', 'knee osteoarthritis', 'hip arthritis', 'hip osteoarthritis', 'hand arthritis', 'hand osteoarthritis', 'thumb arthritis', 'degenerative joint disease', 'knee pain', 'musculoskeletal pain'],
     patient: {
-      tagline: 'Different parts of a joint change over time, which can lead to pain and stiffness.',
+      tagline: 'The most common type of arthritis. It changes the whole joint and can affect the hands, hips, knees, and spine.',
       // Three shorter videos, each around one question. length: seconds (scenes stretch to a
       // calmer pace); audio: recorded narration from tools/make-narration.py.
       videos: [
-        { title: 'What is osteoarthritis?', length: 72, audio: 'audio/osteoarthritis-a/', scenes: patientScenesA },
-        { title: 'Why does arthritis hurt?', length: 85, audio: 'audio/osteoarthritis-b/', scenes: patientScenesB },
-        { title: 'How can I protect my joints?', length: 82, audio: 'audio/osteoarthritis-c/', scenes: patientScenesC },
+        { title: 'What is osteoarthritis?', length: 86, audio: 'audio/osteoarthritis-a/', scenes: patientScenesA },
+        { title: 'Why does osteoarthritis hurt?', length: 88, audio: 'audio/osteoarthritis-b/', scenes: patientScenesB },
+        { title: 'How can you manage osteoarthritis?', length: 85, audio: 'audio/osteoarthritis-c/', scenes: patientScenesC },
       ],
       keyPoints: [
-        'A joint is more than two bones: cartilage, menisci, the joint lining and its fluid, ligaments, and muscles all work together.',
-        'Osteoarthritis happens when different parts of the joint change over time. It is not just "wear and tear" of cartilage.',
-        'Common symptoms are pain with walking or stairs, stiffness after sitting or in the morning, and sometimes swelling. Symptoms often come and go.',
-        'Cartilage has no nerves. Pain comes from the irritated joint lining, the bone underneath, and other tissues, so pain does not always match an X-ray.',
-        'Regular exercise and stronger thigh and hip muscles can reduce pain and help you do more, even though they do not instantly rebuild cartilage.',
+        'Osteoarthritis is one type of arthritis, and the most common. It can affect the small joints of the hands, the base of the thumb, the hips, the knees, and the spine.',
+        'It changes the whole joint: the cartilage, the bone underneath, the joint lining, and other tissues. It is not simply wear and tear.',
+        'Symptoms depend on the joint, and some joints with osteoarthritis cause few or no symptoms. Getting older, an old joint injury, genes, and extra load on a joint make it more likely.',
+        'Cartilage has no nerves. Pain comes from the irritated lining, the bone underneath, and other tissues, so pain does not always match an X-ray.',
+        'Regular movement and stronger muscles around the joint can reduce pain and help you do more, even though they do not instantly rebuild cartilage.',
       ],
       questions: [
         'Which joints are affected, and how much?',
@@ -633,10 +633,10 @@
         action: 'Get medical care right away. For severe symptoms, call 911 or go to the emergency room.',
       },
       quiz: [
-        { q: 'Which parts make up the knee joint?', options: ['Just two bones', 'Bones, cartilage, menisci, the joint lining, ligaments, and muscles', 'Only cartilage'], answer: 1, explain: 'A joint is more than two bones. Many tissues work together, and osteoarthritis can change several of them.' },
+        { q: 'Which joints can osteoarthritis affect?', options: ['Only the knees', 'Many joints, like the hands, the base of the thumb, hips, knees, and spine', 'Only joints that were injured before'], answer: 1, explain: 'Osteoarthritis is one type of arthritis. It can affect many joints, and it changes the whole joint, not just the cartilage.' },
         { q: 'Where does osteoarthritis pain come from?', options: ['Only from the cartilage, which has many nerves', 'From the irritated joint lining, the bone underneath, and other tissues with nerves', 'From the skin'], answer: 1, explain: 'Cartilage has no nerves. The lining, bone, and tissues around the joint send the pain signals.' },
         { q: 'Should you stop moving if you have osteoarthritis?', options: ['Yes, rest the joint as much as possible', 'No, gentle regular movement helps the joint stay flexible', 'Only move when there is no pain at all'], answer: 1, explain: 'Moving less can make muscles weaker and daily activities harder. Gentle, regular movement helps, building up over weeks.' },
-        { q: 'How does strengthening your muscles help?', options: ['It instantly rebuilds cartilage', 'Stronger thigh and hip muscles support and control the knee, which can reduce pain over time', 'It only helps your appearance'], answer: 1, explain: 'Strong muscles steady the knee and share the load. Exercise does not instantly rebuild cartilage, but it can reduce pain and help you do more.' },
+        { q: 'How does strengthening your muscles help?', options: ['It instantly rebuilds cartilage', 'Stronger muscles around the joint support and control it, which can reduce pain over time', 'It only helps your appearance'], answer: 1, explain: 'Strong muscles steady the joint and share the load (for the knee, the thigh and hip muscles). Exercise does not instantly rebuild cartilage, but it can reduce pain and help you do more.' },
         { q: 'Why can two people with similar X-rays feel different amounts of pain?', options: ['Pain does not always match how much the joint has changed', 'One of them is not telling the truth', 'X-rays are always wrong'], answer: 0, explain: 'Pain depends on many things, like the joint lining, the bone, muscle strength, and activity, not only what an X-ray shows.' },
       ],
     },
