@@ -190,7 +190,7 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~60 s), simple enough for a 10-year-old. Every scene
+  // Patient portal script (~90 s), simple enough for a 10-year-old. Every scene
   // puts two cards side by side, normal sugar vs. too much sugar. Organs are
   // characters with faces and a health bar, and each card acts out the organ's
   // job and how sugar breaks it. Panels draw in card-local coordinates (440x420).
@@ -996,6 +996,7 @@
     aliases: ['type 2 diabetes mellitus', 't2d', 't2dm', 'diabetes', 'diabetes type 2', 'type ii diabetes', 'sugar diabetes', 'high blood sugar', 'adult onset diabetes', 'dm2', 'niddm'],
     patient: {
       tagline: 'Your body has trouble using insulin, so sugar builds up in your blood.',
+      length: 90, // seconds; scenes stretch to a calmer pace
       scenes: patientScenes,
       keyPoints: [
         'Insulin is like a key that lets sugar into your cells. In type 2 diabetes, the cells do not respond well to it.',

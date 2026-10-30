@@ -11,7 +11,6 @@
     { id: 'cad', name: 'Coronary artery disease', icd10: 'I25', aliases: ['cad', 'heart disease', 'blocked arteries', 'angina'] },
     { id: 'ckd', name: 'Chronic kidney disease', icd10: 'N18', aliases: ['ckd', 'kidney failure', 'renal insufficiency'] },
     { id: 'hypothyroid', name: 'Hypothyroidism', icd10: 'E03', aliases: ['underactive thyroid', 'hashimoto'] },
-    { id: 'hyperlipidemia', name: 'High cholesterol', icd10: 'E78', aliases: ['hyperlipidemia', 'dyslipidemia', 'cholesterol'] },
     { id: 't1d', name: 'Type 1 diabetes', icd10: 'E10', aliases: ['t1d', 'juvenile diabetes', 'type one diabetes'] },
     { id: 'depression', name: 'Depression', icd10: 'F32', aliases: ['major depressive disorder', 'mdd'] },
     { id: 'gerd', name: 'GERD', icd10: 'K21', aliases: ['acid reflux', 'heartburn', 'gastroesophageal reflux disease'] },
@@ -37,7 +36,9 @@
   }
 
   function entries() {
-    return Object.values(diseases).map((d) => ({ id: d.id, name: d.name, icd10: d.icd10, aliases: d.aliases || [], available: true }))
+    // A condition is available in a portal only if it has that portal's content (MedData.portal).
+    const portal = window.MedData.portal;
+    return Object.values(diseases).map((d) => ({ id: d.id, name: d.name, icd10: d.icd10, aliases: d.aliases || [], available: !portal || !!d[portal] }))
       .concat(comingSoon.map((d) => Object.assign({ available: false }, d)));
   }
 

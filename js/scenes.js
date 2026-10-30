@@ -248,6 +248,29 @@
     ctx.save(); M.rr(ctx, x, y, w, h, 14); ctx.lineWidth = 4; ctx.strokeStyle = '#3b4a5e'; ctx.stroke(); ctx.restore();
   }
 
+  // Kid running in place. ph: stride phase, amp: stride size (0..1), lean: bend forward (0..1).
+  function runner(ctx, x, ground, ph, amp, lean, mood, s) {
+    const hip = [x, ground - 70], L = 36, col = '#4a6fa5';
+    const ang = lean * 0.9, sh = [hip[0] + Math.sin(ang) * 58, hip[1] - Math.cos(ang) * 58];
+    ctx.save(); ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 9;
+    const limb = (from, a1, a2, len) => {
+      const k = [from[0] + Math.sin(a1) * len, from[1] + Math.cos(a1) * len];
+      const e = [k[0] + Math.sin(a2) * len, k[1] + Math.cos(a2) * len];
+      ctx.beginPath(); ctx.moveTo(from[0], from[1]); ctx.lineTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+    };
+    [0, Math.PI].forEach((o) => {
+      const sw = Math.sin(ph + o) * 0.75 * amp;
+      limb(hip, sw, sw - (0.2 + 0.9 * amp * Math.max(0, -Math.sin(ph + o))), L);
+      limb(sh, -sw * 1.1 + lean * 0.6, -sw * 1.1 + lean * 0.6 + 1.1 * Math.max(amp, lean), 26);
+    });
+    ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(sh[0], sh[1]); ctx.stroke();
+    ctx.restore();
+    const head = [sh[0] + Math.sin(ang) * 26, sh[1] - Math.cos(ang) * 26];
+    M.dot(ctx, head[0], head[1], 22, '#f2c8a8');
+    M.face(ctx, head[0] + 3, head[1] + 1, 20, mood, s, { seed: 6 });
+    return head;
+  }
+
   // Two cards side by side: normal (left) vs. disease (right). o.panel(ctx, p, s, sick, W, H)
   // draws in card-local coordinates and returns that card's health (0..1) for its health bar.
   // o: { title, panel, left, right, bar }
@@ -272,5 +295,5 @@
     };
   }
 
-  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, versus, heartBuddy, kidneyBuddy, brainBuddy, eyeball, viewFrame };
+  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, versus, heartBuddy, kidneyBuddy, brainBuddy, eyeball, viewFrame, runner };
 })();

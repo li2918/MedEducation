@@ -1,6 +1,7 @@
 // Patient portal: search → narrated animation → key points → teach-back quiz.
 (function () {
   const $ = (id) => document.getElementById(id);
+  MedData.portal = 'patient';
 
   const player = new Player($('player'), {
     voice: true,
@@ -54,7 +55,7 @@
     $('d-flags-wrap').hidden = !flags.length;
     $('d-flags').innerHTML = flags.map((k) => `<li>${k}</li>`).join('');
     renderQuiz(d.patient.quiz);
-    player.load({ title: d.name, scenes: d.patient.scenes });
+    player.load({ title: d.name, length: d.patient.length, scenes: d.patient.scenes });
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 

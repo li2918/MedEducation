@@ -51,12 +51,12 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~60 s), simple enough for a 10-year-old. Like the
+  // Patient portal script (~90 s), simple enough for a 10-year-old. Like the
   // diabetes video, every scene puts two cards side by side, normal pressure vs.
   // high pressure. Organs are characters with faces and a health bar, and each
   // card acts out what hard pushing does. Panels draw in card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
-  const { heartBuddy, kidneyBuddy, brainBuddy } = S;
+  const { heartBuddy, kidneyBuddy, brainBuddy, runner } = S;
   const wrapX = (v, w) => ((v % w) + w) % w;
   const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
   const versus = (o) => S.versus(Object.assign({ left: 'Normal pressure', right: 'High pressure' }, o));
@@ -270,29 +270,6 @@
     M.protein(ctx, 26, 276, 10); M.text(ctx, 'Protein (keep!)', 42, 276, { size: 13, weight: 800, align: 'left', color: '#1c3a9e' });
     M.dot(ctx, 26, 306, 5.5, '#7d6248'); M.text(ctx, 'Trash', 42, 306, { size: 13, weight: 800, align: 'left', color: '#7d6248' });
     return 1 - 0.85 * hurt;
-  }
-
-  // Kid running in place. ph: stride phase, amp: stride size (0..1), lean: bend forward (0..1).
-  function runner(ctx, x, ground, ph, amp, lean, mood, s) {
-    const hip = [x, ground - 70], L = 36, col = '#4a6fa5';
-    const ang = lean * 0.9, sh = [hip[0] + Math.sin(ang) * 58, hip[1] - Math.cos(ang) * 58];
-    ctx.save(); ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 9;
-    const limb = (from, a1, a2, len) => {
-      const k = [from[0] + Math.sin(a1) * len, from[1] + Math.cos(a1) * len];
-      const e = [k[0] + Math.sin(a2) * len, k[1] + Math.cos(a2) * len];
-      ctx.beginPath(); ctx.moveTo(from[0], from[1]); ctx.lineTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
-    };
-    [0, Math.PI].forEach((o) => {
-      const sw = Math.sin(ph + o) * 0.75 * amp;
-      limb(hip, sw, sw - (0.2 + 0.9 * amp * Math.max(0, -Math.sin(ph + o))), L);
-      limb(sh, -sw * 1.1 + lean * 0.6, -sw * 1.1 + lean * 0.6 + 1.1 * Math.max(amp, lean), 26);
-    });
-    ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(sh[0], sh[1]); ctx.stroke();
-    ctx.restore();
-    const head = [sh[0] + Math.sin(ang) * 26, sh[1] - Math.cos(ang) * 26];
-    M.dot(ctx, head[0], head[1], 22, '#f2c8a8');
-    M.face(ctx, head[0] + 3, head[1] + 1, 20, mood, s, { seed: 6 });
-    return head;
   }
 
   // Scene 6: a hard-working heart sends less blood to the muscles, so the body runs out of energy.
@@ -679,6 +656,7 @@
     aliases: ['hypertension', 'htn', 'high bp', 'elevated blood pressure', 'essential hypertension', 'primary hypertension', 'blood pressure'],
     patient: {
       tagline: 'Blood pushes too hard on your artery walls, often without any symptoms.',
+      length: 90, // seconds; scenes stretch to a calmer pace
       scenes: patientScenes,
       keyPoints: [
         'Blood pressure is written as two numbers, like 120/80. High blood pressure is 130/80 or higher.',

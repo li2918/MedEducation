@@ -1,6 +1,7 @@
 // Clinician portal: body map with staging, organ pathophysiology, and drug mechanisms.
 (function () {
   const $ = (id) => document.getElementById(id);
+  MedData.portal = 'clinician';
 
   const SEV_COLOR = ['', '#ffd8a8', '#ff9f6e', '#e0524a'];
   const SEV_LABEL = ['Not typically affected', 'Mild', 'Moderate', 'Severe'];

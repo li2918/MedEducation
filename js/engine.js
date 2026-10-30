@@ -1,5 +1,6 @@
 // Timeline player: turns a scene script into a scrubbable, narrated canvas animation.
-// Script shape: { title, scenes: [{ label, caption, dur?, draw(ctx, p, s) }] }
+// Script shape: { title, length?, scenes: [{ label, caption, dur?, draw(ctx, p, s) }] }
+//   length: optional target running time in seconds; scenes stretch evenly to reach it.
 //   p = 0..1 progress through the scene, s = seconds since the scene started.
 (function () {
   const W = 960, H = 540;
@@ -134,7 +135,9 @@
     this.pause();
     this.script = script;
     let start = 0;
-    this.scenes = script.scenes.map((sc) => { const dur = sceneLength(sc); const o = Object.assign({}, sc, { start, dur }); start += dur; return o; });
+    const base = script.scenes.map(sceneLength), sum = base.reduce((a, b) => a + b, 0);
+    const stretch = script.length > sum ? script.length / sum : 1;
+    this.scenes = script.scenes.map((sc, i) => { const dur = base[i] * stretch; const o = Object.assign({}, sc, { start, dur }); start += dur; return o; });
     this.total = start;
     this.t = 0;
     this.cur = -1;

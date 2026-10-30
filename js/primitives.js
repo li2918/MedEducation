@@ -159,6 +159,34 @@
     ctx.restore();
   }
 
+  // Cholesterol: a wobbly, glossy yellow blob of "sticky fat"; t makes it jiggle.
+  function cholesterol(ctx, x, y, r = 10, alpha = 1, t = 0) {
+    ctx.save(); ctx.globalAlpha *= clamp(alpha);
+    ctx.beginPath();
+    for (let k = 0; k <= 16; k++) {
+      const a = k / 16 * TAU, rr2 = r * (1 + 0.13 * Math.sin(a * 3 + t * 4 + x * 0.05));
+      const px = x + Math.cos(a) * rr2, py = y + Math.sin(a) * rr2 * 0.9;
+      k ? ctx.lineTo(px, py) : ctx.moveTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = '#ffd43b'; ctx.fill();
+    ctx.lineWidth = Math.max(2, r * 0.2); ctx.strokeStyle = '#e09400'; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(x - r * 0.35, y - r * 0.32, r * 0.28, r * 0.17, -0.5, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.75)'; ctx.fill();
+    ctx.restore();
+  }
+
+  // "Good cholesterol" garbage truck that hauls cholesterol blobs to the liver. load: 0..1.
+  function truck(ctx, x, y, s = 1, load = 0, t = 0, alpha = 1) {
+    ctx.save(); ctx.globalAlpha *= clamp(alpha);
+    ctx.translate(x, y + Math.sin(t * 12) * 0.8 * s); ctx.scale(s, s);
+    rr(ctx, -26, -20, 34, 24, 4); ctx.fillStyle = '#2fb380'; ctx.fill();
+    rr(ctx, 8, -14, 18, 18, 5); ctx.fillStyle = '#239a6c'; ctx.fill();
+    rr(ctx, 14, -11, 9, 7, 2); ctx.fillStyle = '#d9f3ff'; ctx.fill();
+    [-16, 16].forEach((wx) => { dot(ctx, wx, 5, 6, '#2b3445'); dot(ctx, wx, 5, 2.5, '#c9d3e2'); });
+    ctx.restore();
+    if (load > 0) cholesterol(ctx, x - 9 * s, y - 24 * s, 9 * s * load, alpha, t);
+  }
+
   // ---- Cartoon helpers (patient videos) ------------------------------------
   // Face for an organ character. mood: 1 happy … 0 sick; t drives blinking.
   function face(ctx, x, y, s, mood = 1, t = 0, o = {}) {
@@ -700,7 +728,7 @@
 
   window.M = {
     C, FONT, TAU, clamp, lerp, ease, seg, back, rnd, mix, rr, text, wrap, pill, card, arrow, cross, emoji,
-    glucose, protein, face, heartShape, healthBar, say, dot, rbc, salt, drop, drug, capsule, key, lock, cell, vessel, pressureArrows,
+    glucose, protein, cholesterol, truck, face, heartShape, healthBar, say, dot, rbc, salt, drop, drug, capsule, key, lock, cell, vessel, pressureArrows,
     heart, heartSection, kidney, liver, pancreas, brain, stomach, lungs, fundus, glomerulus, neuron,
     person, hotspot, gauge, bpMonitor, node,
   };

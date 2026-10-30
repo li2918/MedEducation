@@ -19,7 +19,7 @@ Narration uses the browser's built-in text-to-speech (Web Speech API). On Window
 |---|---|---|
 | Animation | One ~60 s, 7-chapter story per condition | 1–3 scenes per organ and per drug class |
 | Extras | Key points, questions for your doctor, 3-question teach-back quiz | Body map with stage slider, findings by stage, PD/PK/AE/contraindications/monitoring, references |
-| Conditions | Type 2 diabetes, hypertension | Same (8 organs + 4 drug classes for T2D; 5 organs + 3 drug classes for HTN) |
+| Conditions | Type 2 diabetes, hypertension, high cholesterol | T2D (8 organs + 4 drug classes), HTN (5 organs + 3 drug classes); high cholesterol coming soon |
 
 Search handles lay terms, abbreviations, ICD-10 codes, and typos (`diabetis`, `HTN`, `E11`, `high bp`). Roadmap conditions show up as "coming soon" with a request button.
 
@@ -42,7 +42,7 @@ A scene is `{ label, caption, draw(ctx, p, s) }`. `p` is progress (0–1) throug
 
 ### Adding a condition
 
-1. Create `js/diseases/<name>.js` and call `MedData.register({ id, name, icd10, aliases, patient, clinician })`. Use `diabetes.js` as the template.
+1. Create `js/diseases/<name>.js` and call `MedData.register({ id, name, icd10, aliases, patient, clinician })`. Use `diabetes.js` as the template. A condition with only `patient` (or only `clinician`) content shows as coming soon in the other portal.
 2. Add a `<script>` tag for it to `patient.html` and `clinician.html`.
 3. Remove it from the `comingSoon` list in `js/registry.js`.
 
