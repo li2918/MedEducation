@@ -331,7 +331,7 @@
     if (ra > 0) {
       M.card(ctx, 590, 150, 320, 290, { alpha: ra, border: '#c8d6ee', r: 18 });
       M.text(ctx, 'Lipid panel', 750, 180, { size: 19, weight: 800, alpha: ra });
-      [['Total', 0.7, C.amber, 'High'], ['LDL', 0.8, C.red, 'High'], ['HDL', 0.55, C.green, 'OK'], ['TG', 0.5, C.green, 'OK']].forEach(([name, v, col, word], i) => {
+      [['Total', 0.82, C.red, 'High'], ['LDL', 0.86, C.red, 'High'], ['HDL', 0.24, C.red, 'Low'], ['TG', 0.8, C.red, 'High']].forEach(([name, v, col, word], i) => {
         const y = 226 + i * 46, f = ease(seg(s, TL.rows[i], TL.rows[i] + 0.8));
         M.text(ctx, name, 612, y, { size: 17, weight: 800, align: 'left', alpha: ra });
         ctx.save(); ctx.globalAlpha *= ra;
