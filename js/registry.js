@@ -4,7 +4,6 @@
 
   // Conditions on the roadmap: searchable, but no animation yet.
   const comingSoon = [
-    { id: 'asthma', name: 'Asthma', icd10: 'J45', aliases: ['reactive airway disease'] },
     { id: 'hf', name: 'Heart failure', icd10: 'I50', aliases: ['congestive heart failure', 'chf', 'hfref', 'hfpef'] },
     { id: 'afib', name: 'Atrial fibrillation', icd10: 'I48', aliases: ['afib', 'a fib', 'af', 'irregular heartbeat'] },
     { id: 'cad', name: 'Coronary artery disease', icd10: 'I25', aliases: ['cad', 'heart disease', 'blocked arteries', 'angina'] },

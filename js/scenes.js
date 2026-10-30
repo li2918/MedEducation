@@ -273,7 +273,7 @@
 
   // Two cards side by side: normal (left) vs. disease (right). o.panel(ctx, p, s, sick, W, H)
   // draws in card-local coordinates and returns that card's health (0..1) for its health bar.
-  // o: { title, panel, left, right, bar }
+  // o: { title, panel, left, right, bar, levels: [good, middle, poor] health-bar words }
   const VS = { W: 440, H: 420, y: 100, xs: [20, 500] };
   function versus(o) {
     return (ctx, p, s) => {
@@ -287,7 +287,8 @@
         ctx.save(); M.rr(ctx, 0, 0, VS.W, VS.H, 26); ctx.clip();
         const hp = o.panel(ctx, p, s, sick, VS.W, VS.H);
         ctx.restore();
-        if (hp != null) M.healthBar(ctx, 30, VS.H - 28, VS.W - 60, hp, { label: o.bar || 'Health', right: hp > 0.66 ? 'Strong' : hp > 0.36 ? 'Some damage' : 'Damaged' });
+        const lv = o.levels || ['Strong', 'Some damage', 'Damaged'];
+        if (hp != null) M.healthBar(ctx, 30, VS.H - 28, VS.W - 60, hp, { label: o.bar || 'Health', right: hp > 0.66 ? lv[0] : hp > 0.36 ? lv[1] : lv[2] });
         M.pill(ctx, sick ? '⚠  ' + (o.right || 'Too much sugar') : '✓  ' + (o.left || 'Normal sugar'), VS.W / 2, 0,
           { bg: sick ? '#fdecea' : '#e9f7ef', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', size: 18 });
         ctx.restore();
