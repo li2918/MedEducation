@@ -175,16 +175,19 @@
     ctx.restore();
   }
 
-  // "Good cholesterol" garbage truck that hauls cholesterol blobs to the liver. load: 0..1.
-  function truck(ctx, x, y, s = 1, load = 0, t = 0, alpha = 1) {
+  // Little truck standing in for a cholesterol carrier particle (LDL or HDL). load: 0..1 shows a
+  // cholesterol blob in the cargo box. o: { color, dir (1 drives right, -1 left), label }.
+  function truck(ctx, x, y, s = 1, load = 0, t = 0, alpha = 1, o = {}) {
+    const col = o.color || '#2fb380', dir = o.dir || 1;
     ctx.save(); ctx.globalAlpha *= clamp(alpha);
-    ctx.translate(x, y + Math.sin(t * 12) * 0.8 * s); ctx.scale(s, s);
-    rr(ctx, -26, -20, 34, 24, 4); ctx.fillStyle = '#2fb380'; ctx.fill();
-    rr(ctx, 8, -14, 18, 18, 5); ctx.fillStyle = '#239a6c'; ctx.fill();
+    ctx.translate(x, y + Math.sin(t * 12) * 0.8 * s); ctx.scale(s * dir, s);
+    rr(ctx, -26, -20, 34, 24, 4); ctx.fillStyle = col; ctx.fill();
+    rr(ctx, 8, -14, 18, 18, 5); ctx.fillStyle = mix(col, '#000000', 0.18); ctx.fill();
     rr(ctx, 14, -11, 9, 7, 2); ctx.fillStyle = '#d9f3ff'; ctx.fill();
     [-16, 16].forEach((wx) => { dot(ctx, wx, 5, 6, '#2b3445'); dot(ctx, wx, 5, 2.5, '#c9d3e2'); });
     ctx.restore();
-    if (load > 0) cholesterol(ctx, x - 9 * s, y - 24 * s, 9 * s * load, alpha, t);
+    if (o.label) text(ctx, o.label, x - 9 * s * dir, y - 8 * s, { size: Math.max(9, 10 * s), weight: 800, color: '#fff', alpha });
+    if (load > 0) cholesterol(ctx, x - 9 * s * dir, y - 24 * s, 9 * s * load, alpha, t);
   }
 
   // ---- Cartoon helpers (patient videos) ------------------------------------

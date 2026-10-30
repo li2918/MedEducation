@@ -5,350 +5,331 @@
   const { heartBuddy, brainBuddy, runner } = S;
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~90 s), simple enough for a 10-year-old. Every scene
-  // puts two cards side by side, healthy vs. high cholesterol. Cholesterol is a
-  // sticky yellow blob; "good cholesterol" is a green garbage truck that hauls
-  // blobs to the liver. Panels draw in card-local coordinates (440x420).
+  // Patient portal: two videos, simple enough for a 10-year-old. Part 1 explains what
+  // cholesterol is and why levels rise; Part 2 explains plaque, heart attack and stroke
+  // risk, and how to lower that risk. Cholesterol is a yellow blob. LDL and HDL are not
+  // kinds of cholesterol but carrier particles, shown as trucks: orange LDL delivers
+  // cholesterol to the body, green HDL brings extra back to the liver.
+  // Animation cues use s (seconds since the narration started), matched to when the
+  // narrator says each word, so picture and voice stay together however long a scene is.
+  // Comparison panels draw in card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
   const wrapX = (v, w) => ((v % w) + w) % w;
-  const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
-  const versus = (o) => S.versus(Object.assign({ left: 'Healthy', right: 'High cholesterol' }, o));
+  const LDL = { color: '#f08c00', label: 'LDL' };
+  const HDL = { color: '#2fb380', label: 'HDL' };
 
-  // Distance covered at a speed f(p) that changes over the scene: dur * ∫0^p f. Never runs backwards.
-  function travelled(p, s, f) {
-    const dur = p > 0 ? s / p : 0;
+  // Distance covered by time s at a speed f(seconds) that changes over time. Never runs backwards.
+  function travelled(s, f) {
     let sum = 0;
-    for (let i = 0; i < 24; i++) sum += f((i + 0.5) / 24 * p) / 24;
-    return sum * p * dur;
+    for (let i = 0; i < 24; i++) sum += f((i + 0.5) / 24 * s);
+    return (sum / 24) * s;
   }
 
   function legend(ctx) {
     M.cholesterol(ctx, 34, 36, 10);
-    M.text(ctx, '= bad cholesterol', 52, 36, { size: 14, align: 'left', color: C.muted, weight: 700 });
+    M.text(ctx, '= cholesterol', 52, 36, { size: 14, align: 'left', color: C.muted, weight: 700 });
   }
 
-  function alongPath(pts, f) {
-    const lens = pts.slice(1).map((q, i) => Math.hypot(q[0] - pts[i][0], q[1] - pts[i][1]));
-    let d = Math.min(1, Math.max(0, f)) * lens.reduce((a, b) => a + b, 0);
-    for (let i = 0; i < lens.length; i++) {
-      if (d <= lens[i]) { const t = d / lens[i]; return [lerp(pts[i][0], pts[i + 1][0], t), lerp(pts[i][1], pts[i + 1][1], t)]; }
-      d -= lens[i];
-    }
-    return pts[pts.length - 1];
-  }
-
-  function strokePath(ctx, pts, w, col) {
-    ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
-    ctx.restore();
-  }
-
-  function liverBuddy(ctx, x, y, sc, mood, s, fat) {
+  function liverBuddy(ctx, x, y, sc, mood, s) {
     const b = Math.sin(s * 1.6) * 3;
-    M.liver(ctx, x, y + b, sc, { color: M.mix('#a4523f', '#d4a05a', fat * 0.8), fat });
+    M.liver(ctx, x, y + b, sc);
     M.face(ctx, x - sc * 0.35, y - sc * 0.12 + b, sc * 0.3, mood, s, { seed: 4 });
   }
 
-  // Scene 2: greasy food puts lots of cholesterol into the blood; healthy food only a little.
-  const HEALTHY = ['broccoli', 'apple', 'fish', 'carrot'], GREASY = ['burger', 'fries', 'donut', 'pizza'];
-  function foodPanel(ctx, p, s, sick, W) {
-    legend(ctx);
-    const k = hurtOf(p, sick, 0.3, 0.8), foods = sick ? GREASY : HEALTHY;
-    ctx.save();
-    ctx.beginPath(); ctx.ellipse(120, 122, 92, 40, 0, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.strokeStyle = '#c9d3e2'; ctx.lineWidth = 3; ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(120, 122, 64, 26, 0, 0, M.TAU); ctx.strokeStyle = '#e3e9f2'; ctx.lineWidth = 2; ctx.stroke();
+  function riskBar(ctx, x, y, w, v, alpha) {
+    M.text(ctx, 'Risk', x, y, { size: 13, weight: 800, color: C.muted, align: 'left', alpha });
+    ctx.save(); ctx.globalAlpha *= alpha;
+    M.rr(ctx, x + 40, y - 7, w - 40, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    M.rr(ctx, x + 40, y - 7, (w - 40) * v, 14, 7); ctx.fillStyle = M.mix('#f2b705', '#e5484d', v); ctx.fill();
     ctx.restore();
-    foods.forEach((k, i) => { const a = M.back(seg(p, 0.06 + i * 0.05, 0.14 + i * 0.05)); if (a > 0) M.food(ctx, k, 58 + i * 42, 112 + (i % 2) * 6 + Math.sin(s * 2.4 + i) * 2, 46 * a, s); });
-    M.text(ctx, 'Cholesterol meter', 332, 84, { size: 14, weight: 800, color: C.muted });
-    M.gauge(ctx, 245, 124, 175, sick ? lerp(0.3, 0.92, k) : 0.3);
-    const high = sick && k > 0.5;
-    M.text(ctx, high ? 'Too high!' : 'OK', 332, 154, { size: 17, weight: 800, color: high ? C.red : C.green });
-    // food goes down into the blood
-    const vy = 220, vh = 96, nf = sick ? 4 : 2;
-    if (p > 0.28) for (let j = 0; j < nf; j++) {
-      const q = (s * 0.5 + j / nf) % 1;
-      M.food(ctx, foods[j % 4], 120, lerp(160, vy + 24, q), lerp(28, 10, q), s, (1 - q) * seg(p, 0.28, 0.34));
-    }
-    M.vessel(ctx, -10, vy, W + 20, vh, { t: s, wall: 14, items: [{ kind: 'rbc', n: 8, speed: 70, r: 9 }] });
-    M.text(ctx, 'Blood pipe', W - 70, vy - 14, { size: 14, weight: 800, color: C.muted });
-    const n = sick ? Math.round(lerp(3, 16, k)) : 3;
-    for (let i = 0; i < n; i++) {
-      const x = 20 + wrapX(rnd(i) * (W - 40) + s * 45, W - 40), y = vy + vh / 2 + (rnd(i + 5) - 0.5) * 44 + Math.sin(s * 2 + i) * 4;
-      M.cholesterol(ctx, x, y, 11, 1, s + i);
-    }
-    M.pill(ctx, sick ? 'Way too much!' : 'A little cholesterol is OK', W / 2, 345,
-      { size: 15, bg: '#fff', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', alpha: seg(p, 0.5, 0.56) });
-    return sick ? 1 - 0.75 * k : 1;
   }
 
-  // Scene 4: blobs stick to the pipe wall and pile up into a lump; the pipe gets narrow and hard.
-  function pipePanel(ctx, p, s, sick, W) {
-    legend(ctx);
-    const grow = hurtOf(p, sick, 0.12, 0.6), hard = hurtOf(p, sick, 0.6, 0.85);
-    const vy = 70, vh = 180, wall = 18, lh = (vh - 2 * wall) / 2, px = W * 0.55, pw = (W + 20) * 0.14, ph = lh * grow * 0.75;
-    const t = travelled(p, s, (q) => 1 - 0.7 * hurtOf(q, sick, 0.12, 0.6));
-    M.vessel(ctx, -10, vy, W + 20, vh, {
-      t, wall, wallColor: M.mix('#f2b8ae', '#d6b48a', hard), plaque: grow * 0.75, plaqueX: (px + 10) / (W + 20),
-      items: [{ kind: 'rbc', n: 12, speed: 90, r: 11 }],
+  // ---- Part 1: what high cholesterol is ---------------------------------------
+
+  // 1. The body needs cholesterol to build cells; the liver makes it; LDL and HDL carry it.
+  function whatIsIt(ctx, p, s) {
+    M.text(ctx, 'What is cholesterol?', 480, 58, { size: 30, weight: 800 });
+    // body cells, with cholesterol "bricks" joining their walls
+    [[650, 190, 48], [752, 168, 42], [742, 262, 40]].forEach(([x, y, r], i) => {
+      M.cell(ctx, x, y, r, { nucleus: false });
+      M.face(ctx, x + 4, y + 3, r * 0.6, 1, s, { seed: i + 3 });
+      const n = Math.floor(lerp(0, 8, seg(s, 0.5 + i * 0.4, 3 + i * 0.4)));
+      for (let j = 0; j < n; j++) { const a = j / 8 * M.TAU + i; M.cholesterol(ctx, x + Math.cos(a) * r, y + Math.sin(a) * r, 7, 1, s + j); }
     });
+    M.text(ctx, 'Builds healthy cells', 700, 330, { size: 18, weight: 800, color: C.muted, alpha: seg(s, 0.5, 1.2) });
+    // the liver makes it
+    const la = ease(seg(s, 3.4, 4));
+    if (la > 0) {
+      ctx.save(); ctx.globalAlpha *= la; liverBuddy(ctx, 240, 196, 110, 1, s); ctx.restore();
+      for (let j = 0; j < 4; j++) {
+        const q = wrapX(s * 0.5 + j / 4, 1);
+        M.cholesterol(ctx, 300 + q * 110, 170 - Math.sin(q * Math.PI) * 50, 8, la * (1 - seg(q, 0.8, 1)), s + j);
+      }
+      M.text(ctx, 'Your liver makes it', 230, 300, { size: 18, weight: 800, color: C.muted, alpha: la });
+    }
+    // LDL and HDL carry it through the blood
+    const va = ease(seg(s, 6, 6.6));
+    if (va > 0) {
+      M.vessel(ctx, 60, 372, 840, 92, { t: s, wall: 12, items: [{ kind: 'rbc', n: 10, speed: 60, r: 7 }], alpha: va });
+      for (let j = 0; j < 2; j++) {
+        M.truck(ctx, 60 + wrapX(j * 420 + s * 70, 840), 404, 0.7, 1, s, va * seg(s, 6.4, 6.8), LDL);
+        M.truck(ctx, 900 - wrapX(j * 420 + 200 + s * 60, 840), 440, 0.7, 1, s, va * seg(s, 7.4, 7.8), Object.assign({ dir: -1 }, HDL));
+      }
+      M.pill(ctx, 'Carriers called LDL and HDL', 480, 346, { size: 17, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 6.4, 7) });
+    }
+  }
+
+  // 2. LDL delivers cholesterol to the body; too much LDL builds up inside artery walls;
+  //    HDL carries extra back to the liver.
+  function carriersPanel(ctx, p, s, sick, W) {
+    const k = sick ? ease(seg(s, 5, 9)) : 0;
+    M.liver(ctx, 62, 66, 44);
+    M.text(ctx, 'Liver', 62, 104, { size: 13, weight: 800, color: '#a4523f' });
+    M.cell(ctx, 372, 62, 22, { nucleus: false }); M.cell(ctx, 408, 88, 16, { nucleus: false });
+    M.text(ctx, 'Body', 386, 116, { size: 13, weight: 800, color: C.muted });
+    M.vessel(ctx, -10, 135, W + 20, 140, { t: s, wall: 22, wallColor: M.mix('#f2b8ae', '#efc48a', k * 0.6), items: [{ kind: 'rbc', n: 6, speed: 60, r: 7 }] });
+    // buildup inside the wall
+    for (let j = 0; j < Math.floor(k * 12); j++) {
+      const top = j % 2 === 0, x = 30 + rnd(j + 40) * (W - 60);
+      M.cholesterol(ctx, x, top ? 146 : 264, 7, 1, s + j);
+    }
+    if (sick) for (let j = 0; j < 3; j++) {
+      const q = wrapX(s * 0.35 + j / 3, 1), on = seg(s, 5, 5.5);
+      M.cholesterol(ctx, 90 + j * 130, lerp(176, 148, ease(q)), 7, on * (1 - seg(q, 0.85, 1)), s + j);
+    }
+    for (let j = 0; j < (sick ? 5 : 2); j++) M.truck(ctx, wrapX(rnd(j) * W + s * 55, W + 80) - 40, 182, 0.7, 1, s, 1, LDL);
+    for (let j = 0; j < 2; j++) M.truck(ctx, W + 40 - wrapX(rnd(j + 9) * W + s * 45, W + 80), 236, 0.7, 1, s, 1, Object.assign({ dir: -1 }, HDL));
+    const phases = sick
+      ? [[0, 'LDL delivers cholesterol', '#b86a00'], [5, 'Too much LDL builds up in the wall'], [8, 'HDL brings some back to the liver', C.green]]
+      : [[0, 'LDL delivers cholesterol', '#b86a00'], [8, 'HDL brings extra back to the liver', C.green]];
+    S.phasePill(ctx, W / 2, 302, s, phases);
+    M.truck(ctx, 50, 346, 0.55, 0, s, 1, LDL); M.text(ctx, 'delivers', 72, 344, { size: 13, weight: 800, color: '#b86a00', align: 'left' });
+    M.truck(ctx, 250, 346, 0.55, 0, s, 1, Object.assign({ dir: -1 }, HDL)); M.text(ctx, 'brings extra back', 272, 344, { size: 13, weight: 800, color: '#1d7a4c', align: 'left' });
+    return 1 - 0.6 * k;
+  }
+
+  // 3. Why LDL can get high: genes, food, and how the body handles cholesterol.
+  function whyHigh(ctx, p, s) {
+    M.text(ctx, 'Why can LDL get high?', 480, 70, { size: 30, weight: 800 });
+    const cards = [['Your genes (family)', 0.3], ['The foods you eat', 2], ['How your body handles cholesterol', 3.5]];
+    cards.forEach(([label, at], i) => {
+      const a = ease(seg(s, at, at + 0.6)), x = 105 + i * 255, cx = x + 115;
+      if (a <= 0) return;
+      M.card(ctx, x, 120 + (1 - a) * 20, 230, 270, { alpha: a, r: 22 });
+      ctx.save(); ctx.globalAlpha *= a;
+      if (i === 0) {
+        ctx.lineWidth = 5; ctx.lineCap = 'round';
+        for (let y = 160; y <= 290; y += 13) {
+          const ph = y * 0.05 + s * 2, x1 = cx + Math.sin(ph) * 32, x2 = cx - Math.sin(ph) * 32;
+          ctx.strokeStyle = '#c8d6ee'; ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+          M.dot(ctx, x1, y, 5, '#5b8def'); M.dot(ctx, x2, y, 5, '#e07aa0');
+        }
+      }
+      if (i === 1) { M.food(ctx, 'burger', cx - 42, 214, 70, s); M.food(ctx, 'broccoli', cx + 46, 222, 62, s); }
+      if (i === 2) {
+        liverBuddy(ctx, cx + 4, 222, 80, 1, s);
+        M.arrow(ctx, cx - 90, 272, cx - 50, 250, { color: '#9fb0c6', width: 3 });
+        M.arrow(ctx, cx + 50, 250, cx + 90, 272, { color: '#9fb0c6', width: 3 });
+      }
+      ctx.restore();
+      M.wrap(ctx, label, cx, 334, 200, { size: 17, weight: 800, alpha: a });
+    });
+    M.pill(ctx, "It's not just about eating greasy food.", 480, 448, { size: 19, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, 6.8, 7.4) });
+  }
+
+  // 4. You can't feel it, so doctors check it with a blood test (lipid panel).
+  function checkIt(ctx, p, s) {
+    M.text(ctx, 'Get it checked', 480, 62, { size: 30, weight: 800 });
+    const ground = 430;
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, ground, 340, 12);
+    runner(ctx, 230, ground, s * 5, 0.45, 0.05, 1, s);
+    M.pill(ctx, '"I feel fine!"', 230, 150, { size: 18, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.5, 1.1) });
+    const ta = ease(seg(s, 3.4, 4));
+    if (ta > 0) {
+      ctx.save(); ctx.globalAlpha *= ta;
+      M.rr(ctx, 500, 196, 40, 136, 20); ctx.fillStyle = 'rgba(225,236,250,0.9)'; ctx.fill();
+      ctx.save(); M.rr(ctx, 500, 196, 40, 136, 20); ctx.clip(); ctx.fillStyle = '#c62828'; ctx.fillRect(500, 262, 40, 80); ctx.restore();
+      M.rr(ctx, 500, 196, 40, 136, 20); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 3; ctx.stroke();
+      M.rr(ctx, 494, 182, 52, 22, 6); ctx.fillStyle = '#5b8def'; ctx.fill();
+      ctx.restore();
+      M.text(ctx, 'Blood test', 520, 360, { size: 16, weight: 800, color: C.muted, alpha: ta });
+    }
+    const ra = ease(seg(s, 5.2, 5.8));
+    if (ra > 0) {
+      M.card(ctx, 600, 168, 270, 214, { alpha: ra, border: '#c8d6ee', r: 18 });
+      M.text(ctx, 'Lipid panel', 735, 198, { size: 18, weight: 800, alpha: ra });
+      [['LDL', 0.8, C.red, 'High'], ['HDL', 0.55, C.green, 'OK']].forEach(([name, v, col, word], i) => {
+        const y = 250 + i * 54, f = ease(seg(s, 5.6 + i * 0.5, 6.6 + i * 0.5));
+        M.text(ctx, name, 626, y, { size: 16, weight: 800, align: 'left', alpha: ra });
+        ctx.save(); ctx.globalAlpha *= ra;
+        M.rr(ctx, 676, y - 8, 120, 16, 8); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+        if (f > 0.02) { M.rr(ctx, 676, y - 8, 120 * v * f, 16, 8); ctx.fillStyle = col; ctx.fill(); }
+        ctx.restore();
+        M.text(ctx, word, 846, y, { size: 15, weight: 800, color: col, alpha: ra * seg(f, 0.8, 1) });
+      });
+      M.text(ctx, 'Example results', 735, 360, { size: 12, color: C.muted, alpha: ra });
+    }
+  }
+
+  // ---- Part 2: how cholesterol affects your body ------------------------------
+
+  // 1. Extra LDL slips into the artery wall and builds up over years into plaque.
+  function plaquePanel(ctx, p, s, sick, W) {
+    legend(ctx);
+    const grow = sick ? ease(seg(s, 3, 8.5)) : 0;
+    const vy = 70, vh = 180, wall = 18, lh = (vh - 2 * wall) / 2, px = W * 0.55, pw = (W + 20) * 0.14, ph = lh * grow * 0.75;
+    const t = travelled(s, (q) => (sick ? 1 - 0.6 * ease(seg(q, 3, 8.5)) : 1));
+    M.vessel(ctx, -10, vy, W + 20, vh, { t, wall, plaque: grow * 0.75, plaqueX: (px + 10) / (W + 20), items: [{ kind: 'rbc', n: 12, speed: 90, r: 11 }] });
     const lumpAt = (x) => { const d = (x - px) / pw; return Math.abs(d) < 1 ? ph * Math.sqrt(1 - d * d) : 0; };
-    // blobs floating by, squeezing through the gap
-    for (let i = 0; i < (sick ? Math.round(lerp(4, 8, grow)) : 3); i++) {
+    for (let i = 0; i < (sick ? 7 : 3); i++) {
       const x = wrapX(rnd(i + 20) * W + t * 50, W + 40) - 20, half = lh - 13 - lumpAt(x);
       M.cholesterol(ctx, x, vy + vh / 2 + (rnd(i + 21) - 0.5) * 1.6 * Math.max(0, half), 10, 1, s + i);
     }
-    // blobs flying onto the wall and sticking
+    // LDL cholesterol slipping into the wall where the plaque grows
     for (let i = 0; i < (sick ? 12 : 0); i++) {
-      const a = ease(seg(p, 0.1 + i * 0.04, 0.18 + i * 0.04));
+      const a = ease(seg(s, 2.8 + i * 0.35, 3.6 + i * 0.35));
       if (a <= 0) continue;
-      const top = i % 2 === 0, tx = px + (rnd(i + 50) - 0.5) * 1.5 * pw, surf = lumpAt(tx);
-      const ty = top ? vy + wall + surf * 0.55 : vy + vh - wall - surf * 0.55;
-      M.cholesterol(ctx, lerp(tx - 160, tx, a), lerp(vy + vh / 2 + (rnd(i + 51) - 0.5) * 60, ty, a), 10, 1, s + i);
+      const top = i % 2 === 0, tx = px + (rnd(i + 50) - 0.5) * 1.5 * pw, surf = lumpAt(tx) * 0.55;
+      M.cholesterol(ctx, lerp(tx - 150, tx, a), lerp(vy + vh / 2 + (rnd(i + 51) - 0.5) * 60, top ? vy + wall + surf : vy + vh - wall - surf, a), 10, 1, s + i);
     }
-    // a red blood cell zooms by, or gets stuck at the lump
-    const stuck = sick ? ease(seg(p, 0.4, 0.5)) : 0;
+    if (sick && grow > 0.6) M.pill(ctx, 'Plaque', px, vy + wall + ph + 2, { size: 14, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, 7.8, 8.4) });
+    const stuck = sick ? ease(seg(s, 6, 7)) : 0;
     const cx = lerp(wrapX(s * 80, W + 80) - 40, px - pw - 26 + Math.sin(s * 20) * 2 * stuck, stuck), cy = vy + vh / 2;
-    M.rbc(ctx, cx, cy, 24); M.face(ctx, cx, cy + 1, 18, sick ? 1 - 0.8 * stuck : 1, s, { seed: 7 });
-    M.say(ctx, sick && p > 0.45 ? 'Let me through!' : 'Zoom!', 110, vy + vh + 14, seg(p, 0.12, 0.18), sick ? C.red : '#1d7a4c');
-    if (sick) S.phasePill(ctx, W / 2, 338, p, [[0.1, 'Sticky blobs stick to the wall'], [0.35, 'A lump grows'], [0.6, 'The pipe gets narrow and hard']]);
-    else S.phasePill(ctx, W / 2, 338, p, [[0.1, 'Smooth, open pipe', C.green]]);
-    return sick ? 1 - 0.85 * hurtOf(p, sick, 0.12, 0.85) : 1;
+    M.rbc(ctx, cx, cy, 24); M.face(ctx, cx, cy + 1, 18, sick ? 1 - 0.7 * stuck : 1, s, { seed: 7 });
+    M.say(ctx, sick && s > 6.5 ? 'Let me through!' : 'Zoom!', 110, vy + vh + 14, seg(s, 1, 1.5), sick ? C.red : '#1d7a4c');
+    if (sick) S.phasePill(ctx, W / 2, 338, s, [[1, 'Too much LDL in the blood'], [2.8, 'Some slips into the artery wall'], [5, 'It builds up over many years'], [7.8, 'This buildup is called plaque']]);
+    else S.phasePill(ctx, W / 2, 338, s, [[1, 'Smooth, open artery', C.green]]);
+    return 1 - 0.7 * grow;
   }
 
-  // Scene 5: a piece of a lump breaks off, travels to a small brain pipe, and blocks it (stroke).
-  const BRAIN_PATH = [[-10, 290], [150, 290], [220, 216], [285, 128]];
-  function brainPanel(ctx, p, s, sick, W) {
-    const grow = hurtOf(p, sick, 0.1, 0.4), go = sick ? ease(seg(p, 0.42, 0.6)) : 0, blocked = sick && p >= 0.6;
-    const dead = hurtOf(p, sick, 0.6, 0.85), f0 = 0.28, fb = 0.84;
-    strokePath(ctx, BRAIN_PATH.slice(0, 2), 50, '#f2b8ae'); strokePath(ctx, BRAIN_PATH.slice(1), 30, '#f2b8ae');
-    strokePath(ctx, BRAIN_PATH.slice(0, 2), 32, '#ffe9e4'); strokePath(ctx, BRAIN_PATH.slice(1), 16, '#ffe9e4');
-    // blood cells flowing up into the brain; they pile up behind the block
-    for (let i = 0; i < 9; i++) {
-      let f = wrapX(s * 0.22 + i / 9, 1);
-      if (blocked) { if (f > fb) continue; f = Math.min(f, fb - 0.03 - 0.025 * (i % 3)); }
-      const [x, y] = alongPath(BRAIN_PATH, f);
-      M.rbc(ctx, x, y, f > 0.42 ? 6 : 8);
-    }
-    // the lump on the trunk wall
-    const lump = grow * (1 - 0.35 * go);
-    if (lump > 0) {
-      ctx.save(); ctx.beginPath(); ctx.ellipse(100, 306, 36, 26 * lump, 0, Math.PI, M.TAU); ctx.fillStyle = '#f3d27a'; ctx.fill(); ctx.restore();
-      [-16, 4, 22].forEach((dx, i) => M.cholesterol(ctx, 100 + dx, 302 - 12 * lump, 8 * lump, 1, s + i));
-    }
-    // the broken-off piece rides the blood until the pipe is too narrow
-    if (go > 0) {
-      const [x, y] = alongPath(BRAIN_PATH, lerp(f0, fb, go));
-      if (blocked) M.dot(ctx, x, y, 12, '#8f1d1d');
-      M.cholesterol(ctx, x, y, 10, 1, s);
-    }
-    brainBuddy(ctx, 330, 100, 66, sick ? 1 - 0.95 * dead : 1, s, { dizzy: dead > 0.6 });
-    if (dead > 0) {
-      const gr = ctx.createRadialGradient(366, 82, 2, 366, 82, 30 * dead);
-      gr.addColorStop(0, 'rgba(95,95,110,0.85)'); gr.addColorStop(1, 'rgba(95,95,110,0)');
-      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(366, 82, 30 * dead, 0, M.TAU); ctx.fill();
-    }
-    M.say(ctx, !sick || p < 0.62 ? 'I can think\nand move!' : "Can't talk...\ncan't move!", 350, 178, seg(p, 0.08, 0.14), sick && p >= 0.62 ? C.red : '#1d7a4c');
-    if (sick) M.pill(ctx, 'Stroke!', 110, 70, { size: 20, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.7, 0.76) });
-    if (sick) S.phasePill(ctx, W / 2, 342, p, [[0.1, 'A sticky lump grows'], [0.42, 'A piece breaks off!'], [0.6, 'It blocks a brain pipe']]);
-    else S.phasePill(ctx, W / 2, 342, p, [[0.1, 'Blood flows to the brain', C.green]]);
-    return sick ? 1 - 0.9 * hurtOf(p, sick, 0.1, 0.8) : 1;
-  }
-
-  // Scene 6: lumps grow in the pipe that feeds the heart until a clot blocks it (heart attack).
-  function heartPanel(ctx, p, s, sick, W) {
-    const grow = hurtOf(p, sick, 0.08, 0.6), clot = sick ? M.back(seg(p, 0.62, 0.72)) : 0, hurt = hurtOf(p, sick, 0.66, 0.8);
-    const t = travelled(p, s, (q) => 1 - 0.94 * hurtOf(q, sick, 0.3, 0.7));
-    const px = 20 + (W - 40) * 0.55, pw = (W - 40) * 0.14, lh = 42, ph = lh * grow * 0.85;
-    M.vessel(ctx, 20, 45, W - 40, 120, { t, wall: 18, plaque: grow * 0.85, plaqueX: 0.55, items: [{ kind: 'rbc', n: 13, speed: 90, r: 10 }] });
-    for (let i = 0; i < (sick ? 6 : 2); i++) {
-      const x = 20 + wrapX(rnd(i + 10) * (W - 40) + t * 60, W - 40);
-      if (sick && Math.abs(x - px) < pw) continue;
-      M.cholesterol(ctx, x, 105 + (rnd(i + 11) - 0.5) * 40, 10, 1, s + i);
-    }
-    if (grow > 0) for (let j = 0; j < 6; j++) {
-      const top = j < 3, x = px + ((j % 3) - 1) * 24, y = top ? 63 + ph * 0.6 : 147 - ph * 0.6;
-      M.cholesterol(ctx, x, y, 8 * Math.min(1, grow * 2), 1, s + j);
-    }
-    if (clot > 0) { ctx.save(); ctx.beginPath(); ctx.ellipse(px, 105, 22 * clot, 38 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); ctx.restore(); }
-    M.text(ctx, 'Pipe that feeds the heart', 140, 32, { size: 14, weight: 800, color: C.muted });
-    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Sticky blobs pile up'], [0.3, 'The lump gets bigger'], [0.62, 'The pipe is blocked!']]);
-    else S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Open pipe, blood zooms by', C.green]]);
-    const flow = 1 - seg(p, 0.66, 0.72) * sick;
-    ctx.fillStyle = '#f2b8ae'; ctx.fillRect(349, 165, 22, 70);
-    for (let i = 0; i < 3; i++) M.rbc(ctx, 360, 168 + wrapX(s * 60 * flow + i * 23, 66), 7, sick ? 1 - 0.7 * seg(p, 0.66, 0.72) : 1);
-    heartBuddy(ctx, 360, 290, 46, sick ? 1 - hurt : 1, s, { dizzy: hurt > 0.8, rate: sick && hurt > 0 ? 11 : 6.5 });
-    if (hurt > 0) {
-      ctx.save(); ctx.strokeStyle = '#f59f00'; ctx.lineWidth = 4; ctx.globalAlpha = hurt; ctx.lineJoin = 'round';
-      [-1, 1].forEach((d) => {
-        const bx = 360 + d * 66, by = 262 + Math.sin(s * 20) * 3;
-        ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(bx + d * 10, by + 14); ctx.lineTo(bx - d * 2, by + 18); ctx.lineTo(bx + d * 8, by + 34); ctx.stroke();
-      });
-      ctx.restore();
-    }
-    M.say(ctx, !sick ? 'Lots of blood,\nI feel great!' : hurt > 0.3 ? 'Ouch! My chest\nhurts!' : 'My pipe is\ngetting sticky...', 140, 248, seg(p, 0.14, 0.2), sick ? C.red : '#1d7a4c');
-    if (sick) M.pill(ctx, 'Heart attack!', 140, 325, { size: 16, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.74, 0.8) });
-    return 1 - 0.9 * hurtOf(p, sick, 0.1, 0.8);
-  }
-
-  // Scene 7: the liver cleans cholesterol out of the blood. Too much fat fills it with greasy
-  // drops; it swells, gets tired, and the blobs pile up instead of being cleaned.
-  function liverPanel(ctx, p, s, sick, W) {
-    const fat = hurtOf(p, sick, 0.15, 0.7), tired = hurtOf(p, sick, 0.45, 0.85);
-    const lx = 250, ly = 160, sc = lerp(118, 134, fat);
-    M.text(ctx, 'Liver (the cleaner)', lx, 50, { size: 14, weight: 800, color: C.muted });
-    const t = travelled(p, s, (q) => 1 - 0.8 * hurtOf(q, sick, 0.15, 0.7));
-    for (let i = 0; i < 7; i++) {
-      const q = wrapX(t * 0.35 + i / 7, 1), sy = 70 + rnd(i + 3) * 220;
-      M.cholesterol(ctx, lerp(16, lx - 70, q), lerp(sy, ly, q * q), 11, 1 - seg(q, 0.85, 1), s + i);
-    }
-    liverBuddy(ctx, lx, ly, sc, sick ? 1 - 0.9 * tired : 1, s, fat);
-    for (let j = 0; j < Math.floor(12 * tired); j++) M.cholesterol(ctx, 130 + j * 22, 238 + (j % 2) * 12, 10, 1, s + j);
-    M.say(ctx, !sick ? 'Cleaning time.\nYum!' : p < 0.45 ? 'So much fat...' : "I'm too full\nto clean!", lx - 40, 268, seg(p, 0.1, 0.16), sick ? C.red : '#1d7a4c');
-    M.pill(ctx, sick ? 'Fatty liver' : 'Clean & strong', W / 2, 342,
-      { size: 15, bg: sick ? '#fdecea' : '#e9f7ef', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', alpha: sick ? seg(p, 0.6, 0.66) : seg(p, 0.3, 0.36) });
-    return sick ? 1 - 0.85 * hurtOf(p, sick, 0.15, 0.85) : 1;
-  }
-
-  // Scene 3: moving every day makes more good-cholesterol trucks that haul blobs to the liver;
-  // sitting all day leaves only a few, so the lump keeps growing.
-  function couchKid(ctx, s) {
-    M.rr(ctx, 40, 70, 96, 64, 8); ctx.fillStyle = '#2b3445'; ctx.fill();
-    M.rr(ctx, 47, 77, 82, 50, 4); ctx.fillStyle = M.mix('#7cc4ff', '#c4e6ff', 0.5 + 0.5 * Math.sin(s * 6)); ctx.fill();
-    ctx.fillStyle = '#2b3445'; ctx.fillRect(84, 134, 8, 14); ctx.fillRect(68, 146, 40, 5);
-    M.rr(ctx, 210, 92, 170, 60, 14); ctx.fillStyle = '#9c6b5a'; ctx.fill();
-    M.rr(ctx, 200, 140, 190, 44, 12); ctx.fillStyle = '#b07d6a'; ctx.fill();
-    [196, 370].forEach((x) => { M.rr(ctx, x, 118, 24, 66, 10); ctx.fillStyle = '#8a5c4c'; ctx.fill(); });
-    ctx.save(); ctx.strokeStyle = '#4a6fa5'; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-    ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(300, 140); ctx.lineTo(300, 92); ctx.stroke();
-    ctx.lineWidth = 9;
-    [[0, 0], [8, 4]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.moveTo(300 + dx, 140 + dy); ctx.lineTo(258 + dx, 142 + dy); ctx.lineTo(256 + dx, 182); ctx.stroke(); });
-    ctx.beginPath(); ctx.moveTo(300, 100); ctx.lineTo(278, 122); ctx.lineTo(262, 112); ctx.stroke();
-    ctx.restore();
-    M.dot(ctx, 300, 70, 22, '#f2c8a8'); M.face(ctx, 300, 71, 20, 0.45, s, { seed: 8 });
-    M.food(ctx, 'fries', 254, 104, 30, s);
-  }
-  function exercisePanel(ctx, p, s, sitting, W) {
-    const k = ease(seg(p, 0.15, 0.85));
-    if (sitting) couchKid(ctx, s);
-    else {
-      ctx.fillStyle = '#c9e7b5'; ctx.fillRect(0, 190, W, 12);
-      ctx.fillStyle = '#9ccf86'; for (let i = 0; i < 6; i++) ctx.fillRect(wrapX(i * 80 - s * 160, W + 40) - 20, 194, 34, 4);
-      ctx.save(); ctx.translate(200, 190); ctx.scale(0.8, 0.8); runner(ctx, 0, 0, s * 10, 1, 0.12, 1, s); ctx.restore();
-      M.say(ctx, 'Running\nfeels great!', 340, 96, seg(p, 0.08, 0.14), '#1d7a4c');
-    }
-    // the blood pipe: trucks pick up blobs at the lump and drive them to the liver
-    const vy = 222, vh = 88, vw = 382, px = -10 + vw * 0.45;
-    const plaque = sitting ? lerp(0.5, 0.75, k) : lerp(0.5, 0.1, k);
-    M.vessel(ctx, -10, vy, vw, vh, { t: s, wall: 14, plaque, plaqueX: 0.45, items: [{ kind: 'rbc', n: 7, speed: 80, r: 8 }] });
-    for (let i = 0; i < Math.round(sitting ? lerp(5, 10, k) : lerp(5, 2, k)); i++) {
-      M.cholesterol(ctx, wrapX(rnd(i + 30) * vw + s * 40, vw) - 10, vy + vh / 2 + (rnd(i + 31) - 0.5) * 30, 9, 1, s + i);
-    }
-    for (let j = 0; j < (sitting ? 1 : 4); j++) {
-      const x = wrapX(rnd(j + 60) * 400 + s * 70, 420) - 30;
-      M.truck(ctx, x, vy + vh / 2 + 6, 0.8, x > px ? 1 : 0, s, 1 - seg(x, 345, 380));
-    }
-    M.liver(ctx, 410, vy + vh / 2, 30);
-    M.text(ctx, 'Liver', 410, vy + vh / 2 + 30, { size: 13, weight: 800, color: '#a4523f' });
-    M.text(ctx, sitting ? '🚚  Only a few trucks...' : '🚚  Lots of good-cholesterol trucks!', W / 2, 340,
-      { size: 15, weight: 800, color: sitting ? '#a3261f' : '#1d7a4c', alpha: seg(p, 0.2, 0.26) });
-    return sitting ? lerp(0.55, 0.25, k) : lerp(0.55, 1, k);
-  }
-
-  // Scene 1: meet the two kinds. Bad cholesterol (sticky blob) comes from greasy food;
-  // good cholesterol (garbage truck) comes from exercise and hauls the bad kind to the liver.
-  function meetPanel(ctx, p, s) {
-    M.text(ctx, 'Meet cholesterol', 480, 46, { size: 30, weight: 800 });
-    [[250, '#fffbea', '#f3d27a'], [710, '#f6fcf8', '#b8e3c9']].forEach(([cx, fill, border], i) => {
-      const pop = M.back(seg(p, i * 0.4, i * 0.4 + 0.08));
-      if (pop <= 0) return;
-      ctx.save(); ctx.translate(cx, 290); ctx.scale(pop, pop); ctx.translate(-cx, -290);
-      M.card(ctx, cx - 210, 92, 420, 396, { fill, border, r: 26 });
-      if (i === 0) {
-        M.pill(ctx, 'Bad cholesterol (LDL)', cx, 92, { size: 18, bg: '#fff4cc', border: '#e09400', color: '#8a5a00' });
-        ['burger', 'fries', 'donut'].forEach((k, j) => { const a = M.back(seg(p, 0.04 + j * 0.04, 0.1 + j * 0.04)); if (a > 0) M.food(ctx, k, cx - 84 + j * 84, 152 + Math.sin(s * 2.4 + j) * 2, 60 * a, s); });
-        M.text(ctx, 'From greasy food', cx, 194, { size: 15, weight: 800, color: C.muted });
-        M.arrow(ctx, cx, 210, cx, 248, { color: '#e09400', width: 4 });
-        const n = Math.floor(lerp(0, 7, seg(p, 0.14, 0.34)));
-        for (let j = 0; j < n; j++) {
-          const a = j / 7 * M.TAU + s * 0.3;
-          M.cholesterol(ctx, cx + Math.cos(a) * 100, 330 + Math.sin(a) * 52, 14, 1, s + j);
-        }
-        M.cholesterol(ctx, cx, 330, 48, 1, s);
-        M.face(ctx, cx + 4, 334, 34, 0.45, s, { seed: 9 });
-        M.pill(ctx, 'Sticky! It clogs your pipes', cx, 440, { size: 16, bg: '#fff', border: '#e09400', color: '#8a5a00', alpha: seg(p, 0.2, 0.26) });
-      } else {
-        M.pill(ctx, 'Good cholesterol (HDL)', cx, 92, { size: 18, bg: '#e9f7ef', border: C.green, color: '#1d7a4c' });
-        ctx.fillStyle = '#c9e7b5'; ctx.fillRect(cx - 120, 214, 240, 8);
-        ctx.save(); ctx.translate(cx - 20, 214); ctx.scale(0.5, 0.5); runner(ctx, 0, 0, s * 10, 1, 0.12, 1, s); ctx.restore();
-        M.text(ctx, 'From exercise', cx, 238, { size: 15, weight: 800, color: C.muted });
-        M.arrow(ctx, cx, 252, cx, 274, { color: C.green, width: 4 });
-        const pick = seg(p, 0.62, 0.7);
-        M.cholesterol(ctx, cx + 90, 338, 14, 1 - pick, s);
-        M.truck(ctx, cx - 10, 340, 2.2, pick, s);
-        M.face(ctx, cx + 28, 316, 14, 1, s, { seed: 10 });
-        M.liver(ctx, cx + 160, 330, 34);
-        M.text(ctx, 'Liver', cx + 160, 364, { size: 13, weight: 800, color: '#a4523f' });
-        M.pill(ctx, 'Cleans up! Hauls it to the liver', cx, 440, { size: 16, bg: '#fff', border: C.green, color: '#1d7a4c', alpha: seg(p, 0.55, 0.61) });
+  // 2. Plaque can narrow the artery (less blood), or crack so a clot blocks it.
+  function flowClot(ctx, p, s) {
+    M.text(ctx, 'What plaque can do', 480, 58, { size: 30, weight: 800 });
+    [['1. Less blood gets through', 0], ['2. A clot can block it', 4.3]].forEach(([title, at], i) => {
+      const a = ease(seg(s, at, at + 0.6)), x = 60 + i * 450;
+      if (a <= 0) return;
+      M.card(ctx, x, 100, 390, 360, { alpha: a, r: 22, border: i ? '#f3b5ae' : '#f3d2a2' });
+      M.text(ctx, title, x + 195, 136, { size: 19, weight: 800, alpha: a });
+      const plaque = i ? 0.6 : 0.6 * ease(seg(s, 0.5, 3)), crack = i ? seg(s, 4.9, 5.3) : 0, clot = i ? M.back(seg(s, 5.8, 6.8)) : 0;
+      const t = i ? Math.min(s, 6.8) : travelled(s, (q) => 1 - 0.6 * ease(seg(q, 0.5, 3)));
+      ctx.save(); ctx.globalAlpha *= a;
+      M.vessel(ctx, x + 20, 200, 350, 130, { t, wall: 16, plaque, plaqueX: 0.5, items: [{ kind: 'rbc', n: 10, speed: 70, r: 9 }] });
+      const pxx = x + 195;
+      if (crack > 0) {
+        ctx.strokeStyle = '#8c1d18'; ctx.lineWidth = 3; ctx.globalAlpha *= crack;
+        ctx.beginPath(); ctx.moveTo(pxx - 18, 228); ctx.lineTo(pxx - 6, 240); ctx.lineTo(pxx + 2, 232); ctx.lineTo(pxx + 14, 244); ctx.stroke();
       }
       ctx.restore();
+      if (clot > 0) { ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.ellipse(pxx, 265, 26 * clot, 36 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); ctx.restore(); }
+      const tag = i ? ['Blocked!', '#fdecea', C.red, '#a3261f', 7.2] : ['Less blood', '#fff8db', '#e09400', '#8a5a00', 2.5];
+      M.pill(ctx, tag[0], x + 195, 392, { size: 18, bg: tag[1], border: tag[2], color: tag[3], alpha: seg(s, tag[4], tag[4] + 0.6) });
     });
   }
 
-  const BADGES = [['brain', '#e07aa0'], ['heart', '#e5484d'], ['liver', '#a4523f'], ['vessels', '#e8a400']];
+  // 3. A blocked artery to the heart is a heart attack; to the brain, a stroke. A risk, not a sure thing.
+  function heartBrain(ctx, p, s) {
+    M.text(ctx, 'Heart attack and stroke', 480, 58, { size: 30, weight: 800 });
+    [['Heart attack', 0.3, 3.4, 4], ['Stroke', 4.7, 7.2, 7.6]].forEach(([name, at, block, say], i) => {
+      const a = ease(seg(s, at, at + 0.6)), x = 110 + i * 400, cx = x + 170, b = ease(seg(s, block, block + 0.8));
+      if (a <= 0) return;
+      M.card(ctx, x, 100, 340, 370, { alpha: a, r: 22, border: '#f3d2a2' });
+      ctx.save(); ctx.globalAlpha *= a;
+      M.vessel(ctx, cx - 90, 128, 180, 36, { t: Math.min(s, block), wall: 7, plaque: 0.55, plaqueX: 0.5, items: [{ kind: 'rbc', n: 5, speed: 50, r: 5 }] });
+      if (b > 0) { ctx.beginPath(); ctx.ellipse(cx, 146, 9 * b, 12 * b, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); }
+      if (i === 0) heartBuddy(ctx, cx, 262, 62, 1 - 0.85 * b, s, { dizzy: b > 0.8 });
+      else brainBuddy(ctx, cx, 250, 72, 1 - 0.85 * b, s, { dizzy: b > 0.8 });
+      ctx.restore();
+      M.pill(ctx, name, cx, 372, { size: 19, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, say, say + 0.6) });
+      riskBar(ctx, x + 30, 434, 280, lerp(0.25, 0.75, ease(seg(s, 8.3, 10))), a);
+    });
+    M.text(ctx, 'High LDL raises the risk. It does not mean it will happen.', 480, 504, { size: 16, weight: 700, color: C.muted, alpha: seg(s, 9.6, 10.4) });
+  }
 
-  const patientScenes = [
+  // 4. Food choices, activity, and medicine when needed lower LDL and the risk.
+  function lowerRisk(ctx, p, s) {
+    M.text(ctx, 'Lowering the risk', 480, 58, { size: 30, weight: 800 });
+    [['More fiber, less saturated fat', 0.3], ['Staying active', 3.2], ['Medicine, when needed', 4.4]].forEach(([label, at], i) => {
+      const a = ease(seg(s, at, at + 0.6)), x = 90 + i * 270, cx = x + 120;
+      if (a <= 0) return;
+      M.card(ctx, x, 92, 240, 210, { alpha: a, r: 20 });
+      ctx.save(); ctx.globalAlpha *= a;
+      if (i === 0) { M.food(ctx, 'broccoli', cx - 58, 170, 56, s); M.food(ctx, 'apple', cx, 172, 52, s); M.food(ctx, 'fish', cx + 60, 178, 56, s); }
+      if (i === 1) { ctx.fillStyle = '#c9e7b5'; ctx.fillRect(cx - 80, 232, 160, 6); ctx.save(); ctx.translate(cx, 232); ctx.scale(0.5, 0.5); runner(ctx, 0, 0, s * 10, 1, 0.12, 1, s); ctx.restore(); }
+      if (i === 2) { M.capsule(ctx, cx - 26, 176, 2.2, -0.5, C.blue, '#fff'); M.capsule(ctx, cx + 30, 186, 1.8, 0.4, C.purple, '#fff'); }
+      ctx.restore();
+      M.wrap(ctx, label, cx, 266, 210, { size: 17, weight: 800, alpha: a });
+    });
+    const k = ease(seg(s, 1, 7));
+    M.gauge(ctx, 140, 386, 300, lerp(0.85, 0.4, k), { title: 'LDL', valueText: k > 0.6 ? 'Lower' : 'High' });
+    M.gauge(ctx, 520, 386, 300, lerp(0.8, 0.35, k), { title: 'Risk', valueText: k > 0.6 ? 'Lower' : 'Higher' });
+    M.pill(ctx, 'Some people need medicine even with healthy habits', 480, 460, { size: 18, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, 8.4, 9) });
+  }
+
+  // 5. What to remember and do.
+  function remember(ctx, p, s) {
+    const a = ease(seg(s, 0, 0.5));
+    M.card(ctx, 90, 100, 780, 340, { alpha: a, border: C.blue, borderWidth: 3, r: 28 });
+    ctx.save(); ctx.globalAlpha *= a;
+    heartBuddy(ctx, 210, 220, 52, 1, s);
+    brainBuddy(ctx, 210, 340, 56, 1, s);
+    ctx.restore();
+    M.text(ctx, 'No warning signs?', 570, 170, { size: 34, weight: 800, alpha: a });
+    M.text(ctx, 'A blood test can check it.', 570, 228, { size: 26, weight: 700, color: M.C.blue, alpha: seg(s, 3, 3.6) });
+    M.wrap(ctx, 'Healthy habits and medicine, when needed, help protect your heart and brain.', 570, 300, 520, { size: 24, weight: 700, color: '#1d7a4c', alpha: seg(s, 5, 5.6) });
+  }
+
+  const sides = { left: 'Healthy LDL level', right: 'Too much LDL' };
+
+  // Part 1 (~62 s): what cholesterol is, how LDL and HDL carry it, why LDL rises, testing.
+  const patientScenesA = [
     {
-      label: 'Meet cholesterol',
-      caption: 'There are two kinds of cholesterol. Greasy food makes sticky bad cholesterol. Exercise makes good cholesterol, which cleans up the bad kind.',
-      draw: meetPanel,
+      label: 'What is cholesterol?',
+      caption: 'Your body needs cholesterol to build healthy cells. Your liver makes cholesterol, and special particles called LDL and HDL carry it through your blood.',
+      draw: whatIsIt,
     },
     {
-      label: 'Food',
-      caption: 'Greasy foods like fries, burgers, and donuts fill your blood with lots of sticky bad cholesterol.',
-      draw: versus({ title: 'Food', panel: foodPanel, bar: 'Blood health' }),
+      label: 'LDL and HDL',
+      caption: 'LDL carries cholesterol to different parts of your body. But too much LDL can lead to buildup inside artery walls. HDL helps carry extra cholesterol back to the liver.',
+      draw: S.versus(Object.assign({ title: 'LDL and HDL', panel: carriersPanel, bar: 'Artery health' }, sides)),
     },
     {
-      label: 'Exercise',
-      caption: 'Moving every day sends out lots of good-cholesterol trucks. They haul the sticky blobs away to your liver.',
-      draw: versus({ title: 'Moving vs. sitting', panel: exercisePanel, left: 'Moves every day', right: 'Sits all day', bar: 'Pipe health' }),
+      label: 'Why LDL gets high',
+      caption: "Your genes, the foods you eat, and how your body handles cholesterol all affect your cholesterol levels. It's not just about eating greasy food.",
+      draw: whyHigh,
     },
     {
-      label: 'Blood pipes',
-      caption: 'Too much cholesterol sticks to the walls of your blood pipes. It piles up into lumps that make pipes narrow and hard.',
-      draw: versus({ title: 'Blood pipes', panel: pipePanel, bar: 'Pipe health' }),
+      label: 'Get it checked',
+      caption: "You usually can't feel high cholesterol. That's why doctors check it with a simple blood test called a lipid panel.",
+      draw: checkIt,
+    },
+  ];
+
+  // Part 2 (~80 s): plaque, what it can do, heart attack and stroke risk, lowering the risk.
+  const patientScenesB = [
+    {
+      label: 'Plaque builds up',
+      caption: "When there's too much LDL, some of it slips into the artery wall and builds up over many years. This buildup is called plaque.",
+      draw: S.versus(Object.assign({ title: 'Plaque builds up', panel: plaquePanel, bar: 'Artery health' }, sides)),
     },
     {
-      label: 'Brain',
-      caption: "If a piece of a lump breaks off and blocks a pipe in your brain, that's a stroke.",
-      draw: versus({ title: 'Brain', panel: brainPanel, bar: 'Brain health' }),
+      label: 'What plaque can do',
+      caption: 'Plaque can narrow an artery, so less blood gets through. If plaque cracks, a blood clot can form and block the artery.',
+      draw: flowClot,
     },
     {
-      label: 'Heart',
-      caption: "When lumps block the pipes that feed your heart, it can't get enough blood. That's a heart attack.",
-      draw: versus({ title: 'Heart', panel: heartPanel, bar: 'Heart health' }),
+      label: 'Heart attack and stroke',
+      caption: "If an artery to the heart gets blocked, that's a heart attack. If one to the brain gets blocked, that's a stroke. High LDL raises the risk of both.",
+      draw: heartBrain,
     },
     {
-      label: 'Liver',
-      caption: 'Your liver cleans cholesterol from your blood. Too much fat fills it with greasy drops, and it gets tired.',
-      draw: versus({ title: 'Liver', panel: liverPanel, bar: 'Liver health' }),
+      label: 'Lowering the risk',
+      caption: 'Eating more fiber and less saturated fat, staying active, and taking medicine when needed can lower LDL and your risk. Some people need medicine even with healthy habits.',
+      draw: lowerRisk,
     },
     {
-      label: 'Keep your pipes clean',
-      caption: 'Eat colorful foods, fewer fried snacks, and move every day. Your pipes stay clean and your body stays strong.',
-      draw(ctx, p, s) {
-        const k = ease(seg(p, 0.08, 0.5)), x = 230, y = 300, sc = 105;
-        const pts = S.bodyWithBlood(ctx, x, y, sc, s, { density: lerp(1.2, 0.3, k), item: (c, px, py, on) => M.cholesterol(c, px, py, on ? 7 : 5, on ? 1 : 0.6, s) });
-        BADGES.forEach(([at, col], i) => {
-          const [bx, by] = at === 'brain' ? [x, y - 1.62 * sc - 22] : pts[at];
-          M.dot(ctx, bx, by, 18, M.mix('#8b8f99', col, k));
-          M.face(ctx, bx, by + 1, 17, lerp(0.1, 1, k), s, { seed: i });
-        });
-        M.gauge(ctx, 470, 120, 420, lerp(0.9, 0.3, k), { title: 'Cholesterol', valueText: k > 0.7 ? 'Healthy!' : 'Too high' });
-        M.healthBar(ctx, 470, 196, 420, lerp(0.25, 1, k), { label: 'Body health', right: k > 0.7 ? 'Strong!' : 'Getting hurt' });
-        ['🥗  Eat veggies, fruit, and beans', '🍟  Fewer fried and fatty foods', '🏃  Run or move every day', '🩺  Get your cholesterol checked'].forEach((t, i) =>
-          M.pill(ctx, t, 470, 262 + i * 58, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(p, 0.25 + i * 0.1, 0.33 + i * 0.1)) }));
-      },
+      label: 'What to remember',
+      caption: 'High cholesterol usually has no warning signs. A blood test can check it. Healthy habits and medicine, when needed, can help protect your heart and brain.',
+      draw: remember,
     },
   ];
 
@@ -358,15 +339,18 @@
     icd10: 'E78.5',
     aliases: ['hyperlipidemia', 'dyslipidemia', 'cholesterol', 'high ldl', 'hypercholesterolemia', 'lipids', 'high lipids'],
     patient: {
-      tagline: 'Too much waxy fat in your blood sticks to your artery walls, usually without any symptoms.',
-      length: 90, // seconds; scenes stretch to a calmer pace
-      audio: 'audio/hyperlipidemia/', // recorded narration from tools/make-narration.py
-      scenes: patientScenes,
+      tagline: 'Too much LDL cholesterol can build up in artery walls over time, usually without any symptoms.',
+      // Two shorter videos, each around one question. length: seconds (scenes stretch to a
+      // calmer pace); audio: recorded narration from tools/make-narration.py.
+      videos: [
+        { title: 'What is high cholesterol?', length: 62, audio: 'audio/hyperlipidemia-a/', scenes: patientScenesA },
+        { title: 'How cholesterol affects your body', length: 80, audio: 'audio/hyperlipidemia-b/', scenes: patientScenesB },
+      ],
       keyPoints: [
-        'Cholesterol is a waxy fat. Your body needs some, but too much LDL ("bad") cholesterol builds up in artery walls.',
-        'HDL ("good") cholesterol carries extra cholesterol back to the liver. Regular exercise can raise it.',
-        'Plaque can narrow arteries and lead to a heart attack or stroke. A high-fat diet can also cause fatty liver.',
-        'High cholesterol has no symptoms. A simple blood test (lipid panel) is the only way to know.',
+        'Cholesterol is a waxy fat your body needs to build cells. Your liver makes most of it.',
+        'LDL and HDL are particles that carry cholesterol in the blood. Too much LDL can build up in artery walls as plaque; HDL helps carry extra cholesterol back to the liver.',
+        'Genes, food, and how your body handles cholesterol all affect your levels.',
+        'High cholesterol has no symptoms. A blood test (lipid panel) checks it. Healthy habits help, and some people also need medicine, such as a statin.',
       ],
       questions: [
         'What are my LDL and HDL numbers, and what should they be?',
@@ -380,9 +364,9 @@
         'Leg pain when walking that goes away with rest',
       ],
       quiz: [
-        { q: 'In the animation, what did the sticky yellow blobs do?', options: ['Stuck to the walls of blood pipes', 'Made bones stronger', 'Turned into sugar'], answer: 0, explain: 'Extra LDL cholesterol sticks in artery walls and builds up into plaque that narrows the pipe.' },
-        { q: 'How does exercise help?', options: ['It makes pipes narrower', 'It makes more good cholesterol that carries extra to the liver', 'It does not change cholesterol'], answer: 1, explain: 'Exercise raises HDL, the "good" cholesterol that hauls extra cholesterol back to the liver.' },
-        { q: 'How do you find out if your cholesterol is high?', options: ['You always feel sick', 'A blood test', 'Your skin turns yellow'], answer: 1, explain: 'High cholesterol usually has no symptoms, so a lipid blood test is the only way to know.' },
+        { q: 'What do LDL and HDL do?', options: ['Carry cholesterol through the blood', 'Digest food', 'Make blood cells'], answer: 0, explain: 'LDL and HDL are carrier particles. LDL takes cholesterol to the body; HDL helps bring extra back to the liver.' },
+        { q: 'Over many years, what can too much LDL do?', options: ['Build up as plaque in artery walls', 'Make bones stronger', 'Turn into sugar'], answer: 0, explain: 'Extra LDL can slip into artery walls and build up as plaque, which raises the risk of heart attack and stroke.' },
+        { q: 'How do you find out your cholesterol level?', options: ['You always feel sick', 'A blood test', 'Your skin turns yellow'], answer: 1, explain: 'High cholesterol usually has no warning signs, so a blood test (lipid panel) is the way to check it.' },
       ],
     },
   });
