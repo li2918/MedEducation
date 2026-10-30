@@ -171,6 +171,73 @@
     M.text(ctx, 'Not everyone gets these problems. Treatment lowers the risk.', 480, 516, { size: 16, weight: 700, color: C.muted, alpha: seg(s, 14, 15) });
   }
 
+  // Part 3 demos: how exercise and less salt each lower blood pressure, shown separately.
+  // Example adult numbers only; the dial drops over weeks, never instantly.
+  const weeksBar = (ctx, x, y, w, v, a = 1) => {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a;
+    M.rr(ctx, x, y, w, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    if (v > 0.01) { M.rr(ctx, x, y, w * v, 10, 5); ctx.fillStyle = C.green; ctx.fill(); }
+    ctx.restore();
+    M.text(ctx, 'Over several weeks', x + w / 2, y + 26, { size: 13, weight: 800, color: C.muted, alpha: a });
+  };
+
+  // Exercise: regular brisk walking helps blood vessels relax and stay flexible, and a stronger
+  // heart does not have to push as hard with each beat (the beat speed is not what changes).
+  const TX = { walk: 1.7, relax: 4.6, flexible: 6.3, heart: 7.4, push: 9.5, weeks: 11.7, down: 13.9 };
+  function exerciseDemo(ctx, p, s) {
+    M.text(ctx, 'How exercise lowers blood pressure', 480, 46, { size: 28, weight: 800 });
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, 460, 250, 12);
+    runner(ctx, 165, 460, s * 6, 0.6, 0.08, 1, s);
+    M.pill(ctx, '🚶  Brisk walking, most days', 165, 110, { size: 16, bg: '#fff', border: '#bfe3cf', alpha: seg(s, TX.walk, TX.walk + 0.5) });
+    const wk = ease(seg(s, TX.weeks, TX.down + 0.8)), rel = ease(seg(s, TX.relax, TX.flexible + 1.2));
+    // blood vessel: narrow and tense, then more relaxed and wider, with gentler pressure
+    const beat = beatOf(s), wall = lerp(34, 18, rel), d = beat * lerp(3, 7, rel);
+    M.text(ctx, 'Blood vessel', 600, 96, { size: 15, weight: 800, color: C.muted });
+    M.vessel(ctx, 330, 110 - d, 540, 150 + 2 * d, { t: s, wall, wallColor: M.mix('#d9897c', '#f2b8ae', rel), items: [{ kind: 'rbc', n: 10, speed: 90, r: 9 }] });
+    M.pressureArrows(ctx, 360, 185, 480, lerp(26, 10, Math.max(rel * 0.5, wk)) + beat * 8, { n: 5, alpha: 0.85 });
+    M.pill(ctx, 'Vessels relax and stay flexible', 600, 296, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TX.relax, TX.relax + 0.5) });
+    // heart: stronger, so each beat needs less effort (same beat rate)
+    const ha = seg(s, TX.heart, TX.heart + 0.5);
+    heartBuddy(ctx, 400, 390, 40 * ha + 0.01, 1, s);
+    M.text(ctx, 'Stronger heart', 470, 372, { size: 15, weight: 800, align: 'left', alpha: ha });
+    M.text(ctx, "Doesn't have to push as hard", 470, 396, { size: 14, weight: 700, align: 'left', color: C.muted, alpha: seg(s, TX.push, TX.push + 0.5) });
+    pressureDial(ctx, 790, 400, 52, lerp(146, 132, wk), lerp(92, 84, wk));
+    M.text(ctx, ADULT_NOTE, 790, 456, { size: 12, color: C.muted });
+    weeksBar(ctx, 330, 480, 330, wk, seg(s, TX.weeks, TX.weeks + 0.5));
+  }
+
+  // Less salt: salt holds extra water, so more fluid presses on the vessel walls. Eating less
+  // salt lets the kidneys release the extra salt and water; with less fluid, pressure comes down.
+  const TS = { water: 1.9, fluid: 4.1, walls: 6.7, less: 7.9, kidneys: 9.4, extra: 10.5, lessFluid: 12.5, down: 15.4, packaged: 16.5 };
+  function saltDemo(ctx, p, s) {
+    M.text(ctx, 'How less salt lowers blood pressure', 480, 46, { size: 28, weight: 800 });
+    const cut = ease(seg(s, TS.less, TS.less + 1)), out = ease(seg(s, TS.kidneys, TS.lessFluid + 1)), wk = ease(seg(s, TS.lessFluid, TS.down + 0.6));
+    // foods: salty first, then lower-salt choices
+    M.card(ctx, 24, 80, 250, 180, { r: 18 });
+    M.text(ctx, cut > 0.5 ? 'Less salt' : 'Lots of salt', 149, 104, { size: 16, weight: 800, color: cut > 0.5 ? '#1d7a4c' : '#a3261f' });
+    M.food(ctx, 'fries', 90, 170, 52, s, 1 - cut); M.food(ctx, 'pizza', 160, 172, 50, s, 1 - cut); M.emoji(ctx, '🥫', 222, 170, 34, 1 - cut);
+    M.food(ctx, 'apple', 90, 172, 46, s, cut); M.food(ctx, 'broccoli', 156, 170, 50, s, cut); M.food(ctx, 'fish', 220, 172, 48, s, cut);
+    for (let i = 0; i < 6; i++) M.salt(ctx, 80 + i * 30, 228 + Math.sin(s * 2 + i) * 3, 6, 1 - cut);
+    M.text(ctx, 'Packaged and restaurant foods add the most', 149, 290, { size: 12, weight: 800, color: '#8a5a00', alpha: seg(s, TS.packaged, TS.packaged + 0.5) });
+    // blood vessel: salt holds water; more fluid presses harder; then less
+    const vol = lerp(seg(s, TS.water, TS.fluid + 0.8), 0.15, out), beat = beatOf(s), d = beat * 4 + 14 * vol;
+    M.salt(ctx, 340, 92, 7); M.text(ctx, 'salt', 354, 92, { size: 13, align: 'left', color: C.muted, weight: 700 });
+    M.drop(ctx, 404, 93, 7); M.text(ctx, 'water', 418, 92, { size: 13, align: 'left', color: C.muted, weight: 700 });
+    M.text(ctx, 'Blood vessel', 620, 92, { size: 15, weight: 800, color: C.muted });
+    M.vessel(ctx, 320, 120 - d, 590, 140 + 2 * d, { t: s, wall: 16, items: [{ kind: 'rbc', n: 8, speed: 80, r: 9 }, { kind: 'salt', n: lerp(2, 9, vol), speed: 70, r: 6 }, { kind: 'water', n: lerp(3, 14, vol), speed: 70, r: 6 }] });
+    M.pressureArrows(ctx, 350, 190, 530, 8 + 22 * Math.max(vol, 0.15 * (1 - wk)) + beat * 6, { n: 5, alpha: seg(s, TS.walls - 0.6, TS.walls) * 0.9 + 0.1 });
+    S.phasePill(ctx, 615, 300, s, [[TS.water, 'Salt holds extra water', '#c26a00'], [TS.fluid, 'More fluid in the vessels'], [TS.walls, 'Pushing harder on the walls'], [TS.lessFluid, 'Less fluid, less push', C.green]]);
+    // kidneys release the extra salt and water
+    const ka = seg(s, TS.kidneys - 0.4, TS.kidneys + 0.2);
+    kidneyBuddy(ctx, 420, 420, 42 * ka + 0.01, lerp(0.7, 1, out), s, 0);
+    if (out > 0 && out < 1) for (let i = 0; i < 6; i++) { const q = ((s * 0.6 + i / 6) % 1); if (i % 2) M.salt(ctx, 470 + q * 120, 420 + q * 40, 5, 1 - q); else M.drop(ctx, 470 + q * 120, 420 + q * 40, 6, 1 - q); }
+    M.text(ctx, 'Kidneys let go of extra salt and water', 420, 486, { size: 14, weight: 800, color: '#1f6fa8', alpha: seg(s, TS.extra, TS.extra + 0.5) });
+    pressureDial(ctx, 800, 400, 52, lerp(146, 134, wk), lerp(92, 85, wk));
+    M.text(ctx, ADULT_NOTE, 800, 456, { size: 12, color: C.muted });
+    weeksBar(ctx, 650, 494, 300, wk, seg(s, TS.lessFluid, TS.lessFluid + 0.5));
+  }
+
   // Scene 5: daily habits and medicine bring pressure down and protect the organs.
   const BADGES = [['brain', '#e07aa0'], ['heart', '#e5484d'], ['kidney', '#c0655a']];
   const bloodCell = (ctx, x, y, on) => M.rbc(ctx, x, y, on ? 7 : 5, on ? 1 : 0.6);
@@ -444,6 +511,16 @@
   ];
 
   const patientScenesC = [
+    {
+      label: 'How exercise helps',
+      caption: "Regular exercise, like brisk walking most days, helps your blood vessels relax and stay more flexible. Your heart gets stronger, so it doesn't have to push as hard with each beat. Over several weeks, your blood pressure can come down.",
+      draw: exerciseDemo,
+    },
+    {
+      label: 'How less salt helps',
+      caption: 'Salt makes your body hold on to extra water. That means more fluid in your blood vessels, pushing harder on the walls. When you eat less salt, your kidneys let go of the extra salt and water. With less fluid in your vessels, your blood pressure can come down. Most salt comes from packaged and restaurant foods.',
+      draw: saltDemo,
+    },
     {
       label: 'Protect your body',
       dur: 15,
@@ -750,7 +827,7 @@
       videos: [
         { title: 'What is high blood pressure?', length: 48, audio: 'audio/htn-a/', scenes: patientScenesA },
         { title: 'What can it do over many years?', length: 122, audio: 'audio/htn-b/', scenes: patientScenesB },
-        { title: 'How can I protect my body?', length: 25, audio: 'audio/htn-c/', scenes: patientScenesC },
+        { title: 'How can I protect my body?', length: 68, audio: 'audio/htn-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Blood pressure is written as two numbers, like 120/80. For adults, high blood pressure is 130/80 or higher. Children are checked with different charts based on age, height, and sex.',
