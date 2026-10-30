@@ -15,6 +15,13 @@
     return Math.max(sc.dur || 0, words / WORDS_PER_SEC + 1.4);
   }
 
+  // Short hash of a caption, used to version its recorded clip's URL.
+  function textTag(str) {
+    let h = 5381;
+    for (let i = 0; i < str.length; i++) h = ((h * 33) ^ str.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+
   function fmt(t) {
     const m = Math.floor(t / 60), s = Math.floor(t % 60);
     return `${m}:${String(s).padStart(2, '0')}`;
@@ -146,7 +153,8 @@
     let start = 0;
     const base = script.scenes.map(sceneLength), sum = base.reduce((a, b) => a + b, 0);
     const stretch = script.length > sum ? script.length / sum : 1;
-    this.scenes = script.scenes.map((sc, i) => { const dur = base[i] * stretch; const audio = script.audio ? `${script.audio}${i + 1}.mp3` : null;
+    // ?v= changes whenever a caption changes, so browsers never replay an old cached recording.
+    this.scenes = script.scenes.map((sc, i) => { const dur = base[i] * stretch; const audio = script.audio ? `${script.audio}${i + 1}.mp3?v=${textTag(sc.caption || '')}` : null;
       const o = Object.assign({}, sc, { start, dur, audio }); start += dur; return o; });
     this.total = start;
     this.t = 0;
@@ -194,7 +202,19 @@
     if (!this.playing) return;
     const dt = Math.min(0.1, (now - this._last) / 1000);
     this._last = now;
+    // A recorded clip may still be loading (slow phone networks): hold the picture until it
+    // actually starts (max 3 s), then keep the scene clock locked to the clip so the
+    // animation never runs ahead of the voice.
+    if (this._waiting) {
+      if (now - this._waiting < 3000) { this.render(); requestAnimationFrame(this._frame); return; }
+      this._waiting = 0;
+    }
     this.t += dt;
+    const clip = this.audio, cs = this.scenes[this.cur];
+    if (this._speaking && cs && this._clipScene === this.cur && !clip.paused) {
+      const target = cs.start + clip.currentTime;
+      if (target < cs.start + cs.dur && Math.abs(this.t - target) > 0.2) this.t = target;
+    }
     // Hold on the last frame of a scene until the narrator finishes the sentence (max 6 s),
     // so a slower voice is never cut off mid-word by the next scene.
     const sc = this.scenes[this.cur];
@@ -332,16 +352,23 @@
     if (sc.audio && this._recorded()) {
       const id = this._clip, a = this.audio;
       a.onended = () => { if (this._clip === id) this._speaking = false; };
+      a.onplaying = () => { if (this._clip === id) this._waiting = 0; };
       a.onerror = () => {
         if (this._clip !== id) return;
+        this._waiting = 0;
         this._audioFailed = true; // files missing (not generated yet): fall back to the browser voice
         this._fillVoices();
         this._speakText(sc.caption);
       };
       a.src = sc.audio;
+      this._clipScene = i;
       this._speaking = true;
+      this._waiting = performance.now();
       const pr = a.play();
       if (pr) pr.catch(() => {});
+      // fetch the next clip now so the next scene starts on time
+      const next = this.scenes[i + 1];
+      if (next && next.audio) { this._preload = new Audio(); this._preload.preload = 'auto'; this._preload.src = next.audio; }
       return;
     }
     this._speakText(sc.caption);
@@ -363,6 +390,7 @@
 
   Player.prototype._stopSpeech = function () {
     this._speaking = false;
+    this._waiting = 0;
     this._utter = null;
     this._clip++;
     this.audio.pause();
