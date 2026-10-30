@@ -287,7 +287,7 @@
         ctx.save(); M.rr(ctx, 0, 0, VS.W, VS.H, 26); ctx.clip();
         const hp = o.panel(ctx, p, s, sick, VS.W, VS.H);
         ctx.restore();
-        if (hp != null) M.healthBar(ctx, 30, VS.H - 28, VS.W - 60, hp, { label: o.bar || 'Health', right: hp > 0.66 ? 'Strong' : hp > 0.36 ? 'Getting hurt' : 'Damaged' });
+        if (hp != null) M.healthBar(ctx, 30, VS.H - 28, VS.W - 60, hp, { label: o.bar || 'Health', right: hp > 0.66 ? 'Strong' : hp > 0.36 ? 'Some damage' : 'Damaged' });
         M.pill(ctx, sick ? '⚠  ' + (o.right || 'Too much sugar') : '✓  ' + (o.left || 'Normal sugar'), VS.W / 2, 0,
           { bg: sick ? '#fdecea' : '#e9f7ef', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', size: 18 });
         ctx.restore();

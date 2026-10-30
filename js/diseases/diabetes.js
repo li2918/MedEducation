@@ -305,7 +305,7 @@
         const bulge = M.back(seg(p, 0.3 + i * 0.05, 0.45 + i * 0.05));
         if (bulge > 0) { M.dot(ctx, x, y - 6, 15 * bulge, '#b3261c'); M.dot(ctx, x - 4, y - 11, 4 * bulge, 'rgba(255,255,255,0.45)'); }
       });
-      S.phasePill(ctx, W / 2, sy + sh - 18, p, [[0.15, 'Sugar hurts the pipes'], [0.3, 'They swell like balloons'], [0.5, 'Then they leak!']]);
+      S.phasePill(ctx, W / 2, sy + sh - 18, p, [[0.15, 'Sugar damages the tiny vessels'], [0.3, 'They swell like balloons'], [0.5, 'Then they leak!']]);
     } else S.phasePill(ctx, W / 2, sy + sh - 18, p, [[0.15, 'Pipes stay strong', C.green]]);
     ctx.restore();
     return 1 - 0.85 * hurt;
@@ -451,7 +451,7 @@
     return 1 - 0.85 * hurt;
   }
 
-  // Heart: a blood pipe feeding the heart. High sugar hurts the wall, gunk builds up, a clot blocks it.
+  // Heart: a blood vessel feeding the heart. High sugar damages the wall, gunk builds up, a clot blocks it.
   function heartPanel(ctx, p, s, sick, W) {
     const coat = hurtOf(p, sick, 0.08, 0.3), gunk = hurtOf(p, sick, 0.2, 0.62), clot = sick ? M.back(seg(p, 0.62, 0.72)) : 0;
     const hurt = hurtOf(p, sick, 0.66, 0.8);
@@ -465,7 +465,7 @@
       ctx.save(); ctx.beginPath(); ctx.ellipse(px, 105, 22 * clot, 38 * clot, 0, 0, M.TAU); ctx.fillStyle = '#7e1414'; ctx.fill(); ctx.restore();
     }
     M.text(ctx, 'Blood pipe', 70, 32, { size: 14, weight: 800, color: C.muted });
-    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'High sugar hurts the pipe wall'], [0.25, 'Gunk builds up inside'], [0.62, 'A clot blocks the pipe!']]);
+    if (sick) S.phasePill(ctx, W / 2, 190, p, [[0.08, 'High sugar damages the vessel wall'], [0.25, 'Gunk builds up inside'], [0.62, 'A clot blocks the pipe!']]);
     else S.phasePill(ctx, W / 2, 190, p, [[0.08, 'Smooth pipe, blood zooms by', C.green]]);
     // branch that feeds the heart muscle; blood stops when the pipe is blocked
     const flow = 1 - seg(p, 0.66, 0.72) * sick;
@@ -480,7 +480,7 @@
       });
       ctx.restore();
     }
-    M.say(ctx, sick ? (hurt > 0.3 ? 'Ouch! No blood\nis getting in!' : 'My pipe wall is\ngetting hurt...') : 'Lots of blood,\nI feel great!', 140, 248, seg(p, 0.14, 0.2), sick ? C.red : '#1d7a4c');
+    M.say(ctx, sick ? (hurt > 0.3 ? 'No blood is\ngetting in!' : 'My vessel wall is\ngetting damaged...') : 'Lots of blood,\nI feel great!', 140, 248, seg(p, 0.14, 0.2), sick ? C.red : '#1d7a4c');
     if (sick) M.pill(ctx, 'Heart attack!', 140, 325, { size: 16, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.74, 0.8) });
     return 1 - 0.9 * hurtOf(p, sick, 0.1, 0.8);
   }
@@ -574,7 +574,7 @@
   }
 
   // ---- Part 2 extra: risk, not certainty --------------------------------------
-  // Over many years of high sugar, some organs may get hurt (not all, and not everyone);
+  // Over many years of high sugar, some organs may be damaged (not all, and not everyone);
   // keeping sugar in range protects them. [label, color, when it starts, how much]
   const RISK = [['Eyes', '#5b8def', 0.3, 0.9], ['Kidneys', '#c0655a', 0.48, 0.9], ['Heart', '#e5484d', 0.62, 0.4], ['Nerves', '#8a6bc9', 0.72, 0.35]];
   function riskPanel(ctx, p, s, high, W) {
@@ -809,12 +809,12 @@
     },
     {
       label: 'Heart',
-      caption: 'High sugar can also help fatty gunk build up in blood vessels. If one that feeds the heart gets blocked, the heart can be hurt.',
+      caption: 'High sugar can also help fatty gunk build up in blood vessels. If one that feeds the heart gets blocked, it can damage the heart.',
       draw: S.versus({ title: 'Heart', panel: heartPanel, bar: 'Heart health' }),
     },
     {
       label: 'Kidneys',
-      caption: 'Your kidneys are strainers that clean your blood. Over time, high sugar can damage them, so good protein leaks into your pee.',
+      caption: 'Your kidneys are strainers that clean your blood. Over time, high sugar can damage them. As a result, good protein leaks into the urine.',
       draw: S.versus({ title: 'Kidneys', panel: kidneyPanel, bar: 'Kidney health' }),
     },
     {
