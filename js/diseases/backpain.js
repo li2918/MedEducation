@@ -10,7 +10,7 @@
 
   // ---------------------------------------------------------------------------
   // Patient portal: Part 1 "How your back works and why it can hurt" and Part 2
-  // "Understanding low back pain". The star is one cartoon
+  // "Understanding low back pain", Part 3 "How can back pain improve?". The star is one cartoon
   // spine seen from the side (front of the body to the right): beige vertebrae with blue discs
   // between them, small facet joints and spiny bumps at the back, a yellow spinal cord and
   // nerve roots, a pale ligament along the front, and red back muscles behind. Cues use s
@@ -381,6 +381,162 @@
     M.pill(ctx, 'Next: how back pain can improve', 480, 220, { size: 17, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TL6.approach, TL6.approach + 0.5) });
   }
 
+  // ---- Part 3: How can back pain improve? -----------------------------------------------
+  // For common non-specific low back pain: brief rest then manageable activity (not days in
+  // bed), gentle movement, gradual strengthening (back, belly, and hip muscles working
+  // together; no single best exercise; no disc "repositioning"), flexible daily habits (no
+  // perfect posture), comfort measures and individual support, and a return to daily life that
+  // is real but not always a straight line. Warning signs stay in the separate safety box.
+  function lying(ctx, x, y, sc, s, mood) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); M.person(ctx, 0, 0, sc, { t: s, mood }); ctx.restore();
+  }
+  function bedC(ctx, x, y, w) {
+    M.rr(ctx, x, y, w, 22, 8); ctx.fillStyle = '#c9b49a'; ctx.fill();
+    M.rr(ctx, x + 4, y - 12, w - 8, 16, 6); ctx.fillStyle = '#eef2f8'; ctx.fill();
+    ctx.fillStyle = '#a88f72'; ctx.fillRect(x + 6, y + 20, 8, 18); ctx.fillRect(x + w - 14, y + 20, 8, 18);
+  }
+  // Belly muscles along the front and hip muscles near the pelvis, drawn around a spine.
+  function coreMuscles(ctx, g, k, glowB, glowH) {
+    ctx.save(); ctx.lineCap = 'round';
+    const pts = []; for (let i = 0; i <= 20; i++) { const t = 0.62 + 0.38 * i / 20; pts.push(g.along(t, -g.bw(t) - 60 * k)); }
+    const path = () => { ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(...q) : ctx.moveTo(...q))); };
+    if (glowB > 0) { ctx.strokeStyle = `rgba(255,200,90,${0.5 * glowB})`; ctx.lineWidth = 34 * k; path(); ctx.stroke(); }
+    ctx.strokeStyle = MUS; ctx.lineWidth = 20 * k; path(); ctx.stroke();
+    const h = g.along(1, 40 * k);
+    if (glowH > 0) M.dot(ctx, h[0], h[1] + 58 * k, 44 * k, `rgba(255,200,90,${0.5 * glowH})`);
+    ctx.beginPath(); ctx.ellipse(h[0], h[1] + 58 * k, 34 * k, 24 * k, 0.5, 0, M.TAU); ctx.fillStyle = MUS; ctx.fill();
+    ctx.restore();
+  }
+
+  // 1. Don't stop all movement: brief rest when pain is bad, then moving; days in bed usually
+  //    do not help (stiffer, weaker, slower recovery).
+  const TR1 = { rest: 1.9, days: 5.3, stiffer: 8.6, longer: 11.3, moving: 12.8 };
+  function restPanel(ctx, p, s, inBed, W) {
+    bedC(ctx, 40, 250, W - 80);
+    if (!inBed) {
+      const up = ease(seg(s, TR1.days - 0.5, TR1.days + 0.8));
+      ctx.save(); ctx.globalAlpha *= 1 - up; lying(ctx, W / 2, 220, 40, s, 0.6); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= up; runner(ctx, W / 2 + 40 * up, 330, s * 5, 0.45, 0.06, 1, s); ctx.restore();
+      S.phasePill(ctx, W / 2, 340, s, [[TR1.rest, 'A short rest when pain is bad', '#4d5f86'], [TR1.days, 'Then gently moving again', C.green]]);
+      return lerp(0.55, 0.85, up);
+    }
+    const day = Math.min(5, 1 + Math.floor(Math.max(0, s - TR1.days) / 1.2));
+    lying(ctx, W / 2, 220, 40, s, lerp(0.6, 0.4, seg(s, TR1.stiffer, TR1.longer)));
+    M.pill(ctx, `Day ${day} in bed`, W / 2, 60, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: seg(s, TR1.days, TR1.days + 0.5) });
+    M.emoji(ctx, '🔒', W / 2 + 70, 170, 24, seg(s, TR1.stiffer, TR1.stiffer + 0.5));
+    S.phasePill(ctx, W / 2, 340, s, [[TR1.days, 'Staying in bed for days'], [TR1.stiffer, 'Stiffer and weaker'], [TR1.longer, 'Recovery may take longer']]);
+    return lerp(0.55, 0.3, ease(seg(s, TR1.stiffer, TR1.longer + 1)));
+  }
+
+  // 2. Start with gentle movement: short walks, standing up from a chair, and comfortable
+  //    bending. The low back's bones, joints, and discs move together as the person moves.
+  const TR2 = { walks: 2.2, stand: 3, bend: 4.8, together: 10.9, active: 12.5 };
+  function gentleMovement(ctx, p, s) {
+    M.text(ctx, 'Start with gentle movement', 480, 44, { size: 28, weight: 800 });
+    const mode = s < TR2.stand ? 0 : s < TR2.bend ? 1 : s < TR2.together - 2 ? 2 : Math.floor(s / 2.4) % 3;
+    const x = 200, ground = 450, cyc = 0.5 - 0.5 * Math.cos(s * 2);
+    let lean = 0.06, amp = 0.45, ph = s * 5, flex = 0.05;
+    if (mode === 1) { M.rr(ctx, x - 70, 360, 64, 12, 4); ctx.fillStyle = '#b08a64'; ctx.fill(); ctx.fillRect(x - 74, 290, 10, 160); ctx.fillRect(x - 16, 370, 8, 80); lean = 0.5 * (1 - cyc) + 0.05; amp = 0.05; ph = 0; flex = 0.3 * (1 - cyc); }
+    if (mode === 2) { lean = 0.1 + 0.35 * cyc; amp = 0.05; ph = 0; flex = 0.4 * cyc; }
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, ground, 300, 12);
+    runner(ctx, x, ground, ph, amp, lean, 1, s);
+    ['🚶  Short walks', '🪑  Standing up from a chair', '🙇  Comfortable bending'].forEach((t, i) => M.pill(ctx, t, 210, 110 + i * 46, { size: 15, bg: mode === i ? '#e9f7ef' : '#fff', border: mode === i ? C.green : '#d7e0ec', color: mode === i ? '#1d7a4c' : '#4d5f86', alpha: seg(s, [TR2.walks, TR2.stand, TR2.bend][i], [TR2.walks, TR2.stand, TR2.bend][i] + 0.4) }));
+    const tg = seg(s, TR2.together, TR2.together + 0.5);
+    spine(ctx, 600, 80, 0.88, { s, flex, glow: { facet: tg * 0.6, disc: tg * 0.6, bone: tg * 0.4, muscle: seg(s, TR2.active, TR2.active + 0.5) * (0.5 + 0.5 * cyc) } });
+    M.pill(ctx, 'Your low back moves together', 760, 506, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: tg });
+  }
+
+  // 3. Build strength gradually: back, belly, and hip muscles work together; many kinds of
+  //    exercise can help; strength and movement improve over weeks (no instant healing).
+  const TR3 = { strength: 0.9, back: 3, belly: 3.7, hip: 4.4, together: 5.2, many: 8.1, noSingle: 10.4, improve: 13.4, weeks: 16.1 };
+  function buildStrengthBack(ctx, p, s) {
+    M.text(ctx, 'Build strength gradually', 480, 44, { size: 28, weight: 800 });
+    const cyc = 0.5 - 0.5 * Math.cos(s * 1.8), wk = ease(seg(s, TR3.improve, TR3.weeks + 1));
+    M.rr(ctx, 120, 330, 64, 12, 4); ctx.fillStyle = '#b08a64'; ctx.fill(); ctx.fillRect(116, 260, 10, 160); ctx.fillRect(172, 340, 8, 80);
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, 420, 260, 12);
+    runner(ctx, 200, 420, 0, 0.05, 0.5 * (1 - cyc) + 0.05, 1, s);
+    M.text(ctx, 'Example: sit to stand', 190, 452, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TR3.strength, TR3.strength + 0.5) });
+    const k = 0.84, on = (at) => seg(s, at, at + 0.5), work = 0.4 + 0.6 * cyc;
+    const g = spine(ctx, 560, 80, k, { s, flex: 0.25 * (1 - cyc), glow: { muscle: on(TR3.back) * (s > TR3.together ? work : 1) } });
+    coreMuscles(ctx, g, k, on(TR3.belly) * (s > TR3.together ? work : 1), on(TR3.hip) * (s > TR3.together ? work : 1));
+    [['Back muscles', TR3.back], ['Belly muscles', TR3.belly], ['Hip muscles', TR3.hip]].forEach(([t, at], i) => M.pill(ctx, t, 820, 140 + i * 50, { size: 15, bg: '#fff', border: MUS, color: '#a3461f', alpha: on(at) }));
+    M.text(ctx, 'Working together', 820, 300, { size: 14, weight: 800, color: '#1d7a4c', alpha: on(TR3.together) });
+    M.text(ctx, '🚶 🏊 🚲 🧘', 190, 116, { size: 26, alpha: on(TR3.many) });
+    M.pill(ctx, 'No single exercise is best for everyone', 190, 160, { size: 14, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: on(TR3.noSingle) });
+    meterB(ctx, 60, 496, 200, lerp(0.3, 0.8, wk), 'Strength, over weeks', MUS, on(TR3.improve - 0.4));
+    meterB(ctx, 290, 496, 200, lerp(0.35, 0.85, wk), 'Movement, over weeks', C.green, on(TR3.improve - 0.4));
+  }
+
+  // 4. Adjust daily activities: no one perfect posture; change positions, movement breaks,
+  //    pace heavy tasks, and gradually return to lifting.
+  const TR4 = { perfect: 3.4, positions: 5.8, breaks: 7.4, spread: 8.6, lifting: 10.4 };
+  function dailyActivities(ctx, p, s) {
+    M.text(ctx, 'Adjust daily activities', 480, 44, { size: 28, weight: 800 });
+    M.pill(ctx, 'There is no one perfect posture', 480, 92, { size: 17, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, TR4.perfect, TR4.perfect + 0.5) });
+    [['Change positions often', TR4.positions], ['Take movement breaks', TR4.breaks], ['Spread out heavy tasks', TR4.spread], ['Slowly get back to lifting', TR4.lifting]].forEach(([t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), x = 24 + i * 232, cx = x + 110;
+      M.card(ctx, x, 124, 220, 360, { r: 20, alpha: a });
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a;
+      if (i === 0) { const ph = Math.floor((s - at) / 1.6) % 3; runner(ctx, cx, 380, 0, 0.05, [0.06, 0.25, 0.12][ph], 1, s); M.text(ctx, ['Stand', 'Lean', 'Sit'][ph], cx + 60, 230, { size: 14, weight: 800, color: '#1d7a4c' }); }
+      if (i === 1) { runner(ctx, cx - 10, 380, s * 5, 0.4, 0.06, 1, s); M.emoji(ctx, '⏱️', cx + 60, 210, 30); }
+      if (i === 2) { [0, 1, 2].forEach((j) => M.emoji(ctx, '📦', cx - 50 + j * 50, 330 - (j === 1 ? 6 * Math.abs(Math.sin(s * 2)) : 0), 30)); M.text(ctx, '1 big load → 3 smaller ones', cx, 250, { size: 12, weight: 800, color: C.muted }); }
+      if (i === 3) { [22, 30, 38].forEach((sz, j) => M.emoji(ctx, '📦', cx - 60 + j * 56, 340, sz * (0.6 + 0.4 * seg(s, at + j * 0.6, at + j * 0.6 + 0.5)))); M.text(ctx, 'Light → heavier, over time', cx, 250, { size: 12, weight: 800, color: C.muted }); }
+      ctx.restore();
+      M.wrap(ctx, t, cx, 440, 190, { size: 16, weight: 800, alpha: a });
+    });
+  }
+
+  // 5. Manage symptoms and get support: heat or cold may ease pain for a while; a clinician
+  //    or physical therapist makes a plan that fits you; get rechecked if it gets much worse.
+  const TR5 = { heat: 0.1, cold: 0.7, ease: 1.3, pro: 3, plan: 5.9, fits: 6.6, worse: 9.2 };
+  function supportBack(ctx, p, s) {
+    M.text(ctx, 'Manage symptoms and get support', 480, 44, { size: 28, weight: 800 });
+    [['♨️', 'Heat', TR5.heat], ['🧊', 'Cold', TR5.cold]].forEach(([ic, t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), x = 24 + i * 200;
+      M.card(ctx, x, 84, 184, 150, { r: 18, alpha: a });
+      M.emoji(ctx, ic, x + 92, 136, 40, a); M.text(ctx, t, x + 92, 200, { size: 17, weight: 800, alpha: a });
+    });
+    M.text(ctx, 'May ease pain for a while (optional)', 212, 260, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TR5.ease, TR5.ease + 0.5) });
+    const ta = ease(seg(s, TR5.pro - 0.4, TR5.pro + 0.2));
+    M.card(ctx, 440, 84, 496, 400, { r: 22, alpha: ta, border: '#bfe3cf' });
+    if (ta > 0) {
+      ctx.save(); ctx.globalAlpha *= ta;
+      M.person(ctx, 520, 330, 46, { t: s, look: { shirt: '#ffffff', shirtShade: '#dbe4ef', pants: '#5a6f94', hair: '#2f2a28', skin: '#c99272', skinShade: '#b47e60' } });
+      runner(ctx, 640, 380, 0, 0.05, 0.1 + 0.3 * (0.5 - 0.5 * Math.cos(s * 1.6)), 1, s);
+      ctx.restore();
+      M.text(ctx, 'Physical therapist', 520, 120, { size: 14, weight: 800, color: C.muted, alpha: ta });
+      M.card(ctx, 720, 130, 196, 220, { r: 16, alpha: seg(s, TR5.plan, TR5.plan + 0.5), border: '#c8d6ee' });
+      M.text(ctx, '📋 Your plan', 818, 158, { size: 15, weight: 800, alpha: seg(s, TR5.plan, TR5.plan + 0.5) });
+      [['Your symptoms', TR5.fits + 0.4], ['Your goals', TR5.fits + 1.6], ['Your pace', TR5.fits + 2.2]].forEach(([t, at], i) => M.text(ctx, '✓ ' + t, 740, 200 + i * 40, { size: 15, weight: 800, align: 'left', color: '#1d7a4c', alpha: seg(s, at, at + 0.4) }));
+      M.pill(ctx, 'Much worse, or new symptoms? Get checked again', 688, 440, { size: 14, bg: '#fff', border: C.red, color: '#a3261f', alpha: seg(s, TR5.worse, TR5.worse + 0.5) });
+    }
+  }
+
+  // 6. Return to daily life: progress over time that is real but not a straight line (better
+  //    and worse days, pain can come back), with work, walks, bending, and family activities.
+  const TR6 = { time: 0.9, line: 3.3, days: 4.8, back: 7.4, work: 9.8, walks: 10.7, family: 11.7, manage: 13.2 };
+  function backToLifeBack(ctx, p, s) {
+    M.text(ctx, 'Return to daily life', 480, 44, { size: 28, weight: 800 });
+    const gx = 80, gy = 120, gw = 800, gh = 220, prog = ease(seg(s, TR6.time, TR6.family + 1));
+    M.rr(ctx, gx, gy, gw, gh, 16); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.stroke();
+    M.text(ctx, 'How you feel and what you can do', gx + 16, gy + 22, { size: 13, weight: 800, color: C.muted, align: 'left' });
+    M.text(ctx, 'Weeks →', gx + gw - 16, gy + gh - 14, { size: 13, weight: 800, color: C.muted, align: 'right' });
+    const f = (u) => 0.18 + 0.6 * u + 0.08 * Math.sin(u * 17) + (u > 0.55 && u < 0.66 ? -0.16 * Math.sin((u - 0.55) / 0.11 * Math.PI) : 0);
+    ctx.save(); ctx.strokeStyle = C.green; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.beginPath();
+    for (let i = 0; i <= 80 * prog; i++) { const u = i / 80, x = gx + 30 + u * (gw - 60), y = gy + gh - 30 - f(u) * (gh - 60); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
+    ctx.stroke(); ctx.restore();
+    if (prog > 0.6) M.text(ctx, 'A setback', gx + 30 + 0.6 * (gw - 60), gy + gh - 30 - f(0.6) * (gh - 60) + 28, { size: 12, weight: 800, color: '#a3261f', alpha: seg(s, TR6.days + 2, TR6.days + 2.6) });
+    M.pill(ctx, "Not always a straight line", 480, gy + gh + 30, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TR6.line, TR6.line + 0.5) });
+    [['💼', 'Work', TR6.work], ['🚶', 'Walks', TR6.walks], ['🌱', 'Bending and chores', TR6.walks + 0.5], ['👨‍👩‍👧', 'Time with family', TR6.family]].forEach(([ic, t, at], i) => {
+      const a = ease(seg(s, at, at + 0.5)), x = 60 + i * 220;
+      M.card(ctx, x, 404, 200, 92, { r: 16, alpha: a, border: '#bfe3cf' });
+      M.emoji(ctx, ic, x + 36, 450, 30, a);
+      M.wrap(ctx, t, x + 122, 450, 130, { size: 15, weight: 800, alpha: a });
+    });
+    M.text(ctx, 'Learn how to manage your back', 480, 522, { size: 15, weight: 800, color: '#1d7a4c', alpha: seg(s, TR6.manage, TR6.manage + 0.5) });
+  }
+
   const patientScenesA = [
     { label: 'The spine from top to bottom', caption: 'Your back is made of many parts working together. Your spine runs from your neck down to your pelvis.', draw: spineTopBottom },
     { label: 'What is inside the back?', caption: 'Inside your back are bones called vertebrae, soft discs between the bones, small joints, ligaments, muscles, and nerves.', draw: insideBack },
@@ -399,6 +555,15 @@
     { label: 'Most people improve', caption: 'Many people improve even when the exact source of pain is not fully clear. The good news is that most low back pain gets better with the right approach.', draw: mostImprove },
   ];
 
+  const patientScenesC = [
+    { label: 'Don\'t stop all movement', caption: 'With common low back pain, a short rest can help when the pain is bad. But staying in bed for days usually doesn\'t help. Your back can get stiffer and weaker, and recovery may take longer. Try to keep moving as much as you comfortably can.', draw: S.versus({ title: 'Don\'t stop all movement', panel: restPanel, left: 'Short rest, then moving', right: 'Days in bed', bar: 'Recovery', levels: ['On track', 'Slower', 'Much slower'] }) },
+    { label: 'Start with gentle movement', caption: 'Start with gentle movement, like short walks, standing up from a chair, and bending in a comfortable range. As you move, the bones, joints, and discs of your low back move together, and your muscles stay active.', draw: gentleMovement },
+    { label: 'Build strength gradually', caption: 'Next, build strength step by step. Your back, belly, and hip muscles work together to support and move your spine. Many kinds of exercise can help, and no single exercise is best for everyone. Strength and movement improve gradually, over weeks.', draw: buildStrengthBack },
+    { label: 'Adjust daily activities', caption: 'Small changes in daily life can help too. There is no one perfect posture. Change positions often, take movement breaks, spread out heavy tasks, and slowly get back to lifting.', draw: dailyActivities },
+    { label: 'Manage symptoms and get support', caption: 'Heat or cold may ease pain for a while. A healthcare professional or physical therapist can make a plan that fits your symptoms and your goals. If your pain gets much worse, or new symptoms appear, get checked again.', draw: supportBack },
+    { label: 'Return to daily life', caption: 'Recovery takes time, and it isn\'t always a straight line. Some days are better than others, and pain can come back. But many people get back to work, walks, and time with family, and learn how to manage their back.', draw: backToLifeBack },
+  ];
+
   MedData.register({
     id: 'back-pain',
     name: 'Back pain',
@@ -406,10 +571,12 @@
     aliases: ['back pain', 'low back pain', 'lower back pain', 'backache', 'lumbago', 'spine pain', 'sciatica', 'herniated disc', 'slipped disc', 'neck pain', 'lumbar pain'],
     patient: {
       tagline: 'Many parts of the back work together, so different problems can cause different kinds of back pain.',
-      // Part 1 explains the back; Part 2 takes a closer look at low back pain.
+      // Part 1 explains the back; Part 2 takes a closer look at low back pain; Part 3 shows how
+      // common low back pain can improve.
       videos: [
         { title: 'How your back works and why it can hurt', length: 82, audio: 'audio/back-pain-a/', scenes: patientScenesA },
         { title: 'Understanding low back pain', length: 80, audio: 'audio/back-pain-b/', scenes: patientScenesB },
+        { title: 'How can back pain improve?', length: 100, audio: 'audio/back-pain-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your spine runs from your neck to your pelvis. It is made of bones called vertebrae, soft discs, small joints, ligaments, muscles, and nerves.',
@@ -418,6 +585,7 @@
         'Many people with back pain do not have one single obvious cause.',
         'Low back pain often involves several structures, not just a disc or a torn muscle. Pain that stays in the back is different from nerve pain that travels down the leg (sciatica).',
         'Pain is real, but it does not always mean something is badly damaged, and scans do not always match symptoms. Most low back pain gets better.',
+        'For common low back pain, keep moving: a short rest can help, but days in bed usually do not. Gentle movement, gradual strengthening, flexible daily habits, and a plan that fits you can help. Recovery is often not a straight line.',
       ],
       questions: [
         'What do you think is causing my back pain?',
@@ -444,6 +612,8 @@
         { q: 'What is inside your back?', options: ['Only bones', 'Vertebrae, discs, small joints, ligaments, muscles, and nerves', 'Only muscles'], answer: 1, explain: 'Many parts work together to support your body and help it move.' },
         { q: 'If a disc or nearby nerve is involved, how might the pain feel?', options: ['Only a mild ache in one spot', 'It may spread into the buttock or leg, sometimes with tingling or numbness', 'It always feels like itching'], answer: 1, explain: 'Irritated nerves can send pain, tingling, or numbness along the path of the nerve.' },
         { q: 'Does low back pain always mean something is badly damaged?', options: ['Yes, pain always means damage', 'No, pain is real but often happens without serious damage, and most people improve', 'Only if it lasts one day'], answer: 1, explain: 'Many people improve even when the exact source is not clear, and scans do not always match how much it hurts.' },
+        { q: 'Is staying in bed for days the best treatment for common low back pain?', options: ['Yes, rest until all pain is gone', 'No, a short rest can help, but keeping gently active usually helps recovery', 'Only exercise when pain is zero'], answer: 1, explain: 'Days in bed can make the back stiffer and weaker. Gentle, manageable activity usually helps.' },
+        { q: 'Is there one perfect posture or one best exercise for everyone?', options: ['Yes, everyone needs the same core exercises', 'No, changing positions and many kinds of exercise can help, fitted to you', 'Only sitting very straight helps'], answer: 1, explain: 'Different activities can help. A healthcare professional or physical therapist can tailor a plan to your symptoms and goals.' },
         { q: 'Does all back pain have one clear cause?', options: ['Yes, always', 'No, many people with back pain do not have one single obvious cause', 'Only in older adults'], answer: 1, explain: 'Back pain often involves several structures together, which can make it hard to pinpoint.' },
       ],
     },
