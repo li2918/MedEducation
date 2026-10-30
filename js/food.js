@@ -175,6 +175,19 @@
       blob(ctx, -30, -18, 5, 2.5, -0.6, '#4caf50'); blob(ctx, -24, -22, 5, 2.5, 0.4, '#43a047');
     },
 
+    soda(ctx) {
+      ctx.save(); ctx.lineCap = 'round';
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(6, -34); ctx.lineTo(18, -60); ctx.stroke();
+      ctx.strokeStyle = '#e53935'; ctx.lineWidth = 8; ctx.setLineDash([5, 6]); ctx.beginPath(); ctx.moveTo(6, -34); ctx.lineTo(18, -60); ctx.stroke();
+      ctx.restore();
+      ctx.beginPath(); ctx.moveTo(-30, -30); ctx.lineTo(30, -30); ctx.lineTo(22, 46); ctx.lineTo(-22, 46); ctx.closePath();
+      ctx.fillStyle = lin(ctx, -30, 0, 30, 0, [[0, '#b71c1c'], [0.45, '#f05545'], [1, '#a31515']]); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 5;
+      ctx.beginPath(); for (let x = -26; x <= 26; x += 4) { const y = 8 + Math.sin(x * 0.25) * 4; x === -26 ? ctx.moveTo(x, y) : ctx.lineTo(x, y); } ctx.stroke();
+      ctx.fillStyle = '#eceff1'; M.rr(ctx, -34, -40, 68, 11, 5); ctx.fill();
+      blob(ctx, -16, 0, 3, 14, 0.1, 'rgba(255,255,255,0.3)');
+    },
+
     carrot(ctx) {
       ctx.save(); ctx.rotate(-0.55);
       ctx.strokeStyle = '#4caf50'; ctx.lineWidth = 5; ctx.lineCap = 'round';

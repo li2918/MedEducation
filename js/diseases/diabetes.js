@@ -199,7 +199,7 @@
   const SUGAR = 11; // sugar molecules in the patient video are big and glowing
   const wrapX = (v, w) => ((v % w) + w) % w;
   const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
-  const { heartBuddy, kidneyBuddy, brainBuddy, eyeball, viewFrame } = S;
+  const { heartBuddy, kidneyBuddy, brainBuddy, eyeball, viewFrame, runner } = S;
 
   // Insulin is a key that opens the cell's door so sugar can go in. In type 2 diabetes the
   // cells respond less to insulin: the door is harder to open, so only a little sugar gets
@@ -311,26 +311,27 @@
     return 1 - 0.85 * hurt;
   }
 
-  // Scene 5: the kidney's tiny strainers clean the blood. Sugar sticks to them, the holes
-  // tear so protein falls into the pee, and finally they clog so trash stays in the blood.
+  // Kidney: the close-up of the filter is the main picture. Too much sugar damages the filter
+  // wall, its holes get bigger so protein leaks into the urine, and damaged filters clean
+  // less well. The kidney's face is only a small helper.
   function kidneyPanel(ctx, p, s, sick) {
     const hurt = hurtOf(p, sick, 0.12, 0.8);
     const coat = hurtOf(p, sick, 0.12, 0.35), tear = hurtOf(p, sick, 0.36, 0.6), clog = hurtOf(p, sick, 0.62, 0.85);
-    kidneyBuddy(ctx, 70, 92, 56, 1 - 0.95 * hurt, s, hurt);
-    M.text(ctx, 'Kidney', 64, 156, { size: 15, weight: 800, color: C.muted });
-    const msg = !sick ? 'I keep the\ngood stuff!' : p < 0.36 ? 'Too much\nsugar!' : p < 0.62 ? 'My holes\nare tearing!' : "I'm so\ntired...";
-    M.say(ctx, msg, 68, 178, seg(p, 0.12, 0.18), sick ? C.red : '#1d7a4c');
-    // zoom lines from the kidney into its strainer
+    kidneyBuddy(ctx, 62, 124, 36, 1 - 0.8 * hurt, s, hurt);
+    M.text(ctx, 'Kidney', 58, 170, { size: 14, weight: 800, color: C.muted });
+    if (sick) S.phasePill(ctx, 220, 36, p, [[0.12, 'Too much sugar damages the filter wall'], [0.36, 'Holes in the filter get bigger'], [0.5, 'Protein leaks into the urine'], [0.62, 'Damaged filters clean less well']]);
+    else S.phasePill(ctx, 220, 36, p, [[0.05, 'The filter keeps protein in the blood', C.green]]);
+    // zoom lines from the kidney into its filter
     ctx.save(); ctx.strokeStyle = 'rgba(47,111,222,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
-    ctx.beginPath(); ctx.moveTo(98, 70); ctx.lineTo(140, 40); ctx.moveTo(98, 112); ctx.lineTo(140, 175); ctx.stroke(); ctx.restore();
-    const ax = 140, aw = 285, top = 40, fy = 172, jx = 192, jw = 180, jt = 222, jb = 345, lvl = 282;
+    ctx.beginPath(); ctx.moveTo(84, 106); ctx.lineTo(140, 62); ctx.moveTo(84, 142); ctx.lineTo(140, 188); ctx.stroke(); ctx.restore();
+    const ax = 140, aw = 285, top = 62, fy = 188, jx = 192, jw = 180, jt = 236, jb = 350, lvl = 294;
     M.rr(ctx, ax, top, aw, fy - top, 16); ctx.fillStyle = '#fde3de'; ctx.fill();
     M.text(ctx, 'Blood', ax + 30, top + 16, { size: 14, weight: 800, color: '#b3453c' });
     // pee cup
     M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.fillStyle = 'rgba(225,236,250,0.7)'; ctx.fill();
     ctx.save(); M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.clip(); ctx.fillStyle = '#fbe7a1'; ctx.fillRect(jx, lvl, jw, jb - lvl); ctx.restore();
     M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 3; ctx.stroke();
-    M.text(ctx, 'Pee', jx + jw + 22, lvl + 20, { size: 15, weight: 800, color: '#a07a00' });
+    M.text(ctx, 'Urine', jx + jw + 26, lvl + 20, { size: 15, weight: 800, color: '#a07a00' });
     // the strainer
     const nH = 6, gap = aw / nH, bandH = 18 + coat * 12, hw = lerp(10, 26, tear);
     const holes = [];
@@ -340,7 +341,7 @@
     holes.forEach((h) => { M.rr(ctx, prev, fy - bandH / 2, h.x - hw / 2 - prev, bandH, 6); ctx.fill(); prev = h.x + hw / 2; });
     M.rr(ctx, prev, fy - bandH / 2, ax + aw - prev, bandH, 6); ctx.fill();
     holes.forEach((h) => { if (h.blocked) { M.rr(ctx, h.x - hw / 2 - 1, fy - bandH / 2, hw + 2, bandH, 4); ctx.fillStyle = '#6f6577'; ctx.fill(); } });
-    M.text(ctx, 'Strainer', ax + aw - 40, fy - bandH / 2 - 12, { size: 13, weight: 800, color: '#6a4fb0' });
+    M.text(ctx, 'Filter wall', ax + aw - 44, fy + bandH / 2 + 14, { size: 13, weight: 800, color: '#6a4fb0' });
     const open = holes.filter((h) => !h.blocked);
     // something falling through a hole and into the cup: ph 0..1 → [x, y], or null while waiting above
     const fall = (h, ph, i, rest) => {
@@ -536,9 +537,15 @@
   }
 
   // Blood-sugar meter: in range when cells take sugar in; high when it stays in the blood.
+  // Over time the pancreas can also struggle to make enough insulin: its keys drop from 3 to 1
+  // as the narrator says so (s in seconds).
   function bloodPanel(ctx, p, s, sick, W) {
     const k = hurtOf(p, sick, 0.1, 0.7), high = sick && k > 0.5;
     M.glucose(ctx, 34, 36, 9); M.text(ctx, '= sugar', 50, 36, { size: 14, align: 'left', color: C.muted, weight: 700 });
+    M.pancreas(ctx, 384, 38, 30);
+    const fewer = sick ? ease(seg(s, 6.6, 7.6)) : 0;
+    for (let j = 0; j < 3; j++) M.key(ctx, 262 + j * 26, 38, 0.75, 0, C.teal, j === 0 ? 1 : 1 - fewer);
+    if (sick) M.text(ctx, 'Less insulin', 384, 62, { size: 12, weight: 800, color: '#a3261f', alpha: fewer });
     M.text(ctx, 'Blood sugar meter', W / 2, 76, { size: 14, weight: 800, color: C.muted });
     M.gauge(ctx, 60, 112, W - 120, sick ? lerp(0.35, 0.9, k) : 0.35);
     M.text(ctx, high ? 'High blood sugar!' : 'In range', W / 2, 142, { size: 17, weight: 800, color: high ? C.red : C.green });
@@ -593,6 +600,162 @@
   }
 
 
+  // ---- Part 3: how treatment protects your body ---------------------------------
+  // Three easy-to-picture processes plus checkups. Cues use s (seconds since the narration
+  // started), matched to when the narrator says each word.
+
+  // Working muscles move extra sugar doors (GLUT4) to their surface and pull more sugar out
+  // of the blood: exercise changes how the body uses sugar, not just burns calories.
+  function exerciseScene(ctx, p, s) {
+    M.text(ctx, 'Moving helps muscles use sugar', 480, 52, { size: 30, weight: 800 });
+    M.pill(ctx, 'More than burning calories', 480, 92, { size: 16, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.6, 1.2) });
+    const go = ease(seg(s, 0.5, 2)), doors = ease(seg(s, 4.4, 6.5)), down = ease(seg(s, 8, 11));
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, 446, 250, 10);
+    runner(ctx, 165, 446, s * 9, lerp(0.05, 1, go), 0.12, 1, s);
+    M.vessel(ctx, 330, 126, 580, 80, { t: s, wall: 12, items: [{ kind: 'rbc', n: 7, speed: 60, r: 8 }, { kind: 'glucose', n: Math.round(lerp(9, 4, down)), speed: 50, r: 10 }] });
+    M.text(ctx, 'Blood', 362, 116, { size: 14, weight: 800, color: '#b3453c' });
+    // the muscle cell squeezes as it works
+    const mx = 330, my = 236, mw = 580, mh = 150, sq = 1 - 0.025 * Math.max(0, Math.sin(s * 9)) * go;
+    ctx.save(); ctx.translate(mx + mw / 2, my + mh / 2); ctx.scale(sq, 1 / sq); ctx.translate(-(mx + mw / 2), -(my + mh / 2));
+    const g = ctx.createLinearGradient(0, my, 0, my + mh); g.addColorStop(0, '#f7b8b1'); g.addColorStop(1, '#de7a71');
+    M.rr(ctx, mx, my, mw, mh, 44); ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.35)'; ctx.lineWidth = 3;
+    for (let x = mx + 30; x < mx + mw - 20; x += 22) { ctx.beginPath(); ctx.moveTo(x, my + 14); ctx.quadraticCurveTo(x + 4, my + mh / 2, x, my + mh - 14); ctx.stroke(); }
+    ctx.restore();
+    M.face(ctx, mx + 70, my + 78, 30, 1, s, { seed: 6 });
+    M.text(ctx, 'Muscle cell', mx + mw / 2, my + mh + 22, { size: 16, weight: 800, color: C.muted });
+    // sugar doors: two at rest, many more while the muscle works
+    for (let j = 0; j < 8; j++) {
+      const x = mx + 60 + j * 66, open = j % 4 === 0 ? 1 : seg(doors, j / 8, j / 8 + 0.25);
+      if (open <= 0) continue;
+      M.rr(ctx, x - 9, my - 11, 18, 22, 5); ctx.fillStyle = C.teal; ctx.save(); ctx.globalAlpha *= open; ctx.fill(); ctx.restore();
+      const q = (s * (j % 4 === 0 ? 0.35 : 0.7) + j * 0.13) % 1;
+      if (j % 4 === 0 || s > 5) M.glucose(ctx, x, lerp(176, my + 46, q), 9, open * (1 - seg(q, 0.8, 1)));
+    }
+    M.pill(ctx, 'Extra sugar doors open', mx + mw / 2 + 60, my + 80, { size: 17, bg: '#e6f6f3', border: C.teal, color: '#0d6e5d', alpha: seg(s, 5, 5.6) });
+    M.gauge(ctx, 400, 490, 440, lerp(0.75, 0.4, down), { title: 'Blood sugar', valueText: down > 0.6 ? 'Lower' : 'High' });
+  }
+
+  // Meals with vegetables, fiber, and protein raise blood sugar slowly; sweets and sugary
+  // drinks cause big spikes.
+  function dietScene(ctx, p, s) {
+    M.text(ctx, 'Food choices smooth out spikes', 480, 52, { size: 30, weight: 800 });
+    const X0 = 90, X1 = 580, Y0 = 440, Y1 = 120, H = Y0 - Y1;
+    ctx.fillStyle = 'rgba(46,160,90,0.1)'; ctx.fillRect(X0, Y0 - 0.5 * H, X1 - X0, 0.28 * H);
+    M.text(ctx, 'Target range', X1 - 8, Y0 - 0.5 * H + 14, { size: 12, weight: 800, color: '#1d7a4c', align: 'right' });
+    ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(X0, Y1 - 10); ctx.lineTo(X0, Y0); ctx.lineTo(X1, Y0); ctx.stroke();
+    M.text(ctx, 'Blood sugar', X0, Y1 - 24, { size: 14, weight: 800, color: C.muted, align: 'left' });
+    M.text(ctx, 'Time after eating →', X1, Y0 + 22, { size: 14, weight: 800, color: C.muted, align: 'right' });
+    const curve = (fn, prog, col) => {
+      if (prog <= 0) return;
+      ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.beginPath();
+      for (let x = 0; x <= prog + 1e-6; x += 0.01) { const px = X0 + x * (X1 - X0), py = Y0 - fn(x) * H; x ? ctx.lineTo(px, py) : ctx.moveTo(px, py); }
+      ctx.stroke(); ctx.restore();
+    };
+    const gentle = (x) => 0.36 + 0.16 * Math.exp(-(((x - 0.45) / 0.28) ** 2));
+    const spike = (x) => 0.36 + 0.54 * Math.exp(-(((x - 0.28) / 0.11) ** 2));
+    curve(gentle, seg(s, 2.8, 6.2), C.green);
+    const sp = seg(s, 6.8, 9.6);
+    curve(spike, sp, C.red);
+    if (sp > 0.32) M.pill(ctx, 'Big spike', X0 + 0.28 * (X1 - X0), Y0 - 0.9 * H - 18, { size: 15, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(sp, 0.32, 0.45) });
+    const ga = seg(s, 2.6, 3.2), ra = seg(s, 6.6, 7.2);
+    M.card(ctx, 630, 130, 290, 132, { alpha: ga, r: 18, border: '#b8e3c9' });
+    M.food(ctx, 'broccoli', 690, 180, 50, s, ga); M.food(ctx, 'fish', 752, 186, 50, s, ga); M.food(ctx, 'rice', 820, 180, 48, s, ga);
+    M.text(ctx, 'Vegetables, fiber, protein', 775, 236, { size: 15, weight: 800, color: '#1d7a4c', alpha: ga });
+    M.card(ctx, 630, 290, 290, 132, { alpha: ra, r: 18, border: '#f3b5ae' });
+    M.food(ctx, 'soda', 720, 340, 52, s, ra); M.food(ctx, 'donut', 806, 344, 50, s, ra);
+    M.text(ctx, 'Sweets and sugary drinks', 775, 396, { size: 15, weight: 800, color: '#a3261f', alpha: ra });
+    M.pill(ctx, 'Fewer spikes = steadier blood sugar', 480, 498, { size: 18, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, 9.8, 10.4) });
+  }
+
+  // Example medicine: metformin tells the liver to release less sugar. Medicine does not
+  // destroy sugar; it helps the body control it.
+  function medicineScene(ctx, p, s) {
+    M.text(ctx, 'How medicine helps', 480, 52, { size: 30, weight: 800 });
+    M.text(ctx, 'Example: metformin', 480, 88, { size: 17, weight: 700, color: C.muted, alpha: seg(s, 2.8, 3.4) });
+    const fly = ease(seg(s, 2.8, 3.9)), less = ease(seg(s, 4.2, 7));
+    M.text(ctx, 'Your liver releases sugar', 230, 132, { size: 16, weight: 800, color: C.muted });
+    const b = Math.sin(s * 1.6) * 3;
+    M.liver(ctx, 230, 238 + b, 130);
+    M.face(ctx, 184, 222 + b, 38, lerp(0.6, 1, less), s, { seed: 4 });
+    M.vessel(ctx, 110, 378, 800, 84, { t: s, wall: 12, items: [{ kind: 'rbc', n: 9, speed: 60, r: 8 }] });
+    const n = Math.round(lerp(9, 3, less));
+    for (let i = 0; i < n; i++) {
+      const q = (s * lerp(0.35, 0.22, less) + i / n) % 1;
+      const x = q < 0.25 ? 300 : lerp(300, 890, (q - 0.25) / 0.75), y = q < 0.25 ? lerp(290, 420, q / 0.25) : 420 + Math.sin(s * 2 + i) * 8;
+      M.glucose(ctx, x, y, 10, 1 - seg(q, 0.92, 1));
+    }
+    if (fly < 1) M.capsule(ctx, lerp(760, 280, fly), lerp(130, 214, fly), 1.6, s * 3, C.blue, '#fff', seg(s, 2.6, 3));
+    else M.capsule(ctx, 280, 214, 1.6, 0.4, C.blue, '#fff', 1 - seg(s, 4.3, 4.9));
+    M.gauge(ctx, 600, 236, 280, lerp(0.75, 0.42, less), { title: 'Blood sugar', valueText: less > 0.6 ? 'Steadier' : 'High' });
+    M.pill(ctx, 'Liver releases less sugar', 740, 316, { size: 17, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, 5.5, 6.1) });
+    M.pill(ctx, "Medicine doesn't destroy sugar. It helps your body control it.", 480, 500, { size: 18, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, 7.6, 8.2) });
+    M.text(ctx, 'Other medicines work in other ways', 480, 530, { size: 14, weight: 700, color: C.muted, alpha: seg(s, 12.4, 13) });
+  }
+
+  // Checkups find changes you can't feel. Both sides start with early kidney filter changes;
+  // with steady care they stay small, without it they keep growing. No damage is undone.
+  function checkupPanel(ctx, p, s, noCare, W) {
+    const yr = ease(seg(s, 0.5, 12)), worse = noCare ? ease(seg(s, 9, 12)) : 0;
+    M.text(ctx, 'Over the years', W / 2, 34, { size: 13, weight: 800, color: C.muted });
+    M.rr(ctx, 60, 46, W - 120, 8, 4); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+    if (yr > 0.02) { M.rr(ctx, 60, 46, (W - 120) * yr, 8, 4); ctx.fillStyle = noCare ? C.red : C.green; ctx.fill(); }
+    M.pill(ctx, 'You feel fine', W / 2, 80, { size: 14, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.4, 1) });
+    const ax = 30, aw = W - 60, top = 104, fy = 196, jx = 120, jw = W - 240, jt = 214, jb = 290;
+    M.rr(ctx, ax, top, aw, fy - top, 14); ctx.fillStyle = '#fde3de'; ctx.fill();
+    M.text(ctx, 'Kidney filter', ax + 54, top + 14, { size: 13, weight: 800, color: '#b3453c' });
+    M.rr(ctx, jx, jt, jw, jb - jt, 14); ctx.fillStyle = 'rgba(225,236,250,0.7)'; ctx.fill();
+    ctx.save(); M.rr(ctx, jx, jt, jw, jb - jt, 14); ctx.clip(); ctx.fillStyle = '#fbe7a1'; ctx.fillRect(jx, jt + 30, jw, jb - jt); ctx.restore();
+    M.rr(ctx, jx, jt, jw, jb - jt, 14); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 2; ctx.stroke();
+    M.text(ctx, 'Urine', jx + jw + 26, jt + 46, { size: 13, weight: 800, color: '#a07a00' });
+    // the filter wall: two holes already a bit bigger (early changes); without care they grow
+    const base = [10, 10, 15, 10, 16, 10, 10], grows = [2, 4, 5], gap = aw / 7, bandH = 16;
+    const holes = base.map((w, i) => ({ x: ax + gap * (i + 0.5), w: w + (grows.includes(i) ? worse * 14 : 0) }));
+    ctx.fillStyle = M.mix('#9b7bd1', '#b98a3a', 0.25 + worse * 0.4);
+    let prev = ax;
+    holes.forEach((h) => { M.rr(ctx, prev, fy - bandH / 2, h.x - h.w / 2 - prev, bandH, 5); ctx.fill(); prev = h.x + h.w / 2; });
+    M.rr(ctx, prev, fy - bandH / 2, ax + aw - prev, bandH, 5); ctx.fill();
+    for (let i = 0; i < 5; i++) M.protein(ctx, ax + 40 + i * (aw - 80) / 4, fy - 30 - Math.abs(Math.sin(s * 2 + i)) * 40, 12, 1, s + i);
+    const leaks = noCare ? Math.round(lerp(1, 4, worse)) : 1;
+    for (let j = 0; j < leaks; j++) {
+      const h = holes[grows[j % 3]], q = (s * 0.3 + j * 0.37) % 1;
+      const x = q < 0.4 ? lerp(ax + 30 + rnd(j + 5) * (aw - 60), h.x, q / 0.4) : lerp(h.x, jx + 30 + rnd(j + 6) * (jw - 60), (q - 0.4) / 0.6);
+      const y = q < 0.4 ? lerp(top + 24, fy, q / 0.4) : lerp(fy, jb - 14, (q - 0.4) / 0.6);
+      M.protein(ctx, x, y, 11, 1, s + j);
+    }
+    M.text(ctx, noCare ? 'More protein leaks' : 'A little protein leaks', W / 2, 308, { size: 14, weight: 800, color: noCare ? '#a3261f' : '#b86a00', alpha: seg(s, 1, 1.6) });
+    [['A1C', 4.5], ['Kidney', 5], ['Eye', 5.5], ['Foot', 6.2]].forEach(([t, at], i) => {
+      const done = noCare ? 0 : seg(s, at, at + 0.4);
+      M.pill(ctx, (done > 0.5 ? '✓ ' : '') + t, 70 + i * 100, 338, { size: 14, bg: done > 0.5 ? '#e9f7ef' : '#f1f3f6', border: done > 0.5 ? C.green : '#d7e0ec', color: done > 0.5 ? '#1d7a4c' : '#8a96a8' });
+    });
+    return noCare ? 0.7 - 0.45 * worse : 0.7;
+  }
+
+  // Keep going: treatment works best when you stick with it, even when you feel fine.
+  function keepGoing(ctx, p, s) {
+    M.text(ctx, 'Keep going, even when you feel fine', 480, 66, { size: 30, weight: 800, alpha: ease(seg(s, 0, 0.5)) });
+    ['Stay active', 'Balanced meals', 'Medicine as prescribed', 'Regular checkups'].forEach((label, i) => {
+      const a = ease(seg(s, 0.6 + i * 0.5, 1.2 + i * 0.5)), x = 110 + i * 190, cx = x + 85;
+      if (a <= 0) return;
+      M.card(ctx, x, 118, 170, 190, { alpha: a, r: 20 });
+      ctx.save(); ctx.globalAlpha *= a;
+      if (i === 0) { ctx.fillStyle = '#c9e7b5'; ctx.fillRect(cx - 50, 236, 100, 5); ctx.save(); ctx.translate(cx, 236); ctx.scale(0.45, 0.45); runner(ctx, 0, 0, s * 9, 1, 0.12, 1, s); ctx.restore(); }
+      if (i === 1) { M.food(ctx, 'broccoli', cx - 30, 190, 48, s); M.food(ctx, 'fish', cx + 30, 196, 48, s); }
+      if (i === 2) M.capsule(ctx, cx, 192, 2, -0.5, C.blue, '#fff');
+      if (i === 3) M.emoji(ctx, '🩺', cx, 192, 56);
+      ctx.restore();
+      M.wrap(ctx, label, cx, 270, 150, { size: 16, weight: 800, alpha: a });
+    });
+    const o = ease(seg(s, 3, 3.6));
+    ctx.save(); ctx.globalAlpha *= o;
+    heartBuddy(ctx, 330, 400, 38, 1, s);
+    kidneyBuddy(ctx, 480, 396, 40, 1, s, 0);
+    eyeball(ctx, 630, 396, 34, 0, s);
+    ctx.restore();
+    M.text(ctx, 'Your care team can help you find what works for you.', 480, 496, { size: 18, weight: 700, color: M.C.blue, alpha: seg(s, 4.2, 4.8) });
+  }
+
   // Part 1 (~65 s): what type 2 diabetes is, and why sugar stays in the blood.
   const patientScenesA = [
     {
@@ -612,7 +775,7 @@
     },
     {
       label: 'Sugar stays in the blood',
-      caption: 'When less sugar gets into the cells, more of it builds up in the blood. Doctors call this high blood sugar.',
+      caption: 'When less sugar gets into the cells, more of it builds up in the blood. Over time, the pancreas can also have trouble making enough insulin.',
       draw: S.versus({ title: 'Sugar stays in the blood', panel: bloodPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Sugar balance' }),
     },
     {
@@ -679,6 +842,37 @@
         ['💊  Medicine, when needed', '🏃  Stay active', '🥗  Eat balanced meals', '🩺  See your doctor', '🦶  Check your feet every day'].forEach((t, i) =>
           M.pill(ctx, t, 470, 195 + i * 62, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(p, 0.25 + i * 0.1, 0.33 + i * 0.1)) }));
       },
+    },
+  ];
+
+  // Part 3 (~75 s): how treatment protects your body. Three processes that are easy to
+  // picture (exercise, food, one medicine as an example), then checkups that link steady
+  // care to protecting the organs without suggesting damage reverses.
+  const patientScenesC = [
+    {
+      label: 'Exercise',
+      caption: 'Exercise does more than burn calories. When your muscles work, they open extra sugar doors and pull more sugar out of your blood. That helps lower blood sugar.',
+      draw: exerciseScene,
+    },
+    {
+      label: 'Food choices',
+      caption: 'Food choices matter too. Meals with vegetables, fiber, and protein raise blood sugar slowly. Sweets and sugary drinks cause big spikes.',
+      draw: dietScene,
+    },
+    {
+      label: 'Medicine',
+      caption: "Medicine can help too. For example, metformin tells the liver to release less sugar into the blood. Medicine doesn't destroy sugar. It helps your body control it better. Other medicines work in different ways.",
+      draw: medicineScene,
+    },
+    {
+      label: 'Checkups',
+      caption: 'You may not feel changes inside your body. Regular checkups, like A1C, kidney, eye, and foot exams, find changes early. Steady care lowers the risk of more damage.',
+      draw: S.versus({ title: 'Why checkups matter', panel: checkupPanel, left: 'Steady care', right: 'No regular checkups', bar: 'Kidney filter health' }),
+    },
+    {
+      label: 'Keep going',
+      caption: 'Treatment works best when you keep going, even when you feel fine. Your care team can help you find what works for you.',
+      draw: keepGoing,
     },
   ];
 
@@ -1155,6 +1349,7 @@
       videos: [
         { title: 'What is type 2 diabetes?', length: 68, audio: 'audio/t2d-a/', scenes: patientScenesA },
         { title: 'How high sugar can affect your body', length: 85, audio: 'audio/t2d-b/', scenes: patientScenesB },
+        { title: 'How treatment protects your body', length: 75, audio: 'audio/t2d-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Insulin is like a key that lets sugar into your cells. In type 2 diabetes, the cells respond to it less, so more sugar stays in the blood.',
