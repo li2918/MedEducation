@@ -248,26 +248,48 @@
     ctx.save(); M.rr(ctx, x, y, w, h, 14); ctx.lineWidth = 4; ctx.strokeStyle = '#3b4a5e'; ctx.stroke(); ctx.restore();
   }
 
-  // Kid running in place. ph: stride phase, amp: stride size (0..1), lean: bend forward (0..1).
-  function runner(ctx, x, ground, ph, amp, lean, mood, s) {
-    const hip = [x, ground - 70], L = 36, col = '#4a6fa5';
+  // A person walking or running in place, seen from the side and facing right: hair, face,
+  // shirt, pants, and shoes. ph: stride phase, amp: stride size (0..1), lean: bend forward
+  // (0..1), mood: face (1 happy .. 0 unwell). look recolors parts. Returns the head center.
+  const WALKER = { skin: '#f1c7a5', skinShade: '#dfab86', hair: '#5b3a29', shirt: '#e8774f', pants: '#3f5a8a', shoe: '#2f3440' };
+  function runner(ctx, x, ground, ph, amp, lean, mood, s, look = {}) {
+    const P = Object.assign({}, WALKER, look);
+    const hip = [x, ground - 70], L = 36;
     const ang = lean * 0.9, sh = [hip[0] + Math.sin(ang) * 58, hip[1] - Math.cos(ang) * 58];
-    ctx.save(); ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 9;
-    const limb = (from, a1, a2, len) => {
+    const joint = (from, a1, a2, len) => {
       const k = [from[0] + Math.sin(a1) * len, from[1] + Math.cos(a1) * len];
-      const e = [k[0] + Math.sin(a2) * len, k[1] + Math.cos(a2) * len];
-      ctx.beginPath(); ctx.moveTo(from[0], from[1]); ctx.lineTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+      return [k, [k[0] + Math.sin(a2) * len, k[1] + Math.cos(a2) * len]];
     };
-    [0, Math.PI].forEach((o) => {
+    const line = (pts, w, col) => { ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([px, py], i) => (i ? ctx.lineTo(px, py) : ctx.moveTo(px, py))); ctx.stroke(); };
+    const limbs = [0, Math.PI].map((o) => {
       const sw = Math.sin(ph + o) * 0.75 * amp;
-      limb(hip, sw, sw - (0.2 + 0.9 * amp * Math.max(0, -Math.sin(ph + o))), L);
-      limb(sh, -sw * 1.1 + lean * 0.6, -sw * 1.1 + lean * 0.6 + 1.1 * Math.max(amp, lean), 26);
+      return { leg: joint(hip, sw, sw - (0.2 + 0.9 * amp * Math.max(0, -Math.sin(ph + o))), L), arm: joint(sh, -sw * 1.1 + lean * 0.6, -sw * 1.1 + lean * 0.6 + 1.1 * Math.max(amp, lean), 26) };
     });
-    ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(sh[0], sh[1]); ctx.stroke();
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    const leg = ({ leg: [k, e] }, back) => {
+      line([hip, k, e], 12, back ? M.mix(P.pants, '#000000', 0.18) : P.pants);
+      ctx.fillStyle = back ? M.mix(P.shoe, '#000000', 0.2) : P.shoe; ctx.beginPath(); ctx.ellipse(e[0] + 6, e[1] + 1, 11, 6, 0, 0, M.TAU); ctx.fill();
+    };
+    const arm = ({ arm: [k, e] }, back) => {
+      const skin = back ? P.skinShade : P.skin;
+      line([k, e], 8, skin); M.dot(ctx, e[0], e[1], 5.5, skin);
+      line([sh, k], 11, back ? M.mix(P.shirt, '#000000', 0.15) : P.shirt);
+    };
+    arm(limbs[1], true); leg(limbs[1], true);
+    line([sh, [sh[0] + Math.sin(ang) * 10, sh[1] - Math.cos(ang) * 10]], 9, P.skinShade); // neck
+    M.dot(ctx, hip[0], hip[1] + 2, 12, P.pants);
+    line([[hip[0] - Math.sin(ang) * 2, hip[1] + 4], sh], 24, P.shirt);
+    leg(limbs[0], false); arm(limbs[0], false);
     ctx.restore();
-    const head = [sh[0] + Math.sin(ang) * 26, sh[1] - Math.cos(ang) * 26];
-    M.dot(ctx, head[0], head[1], 22, '#f2c8a8');
-    M.face(ctx, head[0] + 3, head[1] + 1, 20, mood, s, { seed: 6 });
+    const head = [sh[0] + Math.sin(ang) * 26, sh[1] - Math.cos(ang) * 26], [hx, hy] = head;
+    M.dot(ctx, hx, hy, 22, P.skin);
+    ctx.save(); ctx.fillStyle = P.hair; ctx.beginPath();
+    ctx.arc(hx, hy, 23.5, Math.PI * 0.78, Math.PI * 1.94);
+    ctx.quadraticCurveTo(hx + 6, hy - 12, hx - 6, hy - 9);
+    ctx.quadraticCurveTo(hx - 10, hy - 2, hx - 16, hy + 12);
+    ctx.fill(); ctx.restore();
+    M.dot(ctx, hx - 7, hy + 3, 5, P.skinShade); // ear
+    M.face(ctx, hx + 6, hy + 3, 17, mood, s, { seed: 6 });
     return head;
   }
 

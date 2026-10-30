@@ -280,69 +280,71 @@
     M.pill(ctx, 'It can build up over minutes or hours', 740, 470, { size: 17, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 9.6, 10.2) });
   }
 
-  // 4. Why breathing feels hard: more work to push air through; possible symptoms.
-  function breathingHard(ctx, p, s) {
-    M.text(ctx, 'Why breathing feels hard', 480, 50, { size: 30, weight: 800 });
-    const x = 190, y = 384, sc = 78;
-    M.person(ctx, x, y, sc, { color: '#dfe7f3' });
-    lungsFilled(ctx, x, y - 0.72 * sc, 0.44 * sc, 0.5 + 0.25 * breathOf(s / 2), 0.35, s);
-    const tight = seg(s, 4.8, 5.4);
-    if (tight > 0) for (let d of [-1, 1]) M.arrow(ctx, x + d * 0.95 * sc, y - 0.72 * sc, x + d * 0.62 * sc, y - 0.72 * sc, { color: '#a3475f', width: 4, head: 10, alpha: tight });
-    puffLines(ctx, x + 10, y - 1.6 * sc, s, seg(s, 7.2, 7.8));
-    airwayTube(ctx, 420, 120, 480, 120, s * 18, { tight: 0.75, thick: 0.4, inflam: 0.7, mucus: 0.5, air: 4, speed: 1 });
-    riskMeter(ctx, 440, 300, 300, lerp(0.3, 0.85, ease(seg(s, 1.8, 3))), 'Work to breathe');
-    [['Wheezing', 3.9], ['Coughing', 4.3], ['Tight chest', 4.8], ['Hard to catch your breath', 7.2]].forEach(([t, at], i) =>
-      M.pill(ctx, t, 440 + (i % 2) * 210, 380 + Math.floor(i / 2) * 58, { align: 'left', size: 17, bg: '#fff', border: '#f3d2a2', color: '#8a5a00', alpha: seg(s, at, at + 0.5) }));
-  }
-
-  // 5. How a rescue (quick-relief) inhaler works: the medicine reaches the airways and relaxes
-  //    the tight muscle ring within minutes, so the airway opens and air moves again. Some
-  //    swelling and mucus remain: quick relief works on the muscles, the daily plan on swelling.
-  function rescueInhaler(ctx, p, s) {
-    M.text(ctx, 'How a rescue inhaler works', 480, 50, { size: 30, weight: 800 });
-    inhaleMedicine(ctx, 170, 404, 80, s, ease(seg(s, 0.4, 1)), seg(s, 1.4, 2));
-    const open = ease(seg(s, 3.2, 6.4)), cx = 500, cy = 290;
-    ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(200, 330); ctx.lineTo(cx - 150, cy - 80); ctx.moveTo(200, 346); ctx.lineTo(cx - 150, cy + 80); ctx.stroke(); ctx.restore();
-    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.85, 0.12, open), thick: lerp(0.42, 0.32, open), inflam: 0.6, mucus: 0.4, air: lerp(2, 7, open) });
-    for (let i = 0; i < 5; i++) {
-      const a = i * 1.25 + 0.3, d = lerp(150, 40, seg(s, 2.2 + i * 0.25, 3.4 + i * 0.25));
-      mist(ctx, cx + Math.cos(a) * d * 0.5, cy + Math.sin(a) * d * 0.5, 5, seg(s, 2.2, 2.8) * (1 - seg(s, 7, 8)));
+  // 4. What to do when symptoms get worse: notice early signs, follow your own asthma action
+  //    plan (including your reliever inhaler, the way the plan says), and get emergency help if
+  //    you are not getting better or see danger signs. No medicine names or mechanisms here:
+  //    relievers differ, so the plan, not the video, says how to use yours.
+  const TW = { early: 2.9, plan: 7.6, reliever: 10.9, help: 13.8, call: 16.8 };
+  function whatToDo(ctx, p, s) {
+    M.text(ctx, 'What to do when symptoms get worse', 480, 46, { size: 28, weight: 800 });
+    const steps = [['1', 'Notice early signs', TW.early, '#c26a00'], ['2', 'Follow your action plan', TW.plan, M.C.blue], ['3', 'Get help if needed', TW.help, C.red]];
+    const cur = s >= TW.help ? 2 : s >= TW.plan ? 1 : 0;
+    steps.forEach(([n, t, at, col], i) => {
+      const a = ease(seg(s, at - 0.6, at)), x = 36 + i * 302;
+      if (a <= 0) return;
+      M.card(ctx, x, 84, 280, 390, { alpha: a, r: 22, border: i === cur ? col : '#d7e0ec', borderWidth: i === cur ? 3 : 1.5 });
+      M.dot(ctx, x + 32, 116, 16, col, a); M.text(ctx, n, x + 32, 117, { size: 17, weight: 900, color: '#fff', alpha: a });
+      M.text(ctx, t, x + 56, 116, { size: 18, weight: 800, align: 'left', alpha: a });
+      if (i < 2) M.arrow(ctx, x + 282, 280, x + 300, 280, { color: '#9fb0c6', width: 3, head: 7, alpha: a });
+    });
+    // 1. early signs: a person who starts coughing, with the signs to watch for
+    const a1 = ease(seg(s, TW.early - 0.6, TW.early));
+    if (a1 > 0) {
+      const cx = 176;
+      [['Cough', 0], ['Wheeze', 0.5], ['Tight chest', 1]].forEach(([t, d], i) =>
+        M.pill(ctx, t, cx + (i - 1) * 84, 162, { size: 14, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TW.early + 0.8 + d, TW.early + 1.3 + d) }));
+      M.person(ctx, cx, 340, 44, { mood: 0.55, t: s, alpha: a1 });
+      M.say(ctx, 'cough!', cx + 58, 236, a1 * (0.55 + 0.45 * Math.abs(Math.sin(s * 3))), '#8a5a00');
+      M.text(ctx, 'Act early', cx, 448, { size: 17, weight: 800, color: '#8a5a00', alpha: a1 });
     }
-    M.text(ctx, 'Inside an airway', cx, 476, { size: 16, weight: 800, color: C.muted });
-    [['Quick relief', 1, M.C.blue], ['Tight muscles relax', 3.4, '#a3475f'], ['Airway opens up', 7.6, C.green]].forEach(([t, at, col], i) =>
-      M.pill(ctx, t, 810, 150 + i * 60, { size: 18, bg: '#fff', border: col, color: col, alpha: seg(s, at, at + 0.5) }));
-    riskMeter(ctx, 700, 370, 220, lerp(0.3, 0.85, ease(seg(s, 5, 8.5))), 'Air getting through', 1, true);
-    M.pill(ctx, 'Need it often? Tell your care team.', 790, 440, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, 10.4, 11) });
-    M.text(ctx, 'Quick relief relaxes the muscles. Your daily plan works on the swelling.', 480, 516, { size: 15, weight: 700, color: C.muted, alpha: seg(s, 12.4, 13) });
+    // 2. the plan: yellow zone lights up; use the reliever the way your plan says
+    const a2 = ease(seg(s, TW.plan - 0.6, TW.plan));
+    if (a2 > 0) {
+      const cx = 478;
+      [['Green: doing well', '#2fa36b'], ['Yellow: getting worse', '#f2b705'], ['Red: medical alert', '#e5484d']].forEach(([t, col], i) => {
+        const y = 150 + i * 30, hi = i === 1;
+        M.rr(ctx, cx - 112, y, 224, 24, 8); ctx.save(); ctx.globalAlpha *= a2 * (hi ? 0.9 : 0.35); ctx.fillStyle = col; ctx.fill(); ctx.restore();
+        if (hi) { M.rr(ctx, cx - 115, y - 3, 230, 30, 10); ctx.save(); ctx.globalAlpha *= a2 * (0.6 + 0.4 * Math.sin(s * 5)); ctx.strokeStyle = '#8a5a00'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore(); }
+        M.text(ctx, t, cx, y + 12, { size: 14, weight: 800, color: '#1d2b3a', alpha: a2 });
+      });
+      ctx.save(); ctx.globalAlpha *= a2;
+      Lungs.inhaleMedicine(ctx, cx - 22, 360, 40, s, ease(seg(s, TW.reliever - 0.4, TW.reliever + 0.2)), seg(s, TW.reliever + 0.4, TW.reliever + 1));
+      ctx.restore();
+      M.wrap(ctx, 'Use your reliever inhaler the way your plan says', cx, 446, 250, { size: 14, weight: 800, color: '#1f4fa8', alpha: seg(s, TW.reliever, TW.reliever + 0.5) });
+    }
+    // 3. get help: not getting better, or danger signs
+    const a3 = ease(seg(s, TW.help - 0.6, TW.help));
+    if (a3 > 0) {
+      const cx = 780;
+      M.wrap(ctx, 'Not getting better, or seeing danger signs?', cx, 176, 240, { size: 16, weight: 800, alpha: a3 });
+      M.emoji(ctx, '📞', cx, 270, 64, a3);
+      M.text(ctx, 'Call 911', cx, 342, { size: 30, weight: 800, color: '#a3261f', alpha: seg(s, TW.call, TW.call + 0.4) });
+      M.pill(ctx, "Don't wait", cx, 396, { size: 17, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, TW.call, TW.call + 0.4) });
+    }
   }
 
-  // 6. A severe attack: very little air gets through; danger signs.
+  // 5. A severe attack: very little air gets through; danger signs, then call 911.
+  const TD = { signs: 3.3, talk: 4.5, lips: 6.7, confused: 8.8, harder: 11.6, call: 13.9 };
   function dangerous(ctx, p, s) {
     M.text(ctx, 'When it becomes dangerous', 480, 50, { size: 30, weight: 800 });
     const k = ease(seg(s, 0.4, 2.4));
     airwayCross(ctx, 240, 300, 140, s, { muscle: lerp(0.8, 1, k), thick: lerp(0.5, 0.7, k), inflam: 1, mucus: 1, air: k > 0.6 ? 0 : 1 });
     M.text(ctx, 'Very little air gets through', 240, 486, { size: 17, weight: 800, color: '#a3261f', alpha: seg(s, 1.4, 2) });
-    M.card(ctx, 480, 120, 420, 330, { border: C.red, borderWidth: 3, r: 22, alpha: seg(s, 3.6, 4.2) });
-    M.text(ctx, '⚠  Danger signs', 690, 160, { size: 22, weight: 800, color: '#a3261f', alpha: seg(s, 3.6, 4.2) });
-    [['Trouble talking in full sentences', 4.8], ['Lips turning blue or gray', 7.2], ['Breathing keeps getting harder', 9.6]].forEach(([t, at], i) =>
-      M.wrap(ctx, '• ' + t, 690, 222 + i * 74, 370, { size: 19, weight: 700, alpha: seg(s, at, at + 0.5) }));
-  }
-
-  // 7. Recognize the warning: follow the action plan; call 911 for severe symptoms.
-  function recognize(ctx, p, s) {
-    M.text(ctx, 'Recognize the warning', 480, 50, { size: 30, weight: 800 });
-    const a = ease(seg(s, 0.3, 0.9)), red = seg(s, 4, 4.6);
-    M.card(ctx, 160, 100, 380, 340, { alpha: a, r: 22, border: '#c8d6ee' });
-    M.text(ctx, 'Asthma action plan', 350, 136, { size: 21, weight: 800, alpha: a });
-    [['Green', 'Doing well', '#2fa36b'], ['Yellow', 'Getting worse', '#f2b705'], ['Red', 'Medical alert', '#e5484d']].forEach(([zn, t, col], i) => {
-      const y = 190 + i * 78, hi = i === 2 ? red : 0;
-      M.rr(ctx, 190, y - 30, 320, 60, 14); ctx.save(); ctx.globalAlpha *= a * (0.35 + 0.65 * (i === 2 ? 0.4 + 0.6 * hi : 0.4)); ctx.fillStyle = col; ctx.fill(); ctx.restore();
-      if (hi > 0) { M.rr(ctx, 186, y - 34, 328, 68, 16); ctx.save(); ctx.globalAlpha *= hi * (0.7 + 0.3 * Math.sin(s * 6)); ctx.strokeStyle = '#a3261f'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore(); }
-      M.text(ctx, `${zn}: ${t}`, 350, y, { size: 19, weight: 800, color: '#1d2b3a', alpha: a });
-    });
-    M.pill(ctx, 'Follow your plan right away', 730, 210, { size: 19, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, 1, 1.6) });
-    M.pill(ctx, '📞  Severe symptoms? Call 911', 730, 300, { size: 21, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, 4.8, 5.4) });
+    M.card(ctx, 480, 120, 420, 330, { border: C.red, borderWidth: 3, r: 22, alpha: seg(s, TD.signs - 0.4, TD.signs + 0.2) });
+    M.text(ctx, '⚠  Danger signs', 690, 160, { size: 22, weight: 800, color: '#a3261f', alpha: seg(s, TD.signs - 0.4, TD.signs + 0.2) });
+    [['Trouble talking in full sentences', TD.talk], ['Lips turning blue or gray', TD.lips], ['Confused or very sleepy', TD.confused], ['Breathing keeps getting harder', TD.harder]].forEach(([t, at], i) =>
+      M.wrap(ctx, '• ' + t, 690, 212 + i * 60, 370, { size: 19, weight: 700, alpha: seg(s, at, at + 0.5) }));
+    M.pill(ctx, '📞  Call 911 right away', 690, 490, { size: 21, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, TD.call, TD.call + 0.5) });
   }
 
   // ---- Part 3: How can I keep my asthma under control? ---------------------------
@@ -515,24 +517,14 @@
       draw: attackNarrowing,
     },
     {
-      label: 'Why breathing feels hard',
-      caption: 'Pushing air through narrow airways takes more work. You might wheeze, cough, feel your chest get tight, or find it hard to catch your breath.',
-      draw: breathingHard,
-    },
-    {
-      label: 'How a rescue inhaler works',
-      caption: 'A rescue inhaler gives quick relief. Its medicine relaxes the tight muscles around your airways within minutes, so they open up and air moves again. If you need it often, tell your care team.',
-      draw: rescueInhaler,
+      label: 'When symptoms get worse',
+      caption: 'When symptoms get worse, act early. Notice the first signs, like coughing, wheezing, or a tight chest. Then follow your own asthma action plan, including your reliever inhaler, exactly the way it says. If you are not getting better, or you see danger signs, get emergency help right away.',
+      draw: whatToDo,
     },
     {
       label: 'When it becomes dangerous',
-      caption: 'In a severe attack, very little air can get through. Warning signs include trouble talking in full sentences, lips turning blue or gray, or breathing that keeps getting harder.',
+      caption: 'In a severe attack, very little air can get through. Danger signs include trouble talking in full sentences, lips turning blue or gray, feeling confused or very sleepy, or breathing that keeps getting harder. Call 911 right away.',
       draw: dangerous,
-    },
-    {
-      label: 'Recognize the warning',
-      caption: 'Follow your asthma action plan right away. If symptoms are severe, call 911.',
-      draw: recognize,
     },
   ];
 
@@ -581,7 +573,7 @@
       // calmer pace); audio: recorded narration from tools/make-narration.py.
       videos: [
         { title: 'What is asthma?', length: 70, audio: 'audio/asthma-a/', scenes: patientScenesA },
-        { title: 'What happens during an asthma attack?', length: 110, audio: 'audio/asthma-b/', scenes: patientScenesB },
+        { title: 'What happens during an asthma attack?', length: 90, audio: 'audio/asthma-b/', scenes: patientScenesB },
         { title: 'How can I keep my asthma under control?', length: 75, audio: 'audio/asthma-c/', scenes: patientScenesC },
       ],
       keyPoints: [
@@ -610,16 +602,16 @@
           'Breathing is very hard or keeps getting worse',
           "You can't speak in full sentences or walk",
           'Lips or fingernails are turning blue or gray',
-          'Your rescue inhaler is not helping, or the relief does not last',
+          'Your reliever inhaler is not helping, or the relief does not last',
         ],
-        action: 'Use your rescue inhaler as your action plan says, and call 911.',
+        action: 'Follow your asthma action plan, including your reliever inhaler, and call 911.',
       },
       quiz: [
         { q: 'What three changes narrow the airways in asthma?', options: ['Swollen lining, tight muscles, extra mucus', 'Broken bones, fever, rash', 'Too much oxygen, dry air, hiccups'], answer: 0, explain: 'When sensitive airways react, the lining swells, the muscle ring tightens, and extra mucus forms, leaving less room for air.' },
         { q: 'Are asthma triggers the same for everyone?', options: ['Yes, everyone reacts to pollen', 'No, triggers are different for each person', 'Only cold air is a trigger'], answer: 1, explain: 'Pollen, dust, smoke, infections, and cold air are common triggers, but each person has their own.' },
         { q: 'Why keep following your care plan when you feel fine?', options: ['The airways can still be sensitive underneath', 'It is not needed when you feel fine', 'It makes asthma go away forever'], answer: 0, explain: 'Airways can stay a little swollen even on good days. Following your plan helps keep swelling down so flare-ups happen less often.' },
-        { q: 'What does a rescue inhaler do?', options: ['Quickly relaxes the tight muscles around the airways', 'Cures asthma for good', 'Removes all triggers'], answer: 0, explain: 'It gives quick relief by relaxing the airway muscles so air moves again. Your daily care plan works on the swelling over time.' },
-        { q: 'If you need your rescue inhaler often, what should you do?', options: ['Nothing, that is normal', 'Tell your care team', 'Stop your daily plan'], answer: 1, explain: 'Needing quick relief often can mean your asthma is not well controlled. Your care team can adjust your plan.' },
+        { q: 'When your symptoms start getting worse, what should you do first?', options: ['Wait and see if it goes away', 'Follow your asthma action plan right away', 'Run it off'], answer: 1, explain: 'Acting early, the way your own plan says, can keep a flare-up from getting worse.' },
+        { q: 'If you need your reliever inhaler often, what should you do?', options: ['Nothing, that is normal', 'Tell your care team', 'Stop your daily plan'], answer: 1, explain: 'Needing quick relief often can mean your asthma is not well controlled. Your care team can adjust your plan.' },
         { q: 'What should you do if you have trouble talking in full sentences or your lips turn blue?', options: ['Wait until tomorrow', 'Call 911', 'Go for a run'], answer: 1, explain: 'These are signs of a severe attack. Follow your action plan and call 911.' },
       ],
     },

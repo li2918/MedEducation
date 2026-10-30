@@ -30,7 +30,8 @@
     ctx.stroke(); ctx.restore();
   }
 
-  function sac(ctx, x, y, r, broken, nAir, t, trapped) {
+  function sac(ctx, x, y, r, broken, nAir, t, trapped, surf = 0) {
+    if (surf > 0) { ctx.save(); ctx.strokeStyle = '#2fa36b'; ctx.lineWidth = 5; ctx.globalAlpha *= surf * (0.75 + 0.25 * Math.sin(t * 3)); ctx.beginPath(); ctx.arc(x, y, r + 4, 0, M.TAU); ctx.stroke(); ctx.restore(); }
     ctx.save();
     ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fillStyle = broken ? '#fbecee' : '#fde4e7'; ctx.fill();
     ctx.lineWidth = broken ? 2.5 : 3.5; ctx.strokeStyle = broken ? '#d9a3a8' : '#e58e97';
@@ -70,14 +71,14 @@
       ctx.save(); ctx.globalAlpha *= ah;
       const r = R * 0.3 * (0.55 + 0.45 * fill), P = SAC_H.map(([u, v]) => [cx + u * R * (0.86 + 0.14 * fill), cy + v * R * (0.84 + 0.16 * fill)]);
       [[0, 1], [0, 2], [1, 3], [2, 4], [3, 6], [4, 6], [1, 5], [2, 5]].forEach(([a, b]) => spring(ctx, P[a][0], P[a][1], P[b][0], P[b][1], false));
-      P.forEach(([x, y], i) => sac(ctx, x, y, r, false, fill * 3, t + i));
+      P.forEach(([x, y], i) => sac(ctx, x, y, r, false, fill * 3, t + i, false, o.surface || 0));
       ctx.restore();
     }
     if (ad > 0.01) {
       ctx.save(); ctx.globalAlpha *= ad;
       const full = o.air == null ? fill : o.air, r = R * 0.46 * (0.9 + 0.1 * full), P = SAC_D.map(([u, v]) => [cx + u * R, cy + v * R]);
       [[0, 1], [0, 2], [1, 2]].forEach(([a, b]) => spring(ctx, P[a][0], P[a][1], P[b][0], P[b][1], true));
-      P.forEach(([x, y], i) => sac(ctx, x, y, r, true, full * 6, t + i, o.trapped));
+      P.forEach(([x, y], i) => sac(ctx, x, y, r, true, full * 6, t + i, o.trapped, o.surface || 0));
       ctx.restore();
     }
   }
@@ -259,19 +260,21 @@
   }
 
   // 3. Air sacs lose their walls and spring: small sacs merge into bigger floppy ones with
-  //    less surface to pass oxygen into the blood.
+  //    less surface to pass oxygen into the blood (green rings). How much this lowers oxygen
+  //    levels differs from person to person and with how advanced COPD is.
+  const TS = { walls: 1.2, join: 3.6, spring: 6.4, surface: 8.5, varies: 12.1 };
   function sacsPanel(ctx, p, s, damaged, W) {
-    const ph = s / 4.5, b = breathOf(ph), dmg = damaged ? ease(seg(s, 2.2, 6)) : 0, keep = 0.55 * dmg;
-    sacCluster(ctx, W / 2, 168, 102, Math.max(b, keep), dmg, s, { air: Math.max(b, keep) });
+    const ph = s / 4.5, b = breathOf(ph), dmg = damaged ? ease(seg(s, TS.walls, TS.spring + 0.6)) : 0, keep = 0.55 * dmg;
+    sacCluster(ctx, W / 2, 168, 102, Math.max(b, keep), dmg, s, { air: Math.max(b, keep), surface: seg(s, TS.surface, TS.surface + 0.6) });
     ctx.save(); ctx.strokeStyle = '#e87a7a'; ctx.lineWidth = 18; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(10, 292); ctx.quadraticCurveTo(W / 2, 262, W - 10, 292); ctx.stroke(); ctx.restore();
     for (let i = 0; i < 4; i++) M.rbc(ctx, 10 + wrapX(rnd(i + 30) * (W - 20) + s * 50, W - 20), 280 + Math.sin(i) * 4, 8);
-    const ox = damaged ? lerp(4, 1, ease(seg(s, 7.4, 8.8))) : 4;
+    const ox = damaged ? lerp(4, 2, ease(seg(s, TS.surface, TS.surface + 1.4))) : 4;
     for (let i = 0; i < ox; i++) { const q = wrapX(s * 0.5 + i / 4, 1); air(ctx, W / 2 - 60 + i * 40, lerp(214, 272, q), 5, part(ox, i) * (1 - seg(q, 0.8, 1))); }
     M.text(ctx, 'Blood', W - 46, 312, { size: 14, weight: 800, color: '#b3453c' });
-    if (damaged) S.phasePill(ctx, W / 2, 340, s, [[1, 'Small, springy air sacs'], [2.2, 'Some walls break down'], [3.4, 'Sacs join into bigger, floppy ones'], [5.8, 'They lose their spring'], [7.4, 'Less oxygen gets into the blood']]);
-    else S.phasePill(ctx, W / 2, 340, s, [[1, 'Many small, springy air sacs', C.green]]);
-    if (damaged) M.text(ctx, 'Damage varies from person to person', W / 2 - 40, 314, { size: 13, weight: 700, color: C.muted, alpha: seg(s, 9.4, 10) });
+    if (damaged) S.phasePill(ctx, W / 2, 340, s, [[0.6, 'Small, springy air sacs'], [TS.walls, 'Some walls break down'], [TS.join, 'Sacs join into bigger, floppy ones'], [TS.spring, 'They lose their spring'], [TS.surface, 'Less surface to pass oxygen']]);
+    else S.phasePill(ctx, W / 2, 340, s, [[0.6, 'Many small, springy air sacs', C.green], [TS.surface, 'Lots of surface to pass oxygen', C.green]]);
+    if (damaged) M.text(ctx, 'Effect on oxygen differs for each person', W / 2 - 30, 314, { size: 13, weight: 700, color: C.muted, alpha: seg(s, TS.varies, TS.varies + 0.6) });
     return 1 - 0.55 * dmg;
   }
 
@@ -387,26 +390,37 @@
     }
   }
 
-  // 3. How a daily (routine) inhaler works: the medicine is breathed straight into the airways
-  //    and helps them relax and stay more open, so breathing is easier. It does not repair air
-  //    sacs that are already damaged.
-  function dailyInhaler(ctx, p, s) {
-    M.text(ctx, 'How a daily inhaler works', 480, 50, { size: 30, weight: 800 });
-    inhaleMedicine(ctx, 170, 404, 80, s, ease(seg(s, 0.3, 0.9)), seg(s, 1.4, 2));
-    const open = ease(seg(s, 4.6, 7.4)), cx = 500, cy = 290;
-    ctx.save(); ctx.setLineDash([5, 6]); ctx.strokeStyle = M.C.blue; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(200, 330); ctx.lineTo(cx - 150, cy - 80); ctx.moveTo(200, 346); ctx.lineTo(cx - 150, cy + 80); ctx.stroke(); ctx.restore();
-    airwayCross(ctx, cx, cy, 140, s, { muscle: lerp(0.55, 0.1, open), thick: 0.35, inflam: lerp(0.5, 0.35, open), mucus: 0.3, air: lerp(2, 6, open) });
-    for (let i = 0; i < 5; i++) {
-      const a = i * 1.25 + 0.3, d = lerp(150, 40, seg(s, 2.4 + i * 0.25, 3.6 + i * 0.25));
-      mist(ctx, cx + Math.cos(a) * d * 0.5, cy + Math.sin(a) * d * 0.5, 5, seg(s, 2.4, 3) * (1 - seg(s, 7.4, 8.4)));
-    }
-    M.text(ctx, 'Inside an airway', cx, 476, { size: 16, weight: 800, color: C.muted });
-    [['Medicine reaches the airways', 1.6, '#7b5cd6'], ['Airways relax and open more', 4.6, M.C.blue], ['Breathing is easier', 8.2, C.green]].forEach(([t, at, col], i) =>
-      M.pill(ctx, t, 790, 150 + i * 60, { size: 17, bg: '#fff', border: col, color: col, alpha: seg(s, at, at + 0.5) }));
-    riskMeter(ctx, 680, 370, 240, lerp(0.35, 0.75, ease(seg(s, 5.2, 8.6))), 'Air getting through', 1, true);
-    M.pill(ctx, 'Use it every day as prescribed, even on good days', 752, 446, { size: 15, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, 9.4, 10) });
-    M.text(ctx, 'It helps the airways. It does not repair damaged air sacs.', 480, 516, { size: 15, weight: 700, color: C.muted, alpha: seg(s, 12.4, 13) });
+  // 3. Why following your care plan matters. Different inhaled medicines work in different
+  //    ways, so the patient video does not explain how they work (that lives in Provider
+  //    Access). It shows what following the plan changes: two months side by side, with
+  //    fewer flare-ups and more good days when doses are taken as prescribed.
+  const TC = { plan: 0.4, ways: 3.9, daily: 7.1, even: 9, good: 12, flare: 14, check: 15 };
+  // Day colors for the two months: g = good day, y = harder day, r = flare-up.
+  const MONTH_PLAN = 'ggggggggggggggyggggggggggggggg';
+  const MONTH_SKIP = 'gggyyrrygggggyggyyrrygggggyyyg';
+  function carePlanMatters(ctx, p, s) {
+    M.text(ctx, 'Why following your care plan matters', 480, 46, { size: 28, weight: 800 });
+    inhaleMedicine(ctx, 150, 404, 76, s, ease(seg(s, TC.plan, TC.plan + 0.6)), seg(s, TC.plan + 1, TC.plan + 1.6));
+    M.pill(ctx, 'Your inhaler, exactly as prescribed', 160, 112, { size: 15, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TC.daily, TC.daily + 0.5) });
+    M.text(ctx, 'Inhalers work in different ways.', 160, 150, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TC.ways, TC.ways + 0.5) });
+    M.text(ctx, 'Your care team picks the right one.', 160, 170, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TC.ways, TC.ways + 0.5) });
+    // two months fill in day by day
+    const days = lerp(0, 30, ease(seg(s, TC.good - 1.4, TC.flare + 1.4)));
+    [['Following the plan', MONTH_PLAN, C.green, '#e9f7ef'], ['Skipping doses', MONTH_SKIP, C.red, '#fdecea']].forEach(([title, month, col, bg], r) => {
+      const y = 104 + r * 162, a = seg(s, TC.good - 1.6, TC.good - 1);
+      M.card(ctx, 330, y, 600, 140, { alpha: a, r: 18, border: col });
+      M.text(ctx, title, 352, y + 24, { size: 17, weight: 800, align: 'left', color: col, alpha: a });
+      for (let i = 0; i < 30; i++) {
+        const k = Math.max(0, Math.min(1, days - i)), x = 362 + (i % 15) * 38, yy = y + 64 + Math.floor(i / 15) * 40, c = month[i];
+        M.dot(ctx, x, yy, 14, '#eef2f8', a);
+        M.dot(ctx, x, yy, 14 * k, c === 'g' ? '#8fd3ad' : c === 'y' ? '#f7d36b' : '#ef7b74', a);
+        if (c === 'r' && k > 0.9) M.text(ctx, '!', x, yy + 1, { size: 15, weight: 900, color: '#fff', alpha: a });
+      }
+      const flares = [...month].filter((c, i) => c === 'r' && i < days).length;
+      M.text(ctx, `Flare-up days: ${flares}`, 910, y + 24, { size: 15, weight: 800, align: 'right', color: col, alpha: seg(s, TC.flare, TC.flare + 0.5) });
+    });
+    M.pill(ctx, 'Use it every day, even on good days', 630, 450, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TC.even, TC.even + 0.5) });
+    M.pill(ctx, 'Ask your care team to check how you use it', 630, 494, { size: 16, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TC.check, TC.check + 0.5) });
   }
 
   // 4. Pulmonary rehab: exercise and breathing skills build stronger muscles that use oxygen
@@ -535,8 +549,8 @@
     },
     {
       label: 'Air sacs lose their spring',
-      caption: 'Deep in the lungs, some air sac walls break down. Small sacs join into bigger, floppy ones that lose their spring and have less room to pass oxygen into the blood.',
-      draw: S.versus({ title: 'Air sacs lose their spring', panel: sacsPanel, left: 'Healthy air sacs', right: 'Damaged air sacs', bar: 'Oxygen exchange' }),
+      caption: 'Deep in the lungs, some air sac walls break down. Small sacs join into bigger, floppy ones that lose their spring. Together they have less surface where oxygen can pass into the blood. How much this lowers oxygen is different for each person.',
+      draw: S.versus({ title: 'Air sacs lose their spring', panel: sacsPanel, left: 'Healthy air sacs', right: 'Damaged air sacs', bar: 'Surface for oxygen', levels: ['Lots of surface', 'Less surface', 'Much less surface'] }),
     },
     {
       label: 'Trapped air',
@@ -569,9 +583,9 @@
       draw: pursedLips,
     },
     {
-      label: 'How a daily inhaler works',
-      caption: 'A daily inhaler sends medicine straight into your airways. It helps the airways relax and stay more open, so breathing is easier. Use it every day as prescribed, even on good days.',
-      draw: dailyInhaler,
+      label: 'Following your care plan',
+      caption: 'Your care plan may include an inhaler you use every day. Different inhalers work in different ways, so use yours exactly as prescribed, even on good days. Following your plan can help you breathe easier and have fewer flare-ups. Ask your care team to check how you use your inhaler.',
+      draw: carePlanMatters,
     },
     {
       label: 'Pulmonary rehab',
@@ -643,7 +657,7 @@
         { q: 'With COPD, what happens when you breathe out?', options: ['Some air gets trapped inside', 'All the air turns into mucus', 'Air cannot get into your nose'], answer: 0, explain: 'Narrow airways and air sacs that lose their spring make it harder to push air out, so some air stays in the lungs.' },
         { q: 'What is the most important step to protect your lungs?', options: ['Stop breathing in smoke and irritants', 'Breathe as fast as you can', 'Avoid all activity'], answer: 0, explain: 'Quitting smoking and avoiding other smoke, dust, and fumes slows new damage.' },
         { q: 'How can pursed-lip breathing help?', options: ['It heals damaged air sacs', 'It keeps small airways open longer so more air gets out', 'It stops coughing forever'], answer: 1, explain: 'Breathing out slowly through pursed lips helps keep small airways open, so more air can leave the lungs.' },
-        { q: 'Why use your daily inhaler even on good days?', options: ['It helps keep your airways more open over time', 'It repairs damaged air sacs', 'It is only for emergencies'], answer: 0, explain: 'A daily inhaler helps your airways relax and stay more open. It works best when you use it every day as prescribed.' },
+        { q: 'Why use your daily inhaler even on good days?', options: ['Following your plan every day can help you breathe easier and have fewer flare-ups', 'It repairs damaged air sacs', 'It is only for emergencies'], answer: 0, explain: 'Inhalers work in different ways, but they work best when you use yours every day, exactly as prescribed. It does not repair damaged air sacs.' },
         { q: 'What should you do if your breathing, cough, or mucus gets worse?', options: ['Wait a few weeks', 'Contact your care team', 'Exercise harder'], answer: 1, explain: 'These can be signs of a flare-up. Contact your care team, and call 911 for severe trouble breathing.' },
       ],
     },

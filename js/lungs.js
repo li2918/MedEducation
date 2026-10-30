@@ -183,7 +183,7 @@
     M.person(ctx, x, y, sc, { color: '#dfe7f3' });
     lungsFilled(ctx, x, y - 0.72 * sc, 0.46 * sc, 0.45 + 0.35 * breathOf(s / 4), 0, s);
     const mx = x + 0.34 * sc, my = y - 1.55 * sc;
-    inhaler(ctx, mx + 38, my - 4, 0.8, a, -1);
+    inhaler(ctx, mx + 38 * sc / 80, my - 4 * sc / 80, 0.8 * sc / 80, a, -1);
     if (flow <= 0) return;
     for (let i = 0; i < 10; i++) {
       const q = wrapX(s * 0.45 + i / 10, 1), d = i % 2 ? 1 : -1;

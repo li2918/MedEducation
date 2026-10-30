@@ -647,17 +647,46 @@
     return intact;
   }
 
-  // Simple human figure. Returns anatomical anchor points for hotspots.
+  // Friendly cartoon person, front view: skin, hair, face, shirt, pants, and shoes. The shirt
+  // is a soft, light color so organs drawn on top stay easy to see. o.look recolors parts,
+  // o.mood (0..1) sets the face, o.t animates blinking, and o.face === false hides the face.
+  // Returns anatomical anchor points for hotspots.
+  const LOOK = { skin: '#f1c7a5', skinShade: '#dfab86', hair: '#5b3a29', shirt: '#a9cbf0', shirtShade: '#86b1e2', pants: '#4f6690', shoe: '#363c4c' };
   function person(ctx, x, y, s, o = {}) {
+    const L = Object.assign({}, LOOK, o.look);
     ctx.save();
-    ctx.fillStyle = o.color || '#d5e1f3';
-    ctx.beginPath(); ctx.arc(x, y - 1.62 * s, 0.36 * s, 0, TAU); ctx.fill();
-    rr(ctx, x - 0.55 * s, y - 1.18 * s, 1.1 * s, 1.5 * s, 0.3 * s); ctx.fill();
-    rr(ctx, x - 0.84 * s, y - 1.12 * s, 0.24 * s, 1.25 * s, 0.12 * s); ctx.fill();
-    rr(ctx, x + 0.6 * s, y - 1.12 * s, 0.24 * s, 1.25 * s, 0.12 * s); ctx.fill();
-    rr(ctx, x - 0.48 * s, y + 0.2 * s, 0.42 * s, 1.5 * s, 0.18 * s); ctx.fill();
-    rr(ctx, x + 0.06 * s, y + 0.2 * s, 0.42 * s, 1.5 * s, 0.18 * s); ctx.fill();
+    if (o.alpha != null) ctx.globalAlpha *= clamp(o.alpha);
+    // legs and shoes
+    ctx.fillStyle = L.pants;
+    rr(ctx, x - 0.48 * s, y + 0.12 * s, 0.44 * s, 1.5 * s, 0.16 * s); ctx.fill();
+    rr(ctx, x + 0.04 * s, y + 0.12 * s, 0.44 * s, 1.5 * s, 0.16 * s); ctx.fill();
+    ctx.fillStyle = L.shoe;
+    [-1, 1].forEach((d) => { ctx.beginPath(); ctx.ellipse(x + d * 0.3 * s, y + 1.64 * s, 0.29 * s, 0.13 * s, 0, 0, TAU); ctx.fill(); });
+    // arms: skin with a short sleeve, round hands
+    [-1, 1].forEach((d) => {
+      const ax = x + d * 0.72 * s;
+      ctx.fillStyle = L.skin; rr(ctx, ax - 0.11 * s, y - 1.0 * s, 0.22 * s, 1.06 * s, 0.11 * s); ctx.fill();
+      ctx.beginPath(); ctx.arc(ax, y + 0.1 * s, 0.14 * s, 0, TAU); ctx.fill();
+      ctx.fillStyle = L.shirtShade; rr(ctx, ax - 0.15 * s, y - 1.14 * s, 0.3 * s, 0.5 * s, 0.14 * s); ctx.fill();
+    });
+    // neck, shirt with collar, waistband
+    ctx.fillStyle = L.skinShade; rr(ctx, x - 0.13 * s, y - 1.36 * s, 0.26 * s, 0.26 * s, 0.06 * s); ctx.fill();
+    ctx.fillStyle = L.shirt; rr(ctx, x - 0.58 * s, y - 1.2 * s, 1.16 * s, 1.4 * s, 0.3 * s); ctx.fill();
+    ctx.strokeStyle = L.shirtShade; ctx.lineWidth = 0.05 * s; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.arc(x, y - 1.22 * s, 0.17 * s, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
+    ctx.fillStyle = L.pants; rr(ctx, x - 0.56 * s, y + 0.06 * s, 1.12 * s, 0.2 * s, 0.06 * s); ctx.fill();
+    // head: ears, face, hair with a fringe
+    const hx = x, hy = y - 1.62 * s, hr = 0.36 * s;
+    ctx.fillStyle = L.skinShade;
+    [-1, 1].forEach((d) => { ctx.beginPath(); ctx.arc(hx + d * hr * 0.98, hy + 0.04 * s, 0.08 * s, 0, TAU); ctx.fill(); });
+    ctx.fillStyle = L.skin; ctx.beginPath(); ctx.arc(hx, hy, hr, 0, TAU); ctx.fill();
+    ctx.fillStyle = L.hair; ctx.beginPath();
+    ctx.arc(hx, hy, hr * 1.06, Math.PI, 2 * Math.PI);
+    ctx.quadraticCurveTo(hx + hr * 0.55, hy - hr * 0.62, hx - hr * 0.1, hy - hr * 0.46);
+    ctx.quadraticCurveTo(hx - hr * 0.72, hy - hr * 0.36, hx - hr * 1.06, hy);
+    ctx.fill();
     ctx.restore();
+    if (o.face !== false) face(ctx, hx, hy + 0.1 * s, hr * 0.82, o.mood == null ? 1 : o.mood, o.t || 0, { seed: 7, alpha: o.alpha });
     return {
       brain: [x, y - 1.75 * s], eye: [x + 0.14 * s, y - 1.62 * s], heart: [x + 0.15 * s, y - 0.78 * s],
       lungs: [x - 0.25 * s, y - 0.82 * s], liver: [x - 0.22 * s, y - 0.42 * s], stomach: [x + 0.2 * s, y - 0.45 * s],
