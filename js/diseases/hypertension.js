@@ -265,6 +265,58 @@
     S.phasePill(ctx, 480, 514, s, [[0.3, 'Healthy: thin, stretchy wall', C.green], [TV.thick + 1.5, 'After years: thick, stiff wall']]);
   }
 
+  // Close-up: years of high pressure damage the brain's blood vessels. Then either a narrowed
+  // vessel is blocked by a clot, or a weak tiny vessel breaks and bleeds. Either way part of
+  // the brain loses the blood it needs: a stroke.
+  const TB = { damage: 4.9, years: 3.2, block: 10.5, bleed: 14.2, lose: 16.7, stroke: 19.8 };
+  function brainZoom(ctx, p, s) {
+    const k = ease(seg(s, TB.years, TB.years + 3.5)), clot = ease(seg(s, TB.block, TB.block + 1));
+    const bleed = ease(seg(s, TB.bleed, TB.bleed + 1.6)), lose = ease(seg(s, TB.lose - 1, TB.lose + 2));
+    zoomLens(ctx, s, 'Zoom in: blood vessels in the brain', 'brain', (c, x, y) => M.brain(c, x, y + 4, 15), Math.max(k, clot), (cx, cy, R) => {
+      ctx.fillStyle = '#fdf3f6'; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R);
+      const bx = cx - 10, by = cy - 20;
+      M.brain(ctx, bx, by, 150);
+      // The part a blocked vessel feeds goes dark; blood leaking from a broken one spreads.
+      const A = [[500, 486], [500, 330], [452, 270], [412, 226]], B = [[500, 330], [556, 288], [596, 254]];
+      const dark = Math.max(clot * lose, 0.25 * clot);
+      if (dark > 0) {
+        const g = ctx.createRadialGradient(408, 222, 6, 408, 222, 78 * (0.4 + 0.6 * dark));
+        g.addColorStop(0, `rgba(80,80,105,${0.75 * dark})`); g.addColorStop(1, 'rgba(80,80,105,0)');
+        ctx.save(); ctx.beginPath(); ctx.ellipse(bx, by, 142, 93, 0, 0, M.TAU); ctx.clip();
+        ctx.fillStyle = g; ctx.fillRect(cx - R, cy - R, 2 * R, 2 * R); ctx.restore();
+      }
+      const vessel = (pts, flow) => {
+        ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        [[lerp(11, 16, k), M.mix('#e57b70', '#b8403b', k)], [lerp(6, 3, k), flow > 0.5 ? '#f05a5a' : '#f3c9c4']].forEach(([w, col]) => {
+          ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); pts.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke();
+        });
+        ctx.restore();
+      };
+      vessel(A.slice(0, 3), 1);
+      vessel(A.slice(2), 1 - clot);
+      vessel(B, 1);
+      // pressure pushing on the vessel walls with each beat
+      const pa = seg(s, TB.damage, TB.damage + 0.6) * beatOf(s);
+      if (pa > 0) [[478, 300], [522, 300], [530, 280], [575, 300]].forEach(([x, y], i) => M.arrow(ctx, x + (i % 2 ? 14 : -14), y, x, y, { color: '#a3261f', width: 3, head: 7, alpha: pa }));
+      // blocked: a clot stops blood at the narrowed spot
+      if (clot > 0) {
+        M.dot(ctx, 452, 270, 10 * clot, '#5a0e0e');
+        M.pill(ctx, 'Blocked', 392, 282, { size: 14, bg: '#fff', border: '#5a5a78', color: '#3e3e58', alpha: clot });
+      }
+      // broken: a weak tiny vessel bursts and blood leaks into the brain
+      if (bleed > 0) {
+        ctx.save(); ctx.globalAlpha *= 0.85 * bleed; ctx.fillStyle = '#c62f2f'; ctx.beginPath();
+        for (let i = 0; i <= 16; i++) { const a = i / 16 * M.TAU, r = 30 * bleed * (1 + 0.18 * Math.sin(a * 3 + 1)); i ? ctx.lineTo(600 + Math.cos(a) * r, 250 + Math.sin(a) * r) : ctx.moveTo(600 + r, 250); }
+        ctx.fill(); ctx.restore();
+        M.pill(ctx, 'Broken', 600, 300, { size: 14, bg: '#fff', border: C.red, color: '#a3261f', alpha: bleed });
+      }
+      M.face(ctx, bx - 40, by + 60, 24, lerp(1, 0.2, Math.max(lose, 0.4 * k)), s, { seed: 3 });
+    });
+    stepPills(ctx, s, [['Pressure damages brain vessels', TB.damage], ['A narrowed vessel gets blocked', TB.block], ['Or a weak vessel breaks', TB.bleed], ['Part of the brain loses blood', TB.lose]], '#a3261f');
+    M.pill(ctx, 'That is a stroke', 812, 430, { size: 19, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, TB.stroke, TB.stroke + 0.5) });
+    S.phasePill(ctx, 480, 514, s, [[0.3, 'Healthy brain vessels', C.green], [TB.years + 2, 'After years: thick, stiff vessels'], [TB.lose, 'Stroke: part of the brain loses blood']]);
+  }
+
   // Close-up 2: the heart pushes against high pressure, so its main pumping wall thickens like
   // a muscle lifting heavy weights. A thick wall gets stiff and fills less easily. The beat
   // speed stays the same; each beat pushes harder.
@@ -373,6 +425,11 @@
       label: 'Blood vessel walls',
       caption: "Let's zoom in on a blood vessel. With high blood pressure, every heartbeat pushes hard on its walls. Over many years, the walls get thicker and stiffer, and the inside lining can get tiny injuries. That makes it easier for plaque to build up.",
       draw: vesselZoom,
+    },
+    {
+      label: 'Stroke in the brain',
+      caption: 'High blood pressure is a top cause of stroke. Over many years, the pressure damages blood vessels in the brain, making them thick and stiff. A narrowed vessel can get blocked by a clot. Or a weak, tiny vessel can break and bleed. Either way, part of the brain does not get the blood it needs. That is a stroke.',
+      draw: brainZoom,
     },
     {
       label: 'The heart wall',
@@ -692,7 +749,7 @@
       // calmer pace); audio: recorded narration from tools/make-narration.py.
       videos: [
         { title: 'What is high blood pressure?', length: 48, audio: 'audio/htn-a/', scenes: patientScenesA },
-        { title: 'What can it do over many years?', length: 100, audio: 'audio/htn-b/', scenes: patientScenesB },
+        { title: 'What can it do over many years?', length: 122, audio: 'audio/htn-b/', scenes: patientScenesB },
         { title: 'How can I protect my body?', length: 25, audio: 'audio/htn-c/', scenes: patientScenesC },
       ],
       keyPoints: [
