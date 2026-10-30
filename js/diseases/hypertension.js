@@ -82,12 +82,12 @@
     M.text(ctx, 'What is blood pressure?', 480, 62, { size: 30, weight: 800 });
     const beat = beatOf(s), d = beat * 5;
     M.vessel(ctx, 230, 170 - d, 740, 140 + 2 * d, { t: s, wall: 16, items: [{ kind: 'rbc', n: 14, speed: 90, r: 10 }] });
-    M.pressureArrows(ctx, 270, 240, 660, 14 + beat * 16, { n: 6, alpha: ease(seg(p, 0.3, 0.4)) * 0.85 });
+    M.pressureArrows(ctx, 270, 240, 660, 14 + beat * 16, { n: 6, alpha: ease(seg(s, 2.2, 3)) * 0.85 });
     M.text(ctx, 'Blood vessel', 600, 146 - d, { size: 16, weight: 800, color: C.muted });
     heartBuddy(ctx, 140, 240, 70, 1, s);
     M.text(ctx, 'Heart = pump', 140, 336, { size: 18, weight: 800, color: '#c23b3b' });
-    M.pill(ctx, 'Blood pushing on the walls = blood pressure', 560, 370, { size: 18, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(p, 0.42, 0.5) });
-    const a = seg(p, 0.6, 0.68);
+    M.pill(ctx, 'Blood pushing on the walls = blood pressure', 560, 370, { size: 18, bg: '#fff', border: C.blue, color: M.C.blue, alpha: seg(s, 5, 5.6) });
+    const a = seg(s, 8.4, 9.2);
     if (a > 0) {
       ctx.save(); ctx.globalAlpha = a;
       pressureDial(ctx, 560, 470, 46, 115 + beat * 3, 75);
@@ -100,7 +100,7 @@
   // Scene 2: why pressure gets too high: narrow, stiff vessels and extra salt-held water,
   // so the heart has to push harder.
   function whyHighPanel(ctx, p, s, sick, W) {
-    const k = hurtOf(p, sick, 0.1, 0.6), beat = beatOf(s, sick ? lerp(6.5, 9, k) : 6.5);
+    const k = sick ? ease(seg(s, 1.5, 6)) : 0, beat = beatOf(s, sick ? lerp(6.5, 9, k) : 6.5);
     M.salt(ctx, 30, 36, 7); M.text(ctx, 'salt', 44, 36, { size: 13, align: 'left', color: C.muted, weight: 700 });
     M.drop(ctx, 92, 37, 7); M.text(ctx, 'water', 106, 36, { size: 13, align: 'left', color: C.muted, weight: 700 });
     const d = beat * lerp(3, 7, k);
@@ -110,10 +110,10 @@
     });
     M.pressureArrows(ctx, 20, 146, W - 40, lerp(8, 26, k) + beat * lerp(4, 12, k), { n: 5, alpha: sick ? 0.9 : 0.4 });
     const chips = sick
-      ? [['Narrow, stiff vessels', 0.15], ['Extra salt holds extra water', 0.32], ['The heart pushes harder', 0.5]]
-      : [['Wide, stretchy vessels', 0.15], ['Just enough salt and water', 0.32], ['Easy pushing', 0.5]];
+      ? [['Narrow, stiff vessels', 2.8], ['Extra salt holds extra water', 4.6], ['The heart pushes harder', 7.8]]
+      : [['Wide, stretchy vessels', 2.8], ['Just enough salt and water', 4.6], ['Easy pushing', 7.8]];
     chips.forEach(([t, at], i) => M.pill(ctx, t, W / 2, 262 + i * 34,
-      { size: 15, bg: '#fff', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', alpha: seg(p, at, at + 0.06) }));
+      { size: 15, bg: '#fff', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c', alpha: seg(s, at, at + 0.6) }));
     return sick ? 1 - 0.6 * k : 1;
   }
 
@@ -125,30 +125,30 @@
     ctx.fillStyle = '#9ccf86';
     for (let i = 0; i < 5; i++) ctx.fillRect(40 + ((i * 96 - s * 60) % 440 + 440) % 440, ground + 4, 34, 4);
     runner(ctx, 250, ground, s * 5, 0.45, 0.05, 1, s);
-    M.pill(ctx, '"I feel fine!"', 250, 150, { size: 18, bg: '#fff', border: '#c8d6ee', alpha: seg(p, 0.08, 0.14) });
-    const k = ease(seg(p, 0.3, 0.6));
-    M.bpMonitor(ctx, 720, 270, lerp(118, 150, k), lerp(76, 95, k), { alpha: ease(seg(p, 0.2, 0.28)) });
-    M.text(ctx, 'Blood pressure check', 720, 162, { size: 16, weight: 800, color: C.muted, alpha: ease(seg(p, 0.2, 0.28)) });
-    M.pill(ctx, 'High! Only a check can tell', 720, 390, { size: 17, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.62, 0.7) });
-    M.text(ctx, ADULT_NOTE, 720, 424, { size: 12, color: C.muted, alpha: ease(seg(p, 0.2, 0.28)) });
+    M.pill(ctx, '"I feel fine!"', 250, 150, { size: 18, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 3, 3.6) });
+    const k = ease(seg(s, 5, 7.5)), show = ease(seg(s, 4.4, 5));
+    M.bpMonitor(ctx, 720, 270, lerp(118, 150, k), lerp(76, 95, k), { alpha: show });
+    M.text(ctx, 'Blood pressure check', 720, 162, { size: 16, weight: 800, color: C.muted, alpha: show });
+    M.pill(ctx, 'High! Only a check can tell', 720, 390, { size: 17, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(s, 7.4, 8) });
+    M.text(ctx, ADULT_NOTE, 720, 424, { size: 12, color: C.muted, alpha: show });
   }
 
   // Scene 4: after many years without control, the risk of heart, brain, and kidney problems
   // rises. Gentle visuals (no bursting), and each card fades in as the narrator names it.
   function overYears(ctx, p, s) {
     M.text(ctx, 'If it stays high for many years', 480, 54, { size: 28, weight: 800 });
-    const yr = ease(seg(p, 0.05, 0.9));
+    const yr = ease(seg(s, 0.5, 4.5));
     M.rr(ctx, 120, 82, 720, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill();
     if (yr > 0.01) { M.rr(ctx, 120, 82, 720 * yr, 10, 5); ctx.fillStyle = C.amber; ctx.fill(); }
     M.text(ctx, 'Now', 120, 108, { size: 13, weight: 700, color: C.muted, align: 'left' });
     M.text(ctx, 'Many years without control', 840, 108, { size: 13, weight: 700, color: C.muted, align: 'right' });
     const cards = [
-      ['Heart', 'Works too hard, gets thick and tired', 0.2],
-      ['Brain', 'A vessel can get blocked or break (a stroke)', 0.42],
-      ['Kidneys', 'Their filters can get damaged', 0.64],
+      ['Heart', 'Works too hard, gets thick and tired', 5.2],
+      ['Brain', 'A vessel can get blocked or break (a stroke)', 7.2],
+      ['Kidneys', 'Their filters can get damaged', 11.6],
     ];
     cards.forEach(([name, line, at], i) => {
-      const a = ease(seg(p, at, at + 0.08)), k = ease(seg(p, at, at + 0.22)), x = 40 + i * 300, cx = x + 140;
+      const a = ease(seg(s, at, at + 1)), k = ease(seg(s, at, at + 4)), x = 40 + i * 300, cx = x + 140;
       if (a <= 0) return;
       M.card(ctx, x, 128, 280, 362, { alpha: a, border: '#f3d2a2', r: 22 });
       ctx.save(); ctx.globalAlpha *= a;
@@ -168,14 +168,14 @@
       M.rr(ctx, x + 64, 450, 190, 14, 7); ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = '#e3e9f2'; ctx.fill();
       M.rr(ctx, x + 64, 450, 190 * lerp(0.2, 0.75, k), 14, 7); ctx.fillStyle = M.mix('#f2b705', '#e5484d', k); ctx.fill(); ctx.restore();
     });
-    M.text(ctx, 'Not everyone gets these problems. Treatment lowers the risk.', 480, 516, { size: 16, weight: 700, color: C.muted, alpha: seg(p, 0.85, 0.92) });
+    M.text(ctx, 'Not everyone gets these problems. Treatment lowers the risk.', 480, 516, { size: 16, weight: 700, color: C.muted, alpha: seg(s, 14, 15) });
   }
 
   // Scene 5: daily habits and medicine bring pressure down and protect the organs.
   const BADGES = [['brain', '#e07aa0'], ['heart', '#e5484d'], ['kidney', '#c0655a']];
   const bloodCell = (ctx, x, y, on) => M.rbc(ctx, x, y, on ? 7 : 5, on ? 1 : 0.6);
   function protect(ctx, p, s) {
-    const k = ease(seg(p, 0.08, 0.6)), x = 200, y = 300, sc = 105, hy = y - 1.62 * sc;
+    const k = ease(seg(s, 1, 8)), x = 200, y = 300, sc = 105, hy = y - 1.62 * sc;
     const pts = S.bodyWithBlood(ctx, x, y, sc, s * lerp(1.8, 1, k), { density: 0.8, item: bloodCell });
     BADGES.forEach(([at, col], i) => {
       const [bx, by] = at === 'brain' ? [x, hy - 24] : pts[at];
@@ -186,8 +186,8 @@
     pressureDial(ctx, 480, 172, 56, lerp(150, 118, k), lerp(95, 76, k));
     M.text(ctx, ADULT_NOTE, 480, 228, { size: 12, color: C.muted });
     M.healthBar(ctx, 580, 164, 330, lerp(0.35, 1, k), { label: 'Body health', right: k > 0.7 ? 'Protected!' : 'At risk' });
-    ['🏃  Move every day', '🧂  Eat less salt', '🩺  Check your blood pressure', '💊  Take medicine as your doctor says'].forEach((t, i) =>
-      M.pill(ctx, t, 400, 278 + i * 58, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(p, 0.15 + i * 0.12, 0.23 + i * 0.12)) }));
+    [['🏃  Move every day', 2], ['🧂  Eat less salt', 3], ['🩺  Check your blood pressure', 4.2], ['💊  Take medicine as your doctor says', 5.6]].forEach(([t, at], i) =>
+      M.pill(ctx, t, 400, 278 + i * 58, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 19, alpha: ease(seg(s, at, at + 0.6)) }));
   }
 
   // Scene 6: the one thing to remember.
