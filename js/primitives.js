@@ -663,11 +663,15 @@
     ctx.fillStyle = L.shoe;
     [-1, 1].forEach((d) => { ctx.beginPath(); ctx.ellipse(x + d * 0.3 * s, y + 1.64 * s, 0.29 * s, 0.13 * s, 0, 0, TAU); ctx.fill(); });
     // arms: skin with a short sleeve, round hands
+    // o.armUp (0..1) lifts the right-hand arm out to the side and up, as if reaching high.
     [-1, 1].forEach((d) => {
       const ax = x + d * 0.72 * s;
+      ctx.save();
+      if (d > 0 && o.armUp) { ctx.translate(ax, y - 1.0 * s); ctx.rotate(-o.armUp * 2.6); ctx.translate(-ax, -(y - 1.0 * s)); }
       ctx.fillStyle = L.skin; rr(ctx, ax - 0.11 * s, y - 1.0 * s, 0.22 * s, 1.06 * s, 0.11 * s); ctx.fill();
       ctx.beginPath(); ctx.arc(ax, y + 0.1 * s, 0.14 * s, 0, TAU); ctx.fill();
       ctx.fillStyle = L.shirtShade; rr(ctx, ax - 0.15 * s, y - 1.14 * s, 0.3 * s, 0.5 * s, 0.14 * s); ctx.fill();
+      ctx.restore();
     });
     // neck, shirt with collar, waistband
     ctx.fillStyle = L.skinShade; rr(ctx, x - 0.13 * s, y - 1.36 * s, 0.26 * s, 0.26 * s, 0.06 * s); ctx.fill();
