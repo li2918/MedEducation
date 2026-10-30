@@ -50,7 +50,7 @@
   }
 
   // Scene 2: greasy food puts lots of cholesterol into the blood; healthy food only a little.
-  const HEALTHY = ['🥦', '🍎', '🐟', '🥕'], GREASY = ['🍔', '🍟', '🍩', '🍕'];
+  const HEALTHY = ['broccoli', 'apple', 'fish', 'carrot'], GREASY = ['burger', 'fries', 'donut', 'pizza'];
   function foodPanel(ctx, p, s, sick, W) {
     legend(ctx);
     const k = hurtOf(p, sick, 0.3, 0.8), foods = sick ? GREASY : HEALTHY;
@@ -59,7 +59,7 @@
     ctx.strokeStyle = '#c9d3e2'; ctx.lineWidth = 3; ctx.stroke();
     ctx.beginPath(); ctx.ellipse(120, 122, 64, 26, 0, 0, M.TAU); ctx.strokeStyle = '#e3e9f2'; ctx.lineWidth = 2; ctx.stroke();
     ctx.restore();
-    foods.forEach((ch, i) => { const a = M.back(seg(p, 0.06 + i * 0.05, 0.14 + i * 0.05)); if (a > 0) M.emoji(ctx, ch, 60 + i * 40, 110 + (i % 2) * 8, 36 * a); });
+    foods.forEach((k, i) => { const a = M.back(seg(p, 0.06 + i * 0.05, 0.14 + i * 0.05)); if (a > 0) M.food(ctx, k, 58 + i * 42, 112 + (i % 2) * 6 + Math.sin(s * 2.4 + i) * 2, 46 * a, s); });
     M.text(ctx, 'Cholesterol meter', 332, 84, { size: 14, weight: 800, color: C.muted });
     M.gauge(ctx, 245, 124, 175, sick ? lerp(0.3, 0.92, k) : 0.3);
     const high = sick && k > 0.5;
@@ -68,7 +68,7 @@
     const vy = 220, vh = 96, nf = sick ? 4 : 2;
     if (p > 0.28) for (let j = 0; j < nf; j++) {
       const q = (s * 0.5 + j / nf) % 1;
-      M.emoji(ctx, foods[j % 4], 120, lerp(160, vy + 24, q), lerp(24, 10, q), (1 - q) * seg(p, 0.28, 0.34));
+      M.food(ctx, foods[j % 4], 120, lerp(160, vy + 24, q), lerp(28, 10, q), s, (1 - q) * seg(p, 0.28, 0.34));
     }
     M.vessel(ctx, -10, vy, W + 20, vh, { t: s, wall: 14, items: [{ kind: 'rbc', n: 8, speed: 70, r: 9 }] });
     M.text(ctx, 'Blood pipe', W - 70, vy - 14, { size: 14, weight: 800, color: C.muted });
@@ -226,7 +226,7 @@
     ctx.beginPath(); ctx.moveTo(300, 100); ctx.lineTo(278, 122); ctx.lineTo(262, 112); ctx.stroke();
     ctx.restore();
     M.dot(ctx, 300, 70, 22, '#f2c8a8'); M.face(ctx, 300, 71, 20, 0.45, s, { seed: 8 });
-    M.emoji(ctx, '🍟', 254, 106, 22);
+    M.food(ctx, 'fries', 254, 104, 30, s);
   }
   function exercisePanel(ctx, p, s, sitting, W) {
     const k = ease(seg(p, 0.15, 0.85));
@@ -266,7 +266,7 @@
       M.card(ctx, cx - 210, 92, 420, 396, { fill, border, r: 26 });
       if (i === 0) {
         M.pill(ctx, 'Bad cholesterol (LDL)', cx, 92, { size: 18, bg: '#fff4cc', border: '#e09400', color: '#8a5a00' });
-        ['🍔', '🍟', '🍩'].forEach((ch, j) => { const a = M.back(seg(p, 0.04 + j * 0.04, 0.1 + j * 0.04)); if (a > 0) M.emoji(ctx, ch, cx - 80 + j * 80, 150, 44 * a); });
+        ['burger', 'fries', 'donut'].forEach((k, j) => { const a = M.back(seg(p, 0.04 + j * 0.04, 0.1 + j * 0.04)); if (a > 0) M.food(ctx, k, cx - 84 + j * 84, 152 + Math.sin(s * 2.4 + j) * 2, 60 * a, s); });
         M.text(ctx, 'From greasy food', cx, 194, { size: 15, weight: 800, color: C.muted });
         M.arrow(ctx, cx, 210, cx, 248, { color: '#e09400', width: 4 });
         const n = Math.floor(lerp(0, 7, seg(p, 0.14, 0.34)));

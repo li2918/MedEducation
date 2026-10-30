@@ -201,14 +201,16 @@
   const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
   const { heartBuddy, kidneyBuddy, brainBuddy, eyeball, viewFrame } = S;
 
-  // Scene 1: insulin is a key that opens the cell's door so sugar (food) can go in.
+  // Insulin is a key that opens the cell's door so sugar can go in. In type 2 diabetes the
+  // cells respond less to insulin: the door is harder to open, so only a little sugar gets
+  // in and more stays in the blood.
   function cellPanel(ctx, p, s, sick, W) {
     const cx = 275, cy = 190, r = 88, dx = cx - r;
-    const eat = sick ? 0 : ease(seg(p, 0.4, 0.8)), hunger = sick ? ease(seg(p, 0.45, 0.85)) : 0;
-    M.cell(ctx, cx, cy + Math.sin(s * 2) * 2, r, { nucleus: false, glow: eat * 0.8, fill: M.mix('#dbe7fb', '#e4dfe6', hunger) });
-    M.face(ctx, cx + 12, cy + 4, r * 0.72, sick ? 1 - 0.95 * hunger : 0.8 + 0.2 * eat, s, { seed: sick ? 1 : 0 });
-    // door in the cell wall
-    const open = sick ? 0 : ease(seg(p, 0.3, 0.4)), dw = 30 * (1 - 0.8 * open);
+    const eat = sick ? 0.3 * ease(seg(p, 0.5, 0.8)) : ease(seg(p, 0.4, 0.8)), hunger = sick ? ease(seg(p, 0.45, 0.85)) : 0;
+    M.cell(ctx, cx, cy + Math.sin(s * 2) * 2, r, { nucleus: false, glow: eat * 0.8, fill: M.mix('#dbe7fb', '#e4dfe6', hunger * 0.7) });
+    M.face(ctx, cx + 12, cy + 4, r * 0.72, sick ? 1 - 0.65 * hunger : 0.8 + 0.2 * eat, s, { seed: sick ? 1 : 0 });
+    // door in the cell wall: opens wide, or only a crack after a struggle
+    const open = sick ? 0.3 * ease(seg(p, 0.46, 0.56)) : ease(seg(p, 0.3, 0.4)), dw = 30 * (1 - 0.8 * open);
     M.rr(ctx, dx - dw / 2, cy - 27, dw, 54, 6); ctx.fillStyle = sick ? '#9a5a32' : '#14a38b'; ctx.fill();
     if (open < 0.5) M.dot(ctx, dx, cy, 4, '#1d2b3a');
     if (sick) [[-6, -16], [5, -6], [-4, 12], [6, 18]].forEach(([u, v]) => M.dot(ctx, dx + u, cy + v, 2.5, 'rgba(90,40,15,0.8)'));
@@ -216,33 +218,35 @@
     const kin = ease(seg(p, 0.06, 0.28));
     let kx = lerp(-40, dx - 46, kin), ky = lerp(70, cy, kin), ka = 1;
     if (sick) {
-      const w = seg(p, 0.28, 0.46); if (w > 0 && w < 1) kx += Math.sin(s * 35) * 4;
-      ky += ease(seg(p, 0.48, 0.62)) * 130; ka = 1 - seg(p, 0.55, 0.65);
+      const w = seg(p, 0.28, 0.48); if (w > 0 && w < 1) kx += Math.sin(s * 35) * 4;
+      ka = 1 - seg(p, 0.6, 0.68);
     } else ka = 1 - seg(p, 0.42, 0.5);
     M.key(ctx, kx, ky, 1.7, 0, C.teal, ka);
     M.text(ctx, 'Insulin key', kx, ky - 30, { size: 15, weight: 800, color: C.teal, alpha: ka * (1 - seg(p, 0.3, 0.38)) });
-    // sugar = food: it goes in through the open door, or piles up outside
-    const n = sick ? Math.floor(lerp(8, 26, seg(p, 0.3, 1))) : 8;
+    // sugar: it streams in through the open door; through the crack only a little trickles
+    // in, slowly, and the rest piles up outside
+    const n = sick ? Math.floor(lerp(8, 22, seg(p, 0.3, 1))) : 8;
     for (let i = 0; i < n; i++) {
       let x = 30 + rnd(i) * (W - 60), y = 62 + rnd(i + 4) * 236;
       const d = Math.hypot(x - cx, y - cy);
       if (d < r + 24) { x = cx + (x - cx) / d * (r + 24); y = cy + (y - cy) / d * (r + 24); }
       let a = 1;
-      if (!sick && p > 0.38) {
-        const ph = (s * 0.4 + rnd(i + 8)) % 1, k1 = ease(seg(ph, 0, 0.55)), k2 = ease(seg(ph, 0.55, 0.85));
+      const goesIn = sick ? i % 4 === 0 && p > 0.56 : p > 0.38;
+      if (goesIn) {
+        const ph = (s * (sick ? 0.15 : 0.4) + rnd(i + 8)) % 1, k1 = ease(seg(ph, 0, 0.55)), k2 = ease(seg(ph, 0.55, 0.85));
         x = lerp(lerp(x, dx - 6, k1), cx + (rnd(i + 2) - 0.5) * 60, k2); y = lerp(lerp(y, cy, k1), cy + (rnd(i + 3) - 0.5) * 60, k2);
         a = 1 - seg(ph, 0.85, 1);
       }
       M.glucose(ctx, x + Math.sin(s * 1.6 + i) * 4, y + Math.cos(s * 1.3 + i) * 4, SUGAR, a);
     }
     if (sick) {
-      M.say(ctx, 'Stuck!', dx - 10, cy + 40, ease(seg(p, 0.3, 0.36)) * (1 - seg(p, 0.58, 0.64)), C.red);
-      M.say(ctx, "I'm hungry...", cx + 10, cy + r + 18, seg(p, 0.6, 0.67), C.red);
+      M.say(ctx, 'Hard to open!', dx - 10, cy + 40, ease(seg(p, 0.3, 0.36)) * (1 - seg(p, 0.58, 0.64)), C.red);
+      M.say(ctx, 'Only a little\nsugar gets in...', cx + 10, cy + r + 18, seg(p, 0.62, 0.69), C.red);
     } else {
       M.say(ctx, 'Yum! Energy!', cx + 10, cy + r + 18, seg(p, 0.55, 0.62), '#1d7a4c');
     }
     M.glucose(ctx, 34, 36, 9); M.text(ctx, '= sugar', 50, 36, { size: 14, align: 'left', color: C.muted, weight: 700 });
-    return sick ? 1 - 0.85 * hunger : 0.7 + 0.3 * eat;
+    return sick ? 1 - 0.6 * hunger : 0.7 + 0.3 * eat;
   }
 
   // Scene 2: blood carries the sugar to every organ.
@@ -484,15 +488,25 @@
 
   // Food turns into sugar; the blood carries it to a cell that uses it for energy.
   function foodToSugar(ctx, p, s) {
-    M.text(ctx, 'Food becomes sugar', 480, 64, { size: 30, weight: 800 });
+    M.text(ctx, 'Carb foods become sugar', 480, 64, { size: 30, weight: 800 });
     const st = (i) => ease(seg(p, 0.05 + i * 0.16, 0.15 + i * 0.16));
-    ctx.save(); ctx.beginPath(); ctx.ellipse(150, 212, 88, 38, 0, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
-    ctx.strokeStyle = '#c9d3e2'; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
-    ['🍞', '🍚', '🍎'].forEach((ch, i) => { const a = M.back(seg(p, 0.03 + i * 0.04, 0.1 + i * 0.04)); if (a > 0) M.emoji(ctx, ch, 100 + i * 50, 200, 38 * a); });
-    M.text(ctx, '1. Food', 150, 272, { size: 18, weight: 800, color: C.muted });
-    M.arrow(ctx, 250, 210, 318, 210, { color: '#9fb0c6', width: 4, alpha: st(1) });
-    M.stomach(ctx, 400, 196, 66, { alpha: st(1) });
-    M.text(ctx, '2. Turns into sugar', 470, 180, { size: 18, weight: 800, color: C.muted, align: 'left', alpha: st(1) });
+    ctx.save(); ctx.beginPath(); ctx.ellipse(150, 240, 124, 40, 0, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.strokeStyle = '#c9d3e2'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(150, 240, 92, 27, 0, 0, M.TAU); ctx.strokeStyle = '#e6ecf4'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+    const CARBS = ['bread', 'rice', 'apple'];
+    CARBS.forEach((k, i) => {
+      const a = M.back(seg(p, 0.03 + i * 0.05, 0.12 + i * 0.05));
+      if (a > 0) M.food(ctx, k, 76 + i * 74, 214 + Math.sin(s * 2.4 + i) * 3, 66 * a, s);
+    });
+    M.text(ctx, '1. Carb foods', 150, 298, { size: 18, weight: 800, color: C.muted });
+    // bites of food fly into the stomach, which churns them into glucose
+    if (p > 0.16) for (let i = 0; i < 3; i++) {
+      const q = (s * 0.45 + i / 3) % 1, u = 1 - q;
+      const x = u * u * 150 + 2 * u * q * 270 + q * q * 384, y = u * u * 196 + 2 * u * q * 70 + q * q * 136;
+      M.food(ctx, CARBS[i], x, y, lerp(28, 10, q), s, seg(p, 0.16, 0.22) * (1 - seg(q, 0.85, 1)));
+    }
+    M.stomach(ctx, 400, 196, 66 * (1 + 0.035 * Math.sin(s * 5)), { alpha: st(1) });
+    M.text(ctx, '2. Digested into glucose (sugar)', 470, 180, { size: 18, weight: 800, color: C.muted, align: 'left', alpha: st(1) });
     M.vessel(ctx, 300, 335, 430, 84, { t: s, wall: 12, items: [{ kind: 'rbc', n: 6, speed: 60, r: 8 }], alpha: st(2) });
     M.text(ctx, '3. Blood carries it', 515, 446, { size: 18, weight: 800, color: C.muted, alpha: st(2) });
     const eat = ease(seg(p, 0.6, 0.75));
@@ -534,7 +548,7 @@
       M.face(ctx, cx, 324, 22, sick ? 1 - 0.8 * k : 1, s, { seed: j + 3 });
       if (!sick) { const q = wrapX(s * 0.6 + j * 0.5, 1); M.glucose(ctx, cx, lerp(280, 316, q), 8, 1 - q); }
     });
-    M.text(ctx, sick ? 'Cells stay hungry' : 'Cells get fed', W / 2, 322, { size: 15, weight: 800, color: sick ? '#a3261f' : '#1d7a4c' });
+    M.text(ctx, sick ? 'Cells get less sugar' : 'Cells get fed', W / 2, 322, { size: 15, weight: 800, color: sick ? '#a3261f' : '#1d7a4c' });
     return sick ? 1 - 0.7 * k : 1;
   }
 
@@ -562,7 +576,7 @@
     M.rr(ctx, 50, 62, W - 100, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill();
     if (yr > 0.02) { M.rr(ctx, 50, 62, (W - 100) * yr, 10, 5); ctx.fillStyle = high ? C.red : C.green; ctx.fill(); }
     M.text(ctx, 'Now', 50, 90, { size: 13, color: C.muted, align: 'left', weight: 700 });
-    M.text(ctx, '20 years', W - 50, 90, { size: 13, color: C.muted, align: 'right', weight: 700 });
+    M.text(ctx, 'Many years later', W - 50, 90, { size: 13, color: C.muted, align: 'right', weight: 700 });
     let sum = 0;
     RISK.forEach(([label, col, at, max], i) => {
       const hurt = high ? max * ease(seg(p, at, at + 0.15)) : 0, x = 70 + i * 100, y = 178;
@@ -582,8 +596,8 @@
   // Part 1 (~65 s): what type 2 diabetes is, and why sugar stays in the blood.
   const patientScenesA = [
     {
-      label: 'Food becomes sugar',
-      caption: 'Food turns into sugar in your body. Your blood carries the sugar to your cells, which use it for energy.',
+      label: 'Carbs become sugar',
+      caption: 'Foods with carbohydrates, like bread, rice, and fruit, are digested into a sugar called glucose. Your blood carries it to your cells for energy.',
       draw: foodToSugar,
     },
     {
@@ -592,23 +606,23 @@
       draw: insulinKey,
     },
     {
-      label: 'Stuck doors',
-      caption: "In type 2 diabetes, the key doesn't work well. The cell doors stay stuck, so sugar can't get in.",
+      label: 'Harder to open',
+      caption: "In type 2 diabetes, your cells don't respond to insulin as well. It's like a door that's harder to open, so more sugar stays in your blood.",
       draw: S.versus({ title: 'Type 2 diabetes', panel: cellPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Cell energy' }),
     },
     {
       label: 'Sugar stays in the blood',
-      caption: 'With nowhere to go, sugar builds up in the blood. Doctors call this high blood sugar.',
+      caption: 'When less sugar gets into the cells, more of it builds up in the blood. Doctors call this high blood sugar.',
       draw: S.versus({ title: 'Sugar stays in the blood', panel: bloodPanel, left: 'Normal', right: 'Type 2 diabetes', bar: 'Sugar balance' }),
     },
     {
       label: 'Why it happens',
-      caption: 'Type 2 diabetes is more likely if it runs in your family, if you eat lots of sugary food and drinks, or if you move very little.',
+      caption: 'Type 2 diabetes has many causes. Family history, how your body responds to insulin, and everyday habits can all play a part.',
       draw: S.iconRow([
-        { icon: '👪', label: 'Runs in the family' },
-        { icon: '🥤', label: 'Lots of sugary food and drinks' },
-        { icon: '🛋️', label: 'Moving very little' },
-      ], { title: 'Why does it happen?', footer: 'It usually develops slowly, over many years.' }),
+        { icon: '👪', label: 'Family history' },
+        { icon: '🔑', label: 'How your body responds to insulin' },
+        { icon: '🏃', label: 'Everyday habits, like food, activity, and sleep' },
+      ], { title: 'Why does it happen?', footer: 'Many things work together. It usually develops slowly, over many years.' }),
     },
     {
       label: 'It can be managed',
@@ -1143,7 +1157,7 @@
         { title: 'How high sugar can affect your body', length: 85, audio: 'audio/t2d-b/', scenes: patientScenesB },
       ],
       keyPoints: [
-        'Insulin is like a key that lets sugar into your cells. In type 2 diabetes, the cells do not respond well to it.',
+        'Insulin is like a key that lets sugar into your cells. In type 2 diabetes, the cells respond to it less, so more sugar stays in the blood.',
         'Sugar that stays high for years raises the risk of problems with the eyes, kidneys, nerves, and heart. It does not mean they will happen.',
         'Medicines, activity, and food choices work together. Many people keep diabetes well controlled for decades.',
         'An A1C test shows your average blood sugar over about 3 months.',
@@ -1163,7 +1177,7 @@
       ],
       quiz: [
         { q: 'In the animation, what does insulin act like?', options: ['A key that opens cells', 'A wall that blocks sugar', 'A type of sugar'], answer: 0, explain: 'Insulin works like a key that lets sugar move from your blood into your cells.' },
-        { q: 'Over years, which parts of the body can high blood sugar damage?', options: ['Only the stomach', 'Eyes, kidneys, nerves, heart, and brain', 'Only the skin'], answer: 1, explain: 'Sugary blood reaches every organ. The tiny vessels in the eyes and kidneys, the nerves in the feet, and the large arteries to the heart and brain are most at risk.' },
+        { q: 'If blood sugar stays high for many years, which parts of the body are at higher risk?', options: ['Only the stomach', 'Eyes, kidneys, nerves, heart, and brain', 'Only the skin'], answer: 1, explain: 'Blood reaches every organ, so sugar that stays high for years raises the risk for the tiny vessels in the eyes and kidneys, the nerves in the feet, and the arteries to the heart and brain. Keeping sugar in range lowers that risk.' },
         { q: 'Which of these is a reason to call your doctor?', options: ['Feeling hungry before lunch', 'A foot sore that will not heal', 'Walking after dinner'], answer: 1, explain: 'Foot sores can get infected quickly when you have diabetes. Get them checked early.' },
       ],
     },

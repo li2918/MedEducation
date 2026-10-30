@@ -33,6 +33,18 @@ def videos(src):
         yield ('-' + m.group(1).lower() if m.group(1) else ''), caps
 
 
+async def record(text, path, tries=4):
+    """The free TTS service sometimes returns no audio; wait and retry."""
+    for attempt in range(1, tries + 1):
+        try:
+            await edge_tts.Communicate(text, VOICE, rate=RATE).save(str(path))
+            return
+        except edge_tts.exceptions.NoAudioReceived:
+            if attempt == tries:
+                raise
+            await asyncio.sleep(2 * attempt)
+
+
 async def main(only):
     for path in sorted((ROOT / 'js' / 'diseases').glob('*.js')):
         src = path.read_text(encoding='utf-8')
@@ -44,7 +56,7 @@ async def main(only):
             out = ROOT / 'audio' / name
             out.mkdir(parents=True, exist_ok=True)
             for i, text in enumerate(caps, 1):
-                await edge_tts.Communicate(text, VOICE, rate=RATE).save(str(out / f'{i}.mp3'))
+                await record(text, out / f'{i}.mp3')
                 print(f'{name}/{i}.mp3  {text}')
 
 
