@@ -151,6 +151,7 @@
 
   // Human figure with a beating heart pumping sugar-laden blood along the arterial routes.
   // o.highlight: route key(s) to emphasise; o.density: 0..1 amount of sugar in the blood.
+  // o.item(ctx, x, y, on) draws each particle instead of sugar.
   function bodyWithBlood(ctx, x, y, s, t, o = {}) {
     const pts = M.person(ctx, x, y, s, { color: '#dfe7f3' });
     const hi = [].concat(o.highlight || []), dens = o.density == null ? 1 : o.density;
@@ -165,7 +166,7 @@
       const n = Math.round((on ? 8 : 3) * dens), sr = o.sugarR || 5.5;
       for (let i = 0; i < n; i++) {
         const [px, py] = along(path, (t * 0.25 + i / n + M.rnd(i + k.length) * 0.05) % 1);
-        M.glucose(ctx, px, py, on ? sr : sr * 0.75, on ? 1 : 0.5);
+        if (o.item) o.item(ctx, px, py, on); else M.glucose(ctx, px, py, on ? sr : sr * 0.75, on ? 1 : 0.5);
       }
     });
     M.heart(ctx, x + 0.15 * s, y - 0.78 * s, s * 0.17, { beat: Math.max(0, Math.sin(t * 6.5)) });
@@ -179,6 +180,72 @@
     if (!cur) return;
     const a = ease(seg(p, cur[0], cur[0] + 0.05)), col = cur[2] || C.red;
     M.pill(ctx, cur[1], x, y, { bg: 'rgba(255,255,255,0.95)', border: col, color: col, size: 16, alpha: a });
+  }
+
+  // ---- Cartoon organ characters for the patient videos (mood: 1 happy … 0 sick) ----
+  function heartBuddy(ctx, x, y, r, mood, s, o = {}) {
+    const beat = 1 + Math.max(0, Math.sin(s * (o.rate || 6.5))) * 0.08;
+    ctx.save(); ctx.translate(x, y); ctx.scale(beat, beat);
+    M.heartShape(ctx, 0, 0, r); ctx.fillStyle = o.color || '#e5484d'; ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-r * 0.62, -r * 0.5, r * 0.16, r * 0.24, -0.6, 0, M.TAU); ctx.fillStyle = 'rgba(255,255,255,0.35)'; ctx.fill();
+    ctx.restore();
+    M.face(ctx, x, y - r * 0.12, r * 0.85, mood, s, o);
+  }
+
+  function kidneyBuddy(ctx, x, y, r, mood, s, hurt) {
+    M.kidney(ctx, x, y + Math.sin(s * 2) * 3, r, { color: M.mix('#d9776b', '#9c7366', hurt) });
+    M.face(ctx, x - r * 0.2, y + Math.sin(s * 2) * 3, r * 0.55, mood, s, { seed: 2 });
+  }
+
+  function brainBuddy(ctx, x, y, r, mood, s, o = {}) {
+    M.brain(ctx, x, y + Math.sin(s * 1.8) * 3, r);
+    M.face(ctx, x, y + r * 0.05 + Math.sin(s * 1.8) * 3, r * 0.6, mood, s, Object.assign({ seed: 3 }, o));
+  }
+
+  // Cartoon eyeball that looks around; when hurt it gets red and droopy.
+  function eyeball(ctx, x, y, r, hurt, s) {
+    ctx.save();
+    ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fillStyle = '#fff'; ctx.fill();
+    ctx.lineWidth = 3; ctx.strokeStyle = '#c9d3e2'; ctx.stroke(); ctx.clip();
+    if (hurt > 0) {
+      ctx.strokeStyle = `rgba(214,60,60,${0.85 * hurt})`; ctx.lineWidth = 2;
+      for (let k = 0; k < 7; k++) {
+        const a = k * 0.9 + 0.3; ctx.beginPath(); ctx.moveTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+        ctx.quadraticCurveTo(x + Math.cos(a + 0.2) * r * 0.8, y + Math.sin(a + 0.2) * r * 0.8, x + Math.cos(a - 0.1) * r * 0.58, y + Math.sin(a - 0.1) * r * 0.58); ctx.stroke();
+      }
+    }
+    const gx = Math.sin(s * 0.9) * r * 0.18, gy = Math.cos(s * 0.7) * r * 0.08;
+    M.dot(ctx, x + gx, y + gy, r * 0.46, '#4f8ff7');
+    M.dot(ctx, x + gx, y + gy, r * 0.22, '#1b2440');
+    M.dot(ctx, x + gx - r * 0.12, y + gy - r * 0.14, r * 0.09, '#fff');
+    const lid = (s % 3.3) < 0.14 ? 1 : lerp(0.04, 0.45, hurt);
+    ctx.fillStyle = '#f2c8a8'; ctx.fillRect(x - r, y - r, 2 * r, 2 * r * lid);
+    ctx.strokeStyle = '#c98f6b'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - r, y - r + 2 * r * lid); ctx.lineTo(x + r, y - r + 2 * r * lid); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Little picture of "what you see": sharp when healthy, blurry and spotted when hurt.
+  function viewFrame(ctx, x, y, w, h, hurt, spots) {
+    ctx.save(); M.rr(ctx, x, y, w, h, 14); ctx.clip();
+    if (hurt > 0) ctx.filter = `blur(${7 * hurt}px)`;
+    ctx.fillStyle = '#a7d6f7'; ctx.fillRect(x, y, w, h * 0.65);
+    ctx.fillStyle = '#93cf7e'; ctx.fillRect(x, y + h * 0.65, w, h * 0.35);
+    M.dot(ctx, x + w * 0.82, y + h * 0.2, 18, '#ffd75e');
+    ctx.fillStyle = '#f4e1c1'; ctx.fillRect(x + w * 0.18, y + h * 0.42, w * 0.32, h * 0.36);
+    ctx.fillStyle = '#d9534f'; ctx.beginPath(); ctx.moveTo(x + w * 0.13, y + h * 0.42); ctx.lineTo(x + w * 0.34, y + h * 0.18); ctx.lineTo(x + w * 0.55, y + h * 0.42); ctx.fill();
+    ctx.fillStyle = '#8a5a3b'; ctx.fillRect(x + w * 0.3, y + h * 0.58, w * 0.08, h * 0.2);
+    ctx.fillStyle = '#7a5230'; ctx.fillRect(x + w * 0.72, y + h * 0.45, 8, h * 0.33);
+    M.dot(ctx, x + w * 0.74, y + h * 0.42, 24, '#4f9e4a');
+    ctx.filter = 'none';
+    [[0.3, 0.3, 34], [0.65, 0.6, 28], [0.15, 0.75, 30], [0.85, 0.85, 24]].forEach(([u, v, r], i) => {
+      const a = seg(spots, i * 0.15, i * 0.15 + 0.4);
+      if (a <= 0) return;
+      const gr = ctx.createRadialGradient(x + u * w, y + v * h, 2, x + u * w, y + v * h, r * a);
+      gr.addColorStop(0, 'rgba(25,18,18,0.85)'); gr.addColorStop(1, 'rgba(25,18,18,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x + u * w, y + v * h, r * a, 0, M.TAU); ctx.fill();
+    });
+    ctx.restore();
+    ctx.save(); M.rr(ctx, x, y, w, h, 14); ctx.lineWidth = 4; ctx.strokeStyle = '#3b4a5e'; ctx.stroke(); ctx.restore();
   }
 
   // Two cards side by side: normal (left) vs. disease (right). o.panel(ctx, p, s, sick, W, H)
@@ -205,5 +272,5 @@
     };
   }
 
-  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, versus };
+  window.S = { iconRow, warningCard, bodyHotspots, pathway, effectGrid, tubule, bodyWithBlood, phasePill, versus, heartBuddy, kidneyBuddy, brainBuddy, eyeball, viewFrame };
 })();

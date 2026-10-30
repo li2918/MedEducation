@@ -51,106 +51,344 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Patient portal script (~60 s)
+  // Patient portal script (~60 s), simple enough for a 10-year-old. Like the
+  // diabetes video, every scene puts two cards side by side, normal pressure vs.
+  // high pressure. Organs are characters with faces and a health bar, and each
+  // card acts out what hard pushing does. Panels draw in card-local coordinates (440x420).
   // ---------------------------------------------------------------------------
-  const bpRows = [
-    ['Normal', 'Less than 120', 'and less than 80', C.green],
-    ['Elevated', '120–129', 'and less than 80', '#e8c547'],
-    ['High: Stage 1', '130–139', 'or 80–89', C.amber],
-    ['High: Stage 2', '140 or higher', 'or 90 or higher', C.red],
-  ];
+  const { heartBuddy, kidneyBuddy, brainBuddy } = S;
+  const wrapX = (v, w) => ((v % w) + w) % w;
+  const hurtOf = (p, sick, a = 0.15, b = 0.8) => (sick ? ease(seg(p, a, b)) : 0);
+  const versus = (o) => S.versus(Object.assign({ left: 'Normal pressure', right: 'High pressure' }, o));
+
+  // Pressure meter: dial with green → red zones and the reading underneath.
+  function pressureDial(ctx, x, y, r, sys, dia) {
+    const ang = (v) => Math.PI + (Math.min(180, Math.max(90, v)) - 90) / 90 * Math.PI;
+    ctx.save(); ctx.lineWidth = 16;
+    [[90, 120, C.green], [120, 130, '#e8c547'], [130, 140, C.amber], [140, 180, C.red]].forEach(([a, b, col]) => {
+      ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(x, y, r, ang(a), ang(b)); ctx.stroke();
+    });
+    const a = ang(sys);
+    ctx.strokeStyle = C.ink; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * (r - 14), y + Math.sin(a) * (r - 14)); ctx.stroke();
+    ctx.restore();
+    M.dot(ctx, x, y, 8, C.ink);
+    const col = sys >= 130 || dia >= 80 ? C.red : sys >= 120 ? C.amber : C.green;
+    M.text(ctx, `${Math.round(sys)} / ${Math.round(dia)}`, x, y + 26, { size: 22, weight: 800, color: col });
+  }
+
+  // Scene 1: the heart pumps blood through pipes; high pressure is a hose on full blast.
+  function pumpPanel(ctx, p, s, sick, W) {
+    const k = hurtOf(p, sick, 0.1, 0.45), tired = hurtOf(p, sick, 0.5, 0.85);
+    const rate = sick ? lerp(6.5, 10, k) : 6.5, beat = Math.max(0, Math.sin(s * rate));
+    // blood pipe leaving the heart; with high pressure it bulges on every beat
+    const bulge = beat * lerp(2, 12, k), py = 92, ph = 76;
+    M.vessel(ctx, 118, py - bulge, W - 100, ph + 2 * bulge, {
+      t: s * lerp(1, 2.2, k), wall: 13, wallColor: M.mix('#f2b8ae', '#e2645a', k), items: [{ kind: 'rbc', n: 9, speed: 90, r: 9 }],
+    });
+    M.pressureArrows(ctx, 135, py + ph / 2, W - 150, lerp(6, 24, k) + beat * lerp(3, 14, k), { n: 5, alpha: sick ? 0.9 : 0.4 });
+    if (tired > 0) {
+      ctx.save(); ctx.strokeStyle = '#8c1d18'; ctx.lineWidth = 2.5; ctx.globalAlpha = tired;
+      [215, 300, 385].forEach((x) => [[py - bulge + 2, 1], [py + ph + bulge - 2, -1]].forEach(([y, d]) => {
+        ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 5, y + d * 5); ctx.lineTo(x - 2, y + d * 8); ctx.lineTo(x + 4, y + d * 11); ctx.stroke();
+      }));
+      ctx.restore();
+    }
+    M.text(ctx, 'Blood pipe', 280, py - 26, { size: 14, weight: 800, color: C.muted });
+    heartBuddy(ctx, 72, 130, 44, sick ? 1 - 0.8 * tired : 1, s, { rate });
+    M.say(ctx, !sick ? 'Nice and\neasy!' : p < 0.5 ? 'Push!\nPush!' : 'Phew...\nso tiring!', 72, 186, seg(p, 0.1, 0.16), sick ? C.red : '#1d7a4c');
+    // a garden hose: gentle arc vs. full blast
+    M.text(ctx, 'Like a hose:', 90, 262, { size: 14, weight: 800, color: C.muted });
+    ctx.save(); ctx.strokeStyle = '#2f9e44'; ctx.lineWidth = 12; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(-10, 318); ctx.quadraticCurveTo(10, 300, 30, 300); ctx.stroke(); ctx.restore();
+    M.rr(ctx, 26, 293, 18, 14, 4); ctx.fillStyle = '#495a6e'; ctx.fill();
+    const range = lerp(70, 190, k), vy = lerp(34, 6, k), g = lerp(70, 18, k);
+    for (let i = 0; i < Math.round(lerp(6, 22, k)); i++) {
+      const f = (s * lerp(0.7, 1.6, k) + rnd(i + 40)) % 1;
+      M.drop(ctx, 48 + f * range, 300 - f * vy * 2 + f * f * g, lerp(5, 7, k), 1 - f * 0.4);
+    }
+    // the pressure meter
+    const sys = (sick ? lerp(116, 152, k) : 115) + beat * 3, dia = sick ? lerp(76, 96, k) : 75;
+    M.text(ctx, 'Pressure meter', 320, 212, { size: 14, weight: 800, color: C.muted });
+    pressureDial(ctx, 320, 296, 60, sys, dia);
+    return sick ? 1 - 0.7 * ease(seg(p, 0.15, 0.85)) : 1;
+  }
+
+  // Scene 2: you feel fine on the outside, but inside the hard push hurts four organs.
+  const BADGES = [['brain', 'Brain', '#e07aa0'], ['heart', 'Heart', '#e5484d'], ['kidney', 'Kidneys', '#c0655a'], ['feet', 'Energy', '#f59f00']];
+  const bloodCell = (ctx, x, y, on) => M.rbc(ctx, x, y, on ? 7 : 5, on ? 1 : 0.6);
+  function silentPanel(ctx, p, s, sick) {
+    const x = 130, y = 225, sc = 78, hy = y - 1.62 * sc;
+    const pts = S.bodyWithBlood(ctx, x, y, sc, s * (sick ? 1.8 : 1), { density: sick ? 1.2 : 0.7, item: bloodCell });
+    M.face(ctx, x, hy, 24, 1, s, { seed: sick ? 5 : 4 });
+    M.pill(ctx, '"I feel fine!"', x, 40, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: seg(p, 0.08, 0.14) });
+    BADGES.forEach(([at, label, col], i) => {
+      const [ax, ay] = at === 'brain' ? [x + 20, hy - 18] : pts[at];
+      const bx = 300, by = 70 + i * 78, hurt = sick ? ease(seg(p, 0.25 + i * 0.13, 0.42 + i * 0.13)) : 0;
+      ctx.save(); ctx.strokeStyle = col; ctx.globalAlpha = 0.55; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
+      ctx.beginPath(); ctx.moveTo(ax, ay); ctx.lineTo(bx - 28, by); ctx.stroke(); ctx.restore();
+      M.dot(ctx, ax, ay, 5, col);
+      const wob = hurt > 0 && hurt < 1 ? Math.sin(s * 25) * 3 : 0;
+      M.dot(ctx, bx + wob, by, 27, M.mix(col, '#8b8f99', hurt * 0.45));
+      M.face(ctx, bx + wob, by + 2, 25, 1 - hurt * 0.95, s, { seed: i });
+      M.text(ctx, label, bx + 36, by, { size: 17, weight: 800, align: 'left' });
+    });
+    return sick ? 1 - 0.8 * ease(seg(p, 0.25, 0.85)) : 1;
+  }
+
+  // Scene 3: high pressure is a heavy weight the heart lifts all day; its wall gets thick and tired.
+  function heartPanel(ctx, p, s, sick) {
+    const k = hurtOf(p, sick, 0.1, 0.5), tired = hurtOf(p, sick, 0.5, 0.85);
+    const hx = 160, hy = 222, r = lerp(46, 58, k);
+    const lift = (sick ? lerp(34, 10, k) : 34) * Math.abs(Math.sin(s * (sick ? lerp(3, 1.6, k) : 3)));
+    const shake = sick && k > 0.3 ? Math.sin(s * 30) * 2.5 * k : 0, by = hy - r - 62 - lift;
+    ctx.save(); ctx.strokeStyle = '#c23b3b'; ctx.lineWidth = 8; ctx.lineCap = 'round';
+    [-1, 1].forEach((d) => {
+      ctx.beginPath(); ctx.moveTo(hx + d * r * 0.9, hy - r * 0.3);
+      ctx.quadraticCurveTo(hx + d * (r + 24), hy - r - 10, hx + d * 54 + shake, by); ctx.stroke();
+    });
+    ctx.restore();
+    // barbell: light plates vs. heavy plates
+    const pw = lerp(12, 24, k), plh = lerp(30, 84, k);
+    ctx.fillStyle = '#6b7788'; ctx.fillRect(hx - 110 + shake, by - 4, 220, 8);
+    [-1, 1].forEach((d) => { M.rr(ctx, hx + d * 92 - pw / 2 + shake, by - plh / 2, pw, plh, 5); ctx.fillStyle = '#37475b'; ctx.fill(); });
+    M.pill(ctx, sick ? 'Super hard push' : 'Normal push', hx + shake, by - 24, { size: 13, bg: '#fff', border: sick ? C.red : C.green, color: sick ? '#a3261f' : '#1d7a4c' });
+    heartBuddy(ctx, hx + shake * 0.5, hy, r, sick ? 1 - 0.85 * tired : 1, s, { rate: sick ? 9 : 6.5 });
+    M.say(ctx, !sick ? 'Easy! I feel\nstrong!' : p < 0.5 ? 'So heavy...' : "I'm getting\nworn out...", hx, hy + r + 16, seg(p, 0.12, 0.18), sick ? C.red : '#1d7a4c');
+    // slice through the heart wall: thin and stretchy vs. thick and stiff
+    const cx = 362, cy = 142, R = 48, wall = lerp(9, 25, k);
+    M.text(ctx, 'Heart wall', cx, 72, { size: 14, weight: 800, color: C.muted });
+    M.dot(ctx, cx, cy, R * (1 + Math.max(0, Math.sin(s * (sick ? 9 : 6.5))) * 0.04 * (1 - k)), M.mix('#e5484d', '#b9302f', k));
+    M.dot(ctx, cx, cy, R - wall, '#fbe0dc');
+    M.text(ctx, sick ? 'Thick & stiff' : 'Thin & stretchy', cx, cy + R + 20, { size: 14, weight: 800, color: sick ? '#a3261f' : '#1d7a4c', alpha: sick ? seg(p, 0.35, 0.42) : 1 });
+    if (sick) M.pill(ctx, 'Worn-out heart', cx, 262, { size: 15, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.75, 0.8) });
+    return sick ? 1 - 0.85 * hurtOf(p, sick, 0.1, 0.85) : 1;
+  }
+
+  // Scene 4: hard pushes stretch a pipe in the brain until a weak spot balloons and bursts (stroke).
+  function brainPanel(ctx, p, s, sick, W) {
+    const push = hurtOf(p, sick, 0.08, 0.3), grow = hurtOf(p, sick, 0.28, 0.6), leak = hurtOf(p, sick, 0.62, 0.85);
+    const popped = sick && p >= 0.62, beat = Math.max(0, Math.sin(s * 6.5));
+    const vy = 236, vh = 64, bx = 300, d = beat * push * 5;
+    brainBuddy(ctx, 105, 100, 62, sick ? 1 - 0.95 * leak : 1, s, { dizzy: leak > 0.6 });
+    if (leak > 0) {
+      const gr = ctx.createRadialGradient(132, 92, 1, 132, 92, 24 * leak);
+      gr.addColorStop(0, 'rgba(150,12,12,0.9)'); gr.addColorStop(1, 'rgba(150,12,12,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(132, 92, 24 * leak, 0, M.TAU); ctx.fill();
+    }
+    M.say(ctx, !sick ? 'I can think\nand move!' : leak > 0.3 ? "Can't think...\ncan't move!" : 'My pipe feels\ntight...', 105, 166, seg(p, 0.08, 0.14), sick ? C.red : '#1d7a4c');
+    ctx.save(); ctx.strokeStyle = 'rgba(47,111,222,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.moveTo(150, 120); ctx.lineTo(bx - 40, vy - d); ctx.stroke(); ctx.restore();
+    M.text(ctx, 'A blood pipe in the brain', 320, 210, { size: 14, weight: 800, color: C.muted, alpha: 1 - grow });
+    M.vessel(ctx, -10, vy - d, W + 20, vh + 2 * d, {
+      t: s, wall: 12, wallColor: M.mix('#f2b8ae', '#e2645a', push), items: [{ kind: 'rbc', n: popped ? 6 : 10, speed: 100, r: 8 }],
+    });
+    M.pressureArrows(ctx, 20, vy + vh / 2, W - 40, lerp(5, 22, push) + beat * 10 * push, { n: 5, alpha: sick ? 0.85 : 0.4 });
+    if (sick && !popped && grow > 0) {
+      const br = 34 * grow * (1 + beat * 0.08), cy = vy - d - br * 0.55;
+      ctx.save(); ctx.beginPath(); ctx.arc(bx, cy, br, 0, M.TAU); ctx.fillStyle = M.mix('#f2b8ae', '#ffd6cf', grow);
+      ctx.fill(); ctx.strokeStyle = '#c94a42'; ctx.lineWidth = lerp(4, 1.5, grow); ctx.stroke(); ctx.restore();
+      M.dot(ctx, bx - br * 0.35, cy - br * 0.35, br * 0.18, 'rgba(255,255,255,0.7)');
+    }
+    if (popped) {
+      const gr = ctx.createRadialGradient(bx, vy - 8, 2, bx, vy - 8, 30 + 60 * leak);
+      gr.addColorStop(0, 'rgba(150,12,12,0.95)'); gr.addColorStop(1, 'rgba(150,12,12,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(bx, vy - 8, 30 + 60 * leak, 0, M.TAU); ctx.fill();
+      for (let i = 0; i < 6; i++) {
+        const a = -Math.PI * (0.15 + 0.7 * rnd(i + 90)), f = wrapX(s * 0.8 + rnd(i + 91), 1);
+        M.drop(ctx, bx + Math.cos(a) * (20 + 50 * f), vy - 10 + Math.sin(a) * (20 + 50 * f), 5, 1 - f, '#a51515');
+      }
+      const burst = 1 - seg(p, 0.64, 0.74);
+      if (burst > 0) M.text(ctx, 'POP!', bx, vy - 70, { size: 30, weight: 900, color: C.red, alpha: burst });
+      M.pill(ctx, 'Stroke!', 330, 120, { size: 20, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: seg(p, 0.72, 0.78) });
+    }
+    if (sick) S.phasePill(ctx, W / 2, 338, p, [[0.08, 'Hard pushes stretch the pipe'], [0.3, 'A weak spot puffs up like a balloon'], [0.62, 'Pop! Blood leaks out']]);
+    else S.phasePill(ctx, W / 2, 338, p, [[0.08, 'Strong pipe, steady flow', C.green]]);
+    return sick ? 1 - 0.9 * hurtOf(p, sick, 0.1, 0.75) : 1;
+  }
+
+  // Scene 5: the kidney's strainers clean the blood. Hard pushes tear the holes, so protein
+  // falls into the pee, then scars clog them and trash stays in the blood.
+  function kidneyPanel(ctx, p, s, sick) {
+    const push = hurtOf(p, sick, 0.1, 0.3), tear = hurtOf(p, sick, 0.34, 0.58), clog = hurtOf(p, sick, 0.62, 0.85);
+    const hurt = hurtOf(p, sick, 0.12, 0.85), beat = Math.max(0, Math.sin(s * 6.5));
+    kidneyBuddy(ctx, 70, 92, 56, 1 - 0.95 * hurt, s, hurt);
+    M.text(ctx, 'Kidney', 64, 156, { size: 15, weight: 800, color: C.muted });
+    const msg = !sick ? 'I keep the\ngood stuff!' : p < 0.34 ? 'Too much\npushing!' : p < 0.62 ? 'My holes\nare tearing!' : "I can't\nclean well...";
+    M.say(ctx, msg, 68, 178, seg(p, 0.1, 0.16), sick ? C.red : '#1d7a4c');
+    ctx.save(); ctx.strokeStyle = 'rgba(47,111,222,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([4, 5]);
+    ctx.beginPath(); ctx.moveTo(98, 70); ctx.lineTo(140, 40); ctx.moveTo(98, 112); ctx.lineTo(140, 175); ctx.stroke(); ctx.restore();
+    const ax = 140, aw = 285, top = 40, fy = 172, jx = 192, jw = 180, jt = 222, jb = 345, lvl = 282;
+    M.rr(ctx, ax, top, aw, fy - top, 16); ctx.fillStyle = '#fde3de'; ctx.fill();
+    M.text(ctx, 'Blood', ax + 30, top + 16, { size: 14, weight: 800, color: '#b3453c' });
+    // the push on the strainer
+    for (let i = 0; i < 5; i++) {
+      const x = ax + 30 + i * (aw - 60) / 4, len = sick ? lerp(12, 40, push) * (0.6 + 0.4 * beat) : 10;
+      M.arrow(ctx, x, fy - 22 - len, x, fy - 16, { color: C.red, width: sick ? 4 : 2, head: 10, alpha: sick ? 0.75 : 0.3 });
+    }
+    // pee cup
+    M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.fillStyle = 'rgba(225,236,250,0.7)'; ctx.fill();
+    ctx.save(); M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.clip(); ctx.fillStyle = '#fbe7a1'; ctx.fillRect(jx, lvl, jw, jb - lvl); ctx.restore();
+    M.rr(ctx, jx, jt, jw, jb - jt, 16); ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 3; ctx.stroke();
+    M.text(ctx, 'Pee', jx + jw + 22, lvl + 20, { size: 15, weight: 800, color: '#a07a00' });
+    // the strainer: holes stretch and tear, then scars plug them
+    const nH = 6, gap = aw / nH, bandH = 18, hw = lerp(10, 26, tear);
+    const holes = [];
+    for (let i = 0; i < nH; i++) holes.push({ x: ax + gap * (i + 0.5), blocked: [1, 3, 4].includes(i) && clog > 0.5 });
+    ctx.fillStyle = M.mix('#9b7bd1', '#8a8494', clog * 0.8);
+    let prev = ax;
+    holes.forEach((h) => { M.rr(ctx, prev, fy - bandH / 2, h.x - hw / 2 - prev, bandH, 6); ctx.fill(); prev = h.x + hw / 2; });
+    M.rr(ctx, prev, fy - bandH / 2, ax + aw - prev, bandH, 6); ctx.fill();
+    holes.forEach((h) => { if (h.blocked) { M.rr(ctx, h.x - hw / 2 - 1, fy - bandH / 2, hw + 2, bandH, 4); ctx.fillStyle = '#6f6577'; ctx.fill(); } });
+    M.text(ctx, sick && clog > 0.5 ? 'Scarred strainer' : 'Strainer', ax + aw - 60, fy + 22, { size: 13, weight: 800, color: '#6a4fb0' });
+    const open = holes.filter((h) => !h.blocked);
+    const fall = (h, ph, i, rest) => {
+      if (ph < 0.35) return [lerp(ax + 20 + rnd(i + 70) * (aw - 40), h.x, ease(ph / 0.35)), lerp(top + 30 + rnd(i + 71) * 60, fy, ease(ph / 0.35))];
+      const k = (ph - 0.35) / 0.65, ex = jx + 25 + rnd(i + 72) * (jw - 50), ey = rest || jb - 14 - rnd(i + 73) * 30;
+      const k2 = Math.min(1, k * 1.3); return [lerp(h.x, ex, k2), lerp(fy, ey, k2)];
+    };
+    for (let i = 0; i < 4; i++) M.rbc(ctx, ax + wrapX(rnd(i + 60) * aw + s * 40 * (1 + push), aw), top + 30 + rnd(i + 61) * 40, 10);
+    for (let i = 0; i < 10; i++) {
+      const stuck = rnd(i + 80) < clog * 0.8;
+      const [x, y] = stuck ? [ax + 30 + rnd(i + 81) * (aw - 60), fy - bandH / 2 - 6 - rnd(i + 82) * 40] : fall(open[i % open.length], (s * 0.3 + rnd(i)) % 1, i);
+      M.dot(ctx, x, y, 5.5, '#7d6248');
+    }
+    for (let i = 0; i < 5; i++) {
+      const rot = s * 0.8 + i;
+      if (rnd(i + 200) < tear * 0.9) {
+        const [x, y] = fall(open[(i * 2 + 1) % open.length], Math.min(1, (s * 0.25 + rnd(i + 30)) % 1.4), i + 20, lvl + 14 + rnd(i + 9) * 40);
+        M.protein(ctx, x, y, 15, 1, rot);
+      } else {
+        M.protein(ctx, ax + 40 + (i + 0.5) / 5 * (aw - 80), fy - bandH / 2 - 22 - Math.abs(Math.sin(s * 2.2 + i)) * 70, 15, 1, rot);
+      }
+    }
+    for (let i = 0; i < Math.floor(tear * 10); i++) {
+      const x = jx + 14 + rnd(i + 120) * (jw - 28), y = lvl - 2 - wrapX(s * 8 + rnd(i + 121) * 10, 10);
+      ctx.beginPath(); ctx.arc(x, y, 6 + rnd(i) * 5, 0, M.TAU); ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.fill();
+      ctx.strokeStyle = 'rgba(200,180,120,0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
+    }
+    M.protein(ctx, 26, 276, 10); M.text(ctx, 'Protein (keep!)', 42, 276, { size: 13, weight: 800, align: 'left', color: '#1c3a9e' });
+    M.dot(ctx, 26, 306, 5.5, '#7d6248'); M.text(ctx, 'Trash', 42, 306, { size: 13, weight: 800, align: 'left', color: '#7d6248' });
+    return 1 - 0.85 * hurt;
+  }
+
+  // Kid running in place. ph: stride phase, amp: stride size (0..1), lean: bend forward (0..1).
+  function runner(ctx, x, ground, ph, amp, lean, mood, s) {
+    const hip = [x, ground - 70], L = 36, col = '#4a6fa5';
+    const ang = lean * 0.9, sh = [hip[0] + Math.sin(ang) * 58, hip[1] - Math.cos(ang) * 58];
+    ctx.save(); ctx.strokeStyle = col; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.lineWidth = 9;
+    const limb = (from, a1, a2, len) => {
+      const k = [from[0] + Math.sin(a1) * len, from[1] + Math.cos(a1) * len];
+      const e = [k[0] + Math.sin(a2) * len, k[1] + Math.cos(a2) * len];
+      ctx.beginPath(); ctx.moveTo(from[0], from[1]); ctx.lineTo(k[0], k[1]); ctx.lineTo(e[0], e[1]); ctx.stroke();
+    };
+    [0, Math.PI].forEach((o) => {
+      const sw = Math.sin(ph + o) * 0.75 * amp;
+      limb(hip, sw, sw - (0.2 + 0.9 * amp * Math.max(0, -Math.sin(ph + o))), L);
+      limb(sh, -sw * 1.1 + lean * 0.6, -sw * 1.1 + lean * 0.6 + 1.1 * Math.max(amp, lean), 26);
+    });
+    ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(hip[0], hip[1]); ctx.lineTo(sh[0], sh[1]); ctx.stroke();
+    ctx.restore();
+    const head = [sh[0] + Math.sin(ang) * 26, sh[1] - Math.cos(ang) * 26];
+    M.dot(ctx, head[0], head[1], 22, '#f2c8a8');
+    M.face(ctx, head[0] + 3, head[1] + 1, 20, mood, s, { seed: 6 });
+    return head;
+  }
+
+  // Scene 6: a hard-working heart sends less blood to the muscles, so the body runs out of energy.
+  function energyPanel(ctx, p, s, sick, W) {
+    const f = (q) => (sick ? 1 - 0.9 * ease(seg(q, 0.15, 0.7)) : 1); // how fast they can run
+    const dur = p > 0 ? s / p : 0;
+    let run = 0; for (let i = 0; i < 24; i++) run += f((i + 0.5) / 24 * p) / 24;
+    run *= p * dur; // seconds of full-speed running so far
+    const tired = 1 - f(p), ground = 300;
+    // heart sends blood to the muscles
+    heartBuddy(ctx, 62, 92, 34, sick ? 1 - 0.8 * tired : 1, s, { rate: sick ? 9 : 6.5 });
+    const n = sick ? Math.round(lerp(6, 2, tired)) : 6;
+    for (let i = 0; i < n; i++) {
+      const q = wrapX(s * lerp(0.5, 0.2, tired) + i / 6, 1);
+      M.rbc(ctx, lerp(100, 190, q), lerp(110, 190, q), 7, 1 - q * 0.3);
+    }
+    M.text(ctx, sick ? 'Less blood' : 'Lots of blood', 62, 146, { size: 13, weight: 800, color: sick ? '#a3261f' : '#1d7a4c', alpha: sick ? seg(p, 0.3, 0.36) : 1 });
+    // scrolling ground and bushes
+    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(0, ground, W, 40);
+    ctx.fillStyle = '#9ccf86';
+    for (let i = 0; i < 6; i++) ctx.fillRect(wrapX(i * 80 - run * 160, W + 40) - 20, ground + 14, 34, 6);
+    for (let i = 0; i < 2; i++) {
+      const bx = wrapX(i * 240 + 120 - run * 60, W + 120) - 60;
+      M.dot(ctx, bx, ground - 18, 22, '#7cc36b'); M.dot(ctx, bx + 20, ground - 10, 16, '#6db35d');
+    }
+    const head = runner(ctx, 240, ground, run * 10, lerp(1, 0.12, tired), sick ? ease(seg(p, 0.4, 0.75)) * 0.75 : 0.12, 1 - 0.9 * tired, s);
+    if (sick && tired > 0.5) {
+      for (let i = 0; i < 3; i++) {
+        const q = wrapX(s * 0.9 + i / 3, 1);
+        ctx.save(); ctx.globalAlpha = (1 - q) * 0.8; ctx.strokeStyle = '#9fb0c6'; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.arc(head[0] + 30 + q * 30, head[1] + 8 - q * 10, 6 + q * 8, 0, M.TAU); ctx.stroke(); ctx.restore();
+      }
+    }
+    // energy battery
+    const lvl = 1 - 0.85 * tired, bx = 330, by = 52, bw = 84, bh = 38;
+    M.text(ctx, 'Energy', bx + bw / 2, by - 14, { size: 14, weight: 800, color: C.muted });
+    M.rr(ctx, bx, by, bw, bh, 8); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#3b4a5e'; ctx.lineWidth = 3; ctx.stroke();
+    M.rr(ctx, bx + bw, by + 11, 7, 16, 3); ctx.fillStyle = '#3b4a5e'; ctx.fill();
+    M.rr(ctx, bx + 5, by + 5, (bw - 10) * lvl, bh - 10, 5); ctx.fillStyle = lvl > 0.66 ? C.green : lvl > 0.36 ? C.amber : C.red; ctx.fill();
+    M.say(ctx, !sick ? "Let's play!" : tired < 0.4 ? 'Wait for me...' : 'I need a rest...', 240, 322, seg(p, 0.1, 0.16), sick ? C.red : '#1d7a4c');
+    return lvl;
+  }
 
   const patientScenes = [
     {
-      label: 'What it is',
-      caption: 'High blood pressure means your blood pushes too hard against the walls of your arteries, all day long.',
-      draw(ctx, p, s) {
-        artery(ctx, s, { arrows: 26, arrowAlpha: ease(seg(p, 0.1, 0.3)) });
-        M.text(ctx, 'Inside an artery', 360, 410, { size: 18, color: C.muted });
-        M.bpMonitor(ctx, 800, 275, 150, 95, { alpha: ease(seg(p, 0.35, 0.5)) });
-        M.pill(ctx, 'Too much pressure on the walls', 360, 455, { bg: '#fdecea', border: C.red, color: '#b3322b', alpha: ease(seg(p, 0.55, 0.65)) });
-      },
+      label: 'Your heart is a pump',
+      caption: 'Your heart pumps blood through pipes. High blood pressure means blood pushes too hard, like a hose on full blast.',
+      draw: versus({ panel: pumpPanel, bar: 'Pipe health' }),
     },
     {
-      label: 'The numbers',
-      caption: 'A reading below 120 over 80 is normal. 130 over 80 or higher is high blood pressure.',
-      draw(ctx, p) {
-        M.text(ctx, 'Top number: when your heart beats  ·  Bottom number: between beats', 480, 78, { size: 16, color: C.muted, alpha: ease(seg(p, 0, 0.1)) });
-        M.card(ctx, 110, 100, 740, 380);
-        ['Category', 'Top number', 'Bottom number'].forEach((h, i) => M.text(ctx, h, [150, 470, 690][i], 135, { size: 15, align: i ? 'center' : 'left', color: C.muted }));
-        bpRows.forEach(([cat, top, bot, col], i) => {
-          const a = ease(seg(p, 0.08 + i * 0.12, 0.2 + i * 0.12)), y = 190 + i * 74;
-          M.rr(ctx, 130, y - 26, 8, 52, 4); ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = col; ctx.fill(); ctx.restore();
-          M.text(ctx, cat, 152, y, { size: 19, weight: 800, align: 'left', alpha: a });
-          M.text(ctx, top, 470, y, { size: 19, alpha: a });
-          M.text(ctx, bot, 690, y, { size: 19, alpha: a });
+      label: 'You can\'t feel it',
+      caption: 'The tricky part: you usually feel fine. But inside, the hard push slowly hurts your heart, brain, kidneys, and whole body.',
+      draw: versus({ panel: silentPanel, bar: 'Body health' }),
+    },
+    {
+      label: 'Heart',
+      caption: 'Your heart must push extra hard, all day. Like lifting heavy weights nonstop, it gets thick and tired.',
+      draw: versus({ title: 'Heart', panel: heartPanel, bar: 'Heart health' }),
+    },
+    {
+      label: 'Brain',
+      caption: 'Strong pushing hurts your blood pipes. In your brain, a weak pipe can burst. That is called a stroke.',
+      draw: versus({ title: 'Brain', panel: brainPanel, bar: 'Brain health' }),
+    },
+    {
+      label: 'Kidneys',
+      caption: 'Kidneys are strainers that clean your blood. Too much push tears them, so trash stays in your blood.',
+      draw: versus({ title: 'Kidneys', panel: kidneyPanel, bar: 'Kidney health' }),
+    },
+    {
+      label: 'Energy',
+      caption: 'A tired heart sends less blood to your muscles, so you run out of energy and get tired fast.',
+      draw: versus({ title: 'Whole body', panel: energyPanel, bar: 'Body energy' }),
+    },
+    {
+      label: 'Keep pressure healthy',
+      caption: 'Less salt, daily play, and medicine bring pressure down. Chest pain or a sudden bad headache? Call 911.',
+      draw(ctx, p, s) {
+        const k = ease(seg(p, 0.08, 0.5)), x = 200, y = 300, sc = 105, hy = y - 1.62 * sc;
+        const pts = S.bodyWithBlood(ctx, x, y, sc, s * lerp(1.8, 1, k), { density: 0.8, item: bloodCell });
+        BADGES.forEach(([at, , col], i) => {
+          const [bx, by] = at === 'brain' ? [x, hy - 24] : pts[at];
+          M.dot(ctx, bx, by, 18, M.mix('#8b8f99', col, k));
+          M.face(ctx, bx, by + 1, 17, lerp(0.1, 1, k), s, { seed: i });
         });
-        const m = ease(seg(p, 0.65, 0.85));
-        if (m > 0) {
-          M.rr(ctx, 122, 190 + 2 * 74 - 32, 716, 64, 14);
-          ctx.save(); ctx.globalAlpha = m; ctx.strokeStyle = C.amber; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
-          M.pill(ctx, 'Example: 135 / 85', 838, 190 + 2 * 74 - 44, { align: 'right', bg: C.amber, color: '#fff', size: 14, alpha: m });
-        }
+        M.text(ctx, 'Pressure', 480, 78, { size: 14, weight: 800, color: C.muted });
+        pressureDial(ctx, 480, 158, 56, lerp(152, 116, k), lerp(96, 75, k));
+        M.healthBar(ctx, 580, 150, 330, lerp(0.25, 1, k), { label: 'Body health', right: k > 0.7 ? 'Strong!' : 'Getting hurt' });
+        ['🧂  Eat less salt', '⚽  Move and play every day', '💊  Take your medicine', '🩺  Check your pressure'].forEach((t, i) =>
+          M.pill(ctx, t, 400, 238 + i * 46, { align: 'left', bg: '#fff', border: '#bfe3cf', size: 18, alpha: ease(seg(p, 0.2 + i * 0.09, 0.28 + i * 0.09)) }));
+        const w = ease(seg(p, 0.6, 0.7));
+        M.card(ctx, 400, 420, 520, 96, { fill: '#fff4f3', border: C.red, r: 18, alpha: w });
+        M.text(ctx, '🚨  Call 911 right away for:', 424, 446, { size: 18, weight: 800, align: 'left', color: '#a3261f', alpha: w });
+        M.text(ctx, 'Chest pain  ·  Sudden bad headache', 424, 474, { size: 16, weight: 700, align: 'left', alpha: w });
+        M.text(ctx, 'Trouble talking  ·  Weak on one side', 424, 498, { size: 16, weight: 700, align: 'left', alpha: w });
       },
-    },
-    {
-      label: 'Why it happens',
-      caption: 'Stiff or narrow arteries, extra salt and fluid, stress hormones, age, and family history can all raise your pressure.',
-      draw(ctx, p, s) {
-        const k = ease(seg(p, 0.1, 0.7));
-        artery(ctx, s, { wall: lerp(14, 36, k), wallColor: '#eea79c', arrows: lerp(10, 26, k),
-          items: [{ kind: 'rbc', n: 16, speed: 110 }, { kind: 'salt', n: lerp(0, 12, k), speed: 80, r: 6 }, { kind: 'water', n: lerp(0, 14, k), speed: 80, r: 6 }] });
-        ['Stiff, narrow arteries', 'Extra salt & fluid', 'Stress hormones', 'Age & family history'].forEach((t, i) =>
-          M.pill(ctx, t, 690, 160 + i * 64, { align: 'left', bg: '#fff', border: '#c8d6ee', size: 17, alpha: ease(seg(p, 0.12 + i * 0.16, 0.2 + i * 0.16)) }));
-        M.salt(ctx, 110, 440, 7); M.text(ctx, 'salt', 126, 440, { size: 15, align: 'left', color: C.muted });
-        M.drop(ctx, 200, 442, 7); M.text(ctx, 'water it holds', 214, 440, { size: 15, align: 'left', color: C.muted });
-      },
-    },
-    {
-      label: 'The silent problem',
-      caption: 'It usually causes no symptoms. But over time, it strains your heart, brain, kidneys, and eyes.',
-      draw: S.bodyHotspots([
-        { at: 'brain', label: 'Brain: stroke risk', side: 'right' },
-        { at: 'heart', label: 'Heart works harder', side: 'left' },
-        { at: 'kidney', label: 'Kidneys', side: 'right' },
-        { at: 'eye', label: 'Eyes', side: 'left', reach: 200 },
-      ], { title: 'Often no symptoms' }),
-    },
-    {
-      label: 'How it is treated',
-      caption: 'Medicines can relax your blood vessels, or help your body get rid of extra salt and water, which lowers the pressure.',
-      draw(ctx, p, s) {
-        const k = ease(seg(p, 0.3, 0.75));
-        artery(ctx, s, { w: 560, wall: lerp(36, 14, k), wallColor: '#eea79c', arrows: lerp(26, 4, k),
-          items: [{ kind: 'rbc', n: 16, speed: 100 }, { kind: 'water', n: lerp(14, 4, k), speed: 80, r: 6 }] });
-        const pa = ease(seg(p, 0.08, 0.3));
-        M.capsule(ctx, 330, lerp(60, 170, pa), 1.3, s * 2, C.blue, '#fff', 1 - seg(p, 0.3, 0.38));
-        for (let i = 0; i < 6; i++) { const ph = (s * 0.5 + rnd(i)) % 1; if (p > 0.45) M.drop(ctx, 140 + i * 80, lerp(400, 470, ph), 7, (1 - ph) * seg(p, 0.45, 0.55)); }
-        M.bpMonitor(ctx, 790, 250, lerp(150, 128, k), lerp(95, 78, k));
-        M.pill(ctx, 'Relax blood vessels', 790, 380, { bg: '#e9f7ef', border: C.green, color: '#1d7a4c', size: 15, alpha: ease(seg(p, 0.45, 0.55)) });
-        M.pill(ctx, 'Remove extra salt & water', 790, 430, { bg: '#e9f7ef', border: C.green, color: '#1d7a4c', size: 15, alpha: ease(seg(p, 0.6, 0.7)) });
-      },
-    },
-    {
-      label: 'What you can do',
-      caption: 'Eat less salt, move every day, limit alcohol, take your medicines as prescribed, and check your pressure at home.',
-      draw: S.iconRow([
-        { icon: '🧂', label: 'Less salt' },
-        { icon: '🚶', label: 'Move every day' },
-        { icon: '🍷', label: 'Limit alcohol' },
-        { icon: '💊', label: 'Take medicines daily' },
-        { icon: '🩺', label: 'Check BP at home' },
-      ], { title: 'Daily habits that lower pressure', footer: 'Even a small drop in pressure lowers your risk of stroke and heart attack.' }),
-    },
-    {
-      label: 'When to get help',
-      caption: 'Call 911 for chest pain, a sudden severe headache, trouble speaking, weakness on one side, or sudden vision changes.',
-      draw: S.warningCard('Call 911 right away for…', [
-        'Chest pain or trouble breathing',
-        'Sudden, severe headache',
-        'Trouble speaking, face drooping, or weakness on one side',
-        'Sudden changes in vision',
-      ], 'Especially if your reading is 180/120 or higher.'),
     },
   ];
 
@@ -445,7 +683,7 @@
       keyPoints: [
         'Blood pressure is written as two numbers, like 120/80. High blood pressure is 130/80 or higher.',
         'It usually causes no symptoms. Checking it is the only way to know.',
-        'Over time, it can damage your heart, brain, kidneys, and eyes, and raise the risk of stroke.',
+        'Over time, it can damage your heart, brain, and kidneys, raise the risk of stroke, and leave you tired and short of breath.',
         'Less salt, more activity, and daily medicines can bring it down. Many people need more than one medicine.',
       ],
       questions: [
