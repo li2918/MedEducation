@@ -50,7 +50,9 @@ pip install edge-tts
 python tools/make-narration.py
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031b`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031c`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+
+**Languages:** the patient portal has English and Chinese (language picker in the top bar, or `?lang=zh`). Text is translated by its English source string in `js/i18n-zh.js`; Chinese narration lives in `audio/<id>-a-zh/` and so on. After changing captions or labels, add their translations to `js/i18n-zh.js`, then run `python tools/make-narration.py --lang zh` (this also refreshes `js/audio-durations.js`, which keeps translated narration in step with the animation).
 
 **Download video:** the `⬇ Video` button plays the video once in real time while recording it, then saves an MP4 (or WebM) with the narration and burned-in captions. Keep the tab visible while it records. The narration is only captured from the website (http/https), not from a page opened as a local file.
 

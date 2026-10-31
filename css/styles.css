@@ -243,3 +243,6 @@ a { color: var(--blue); }
   .scrub { order: 10; flex-basis: 100%; }
   .caption { font-size: 1rem; }
 }
+.lang-pick select { font: inherit; font-size: 0.85rem; font-weight: 700; border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; background: #fff; color: var(--ink); cursor: pointer; }
+html[lang="zh-CN"] .emergency summary::after { content: "点击查看症状"; }
+html[lang="zh-CN"] .emergency[open] summary::after { content: "收起"; }

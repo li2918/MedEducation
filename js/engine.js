@@ -7,6 +7,8 @@
 (function () {
   const W = 960, H = 540;
   const WORDS_PER_SEC = 2.6;
+  const tr = (s) => (window.I18N ? I18N.tr(s) : s);
+  const LANG = window.I18N ? I18N.lang : 'en';
   const CAP_H = 96; // caption band added under the picture in downloaded videos
 
   // Scene length is at least long enough for the narration to finish.
@@ -40,8 +42,10 @@
   const VOICE_KEY = 'medmotion.narrator';
   const RECORDED = '__recorded__'; // picker value for the pre-recorded narrator
 
+  // Browser voices in the page language (named englishVoices from when the site was English only).
   function englishVoices() {
     if (!('speechSynthesis' in window)) return [];
+    if (LANG !== 'en') return speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith(LANG)).slice(0, 12);
     const rank = (v) => { const i = VOICE_RANK.findIndex((r) => r.test(v.name)); return i < 0 ? VOICE_RANK.length : i; };
     const en = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
     const us = en.filter((v) => /US/i.test(v.lang));
@@ -75,11 +79,11 @@
           <button class="btn-play" type="button" aria-label="Play">▶</button>
           <input class="scrub" type="range" min="0" max="1000" value="0" aria-label="Seek">
           <span class="time">0:00 / 0:00</span>
-          <button class="btn-voice" type="button" title="Narration">Voice</button>
+          <button class="btn-voice" type="button" title="${tr('Narration')}">${tr('Voice')}</button>
           <select class="voice-pick" aria-label="Narrator voice" title="Narrator voice" hidden></select>
-          <button class="btn-cc" type="button" title="Captions">CC</button>
-          <button class="btn-dl" type="button" title="Download video">⬇ Video</button>
-          <button class="btn-full" type="button" title="Full screen">⛶</button>
+          <button class="btn-cc" type="button" title="${tr('Captions')}">CC</button>
+          <button class="btn-dl" type="button" title="${tr('Download video')}">⬇ ${tr('Video')}</button>
+          <button class="btn-full" type="button" title="${tr('Full screen')}">⛶</button>
         </div>
         <ol class="chapters"></ol>
       </div>`;
@@ -153,9 +157,19 @@
     let start = 0;
     const base = script.scenes.map(sceneLength), sum = base.reduce((a, b) => a + b, 0);
     const stretch = script.length > sum ? script.length / sum : 1;
-    // ?v= changes whenever a caption changes, so browsers never replay an old cached recording.
-    this.scenes = script.scenes.map((sc, i) => { const dur = base[i] * stretch; const audio = script.audio ? `${script.audio}${i + 1}.mp3?v=${textTag(sc.caption || '')}` : null;
-      const o = Object.assign({}, sc, { start, dur, audio }); start += dur; return o; });
+    // Other languages play their own recordings (audio/<id>-zh/ ...). Scene timing is written for
+    // the English narration, so each scene's clock is scaled by English / translated clip length
+    // (rs) to keep the animation in step with the translated voice. ?v= changes whenever a caption
+    // changes, so browsers never replay an old cached recording.
+    const folder = script.audio && (LANG === 'en' ? script.audio : script.audio.replace(/\/?$/, `-${LANG}/`));
+    const DUR = window.AUDIO_DUR || {};
+    this.scenes = script.scenes.map((sc, i) => {
+      const caption = tr(sc.caption || ''), n = `${i + 1}.mp3`;
+      const en = script.audio && DUR[script.audio + n], other = folder && DUR[folder + n];
+      const rs = LANG !== 'en' && en && other ? en / other : 1, dur = (base[i] * stretch) / rs;
+      const audio = folder ? `${folder}${n}?v=${textTag(caption)}` : null;
+      const o = Object.assign({}, sc, { caption, label: tr(sc.label), start, dur, audio, rs }); start += dur; return o;
+    });
     this.total = start;
     this.t = 0;
     this.cur = -1;
@@ -253,23 +267,23 @@
     if (!this.scenes.length) return;
 
     const i = this._sceneAt(this.t), sc = this.scenes[i];
-    const s = Math.min(this.t - sc.start, sc.dur), p = M.clamp(s / sc.dur);
+    const s = Math.min(this.t - sc.start, sc.dur), p = M.clamp(s / sc.dur), sEn = s * sc.rs;
     // Cross-fade from the previous scene's last frame, so a scene change (or a pause while the
     // next clip loads) never flashes an empty background.
     const fade = i === 0 ? 1 : M.clamp(s / 0.35);
     if (fade < 1) {
       const pv = this.scenes[i - 1];
       ctx.save(); ctx.globalAlpha = 1 - fade;
-      try { pv.draw(ctx, 1, pv.dur); } catch (e) { console.error('Scene draw failed:', pv.label, e); }
+      try { pv.draw(ctx, 1, pv.dur * pv.rs); } catch (e) { console.error('Scene draw failed:', pv.label, e); }
       ctx.restore();
     }
     ctx.save();
     ctx.globalAlpha = fade;
-    try { sc.draw(ctx, p, s); } catch (e) { console.error('Scene draw failed:', sc.label, e); }
+    try { sc.draw(ctx, p, sEn); } catch (e) { console.error('Scene draw failed:', sc.label, e); }
     ctx.restore();
 
     M.pill(ctx, `${i + 1}/${this.scenes.length}  ${sc.label}`, 22, 32, { align: 'left', bg: 'rgba(255,255,255,0.92)', border: '#dbe5f5', color: M.C.blue, size: 14 });
-    if (this.script.title) M.text(ctx, this.script.title, W - 22, 32, { size: 14, align: 'right', color: M.C.muted, weight: 600 });
+    if (this.script.title) M.text(ctx, tr(this.script.title), W - 22, 32, { size: 14, align: 'right', color: M.C.muted, weight: 600 });
 
     if (i !== this.cur) {
       this.cur = i;
@@ -286,7 +300,7 @@
       M.wrap(ctx, sc.caption || '', W / 2, H + 34, W - 80, { size: 22, weight: 600, color: M.C.ink });
     }
     this.scrub.value = Math.round((this.t / this.total) * 1000);
-    this.timeEl.textContent = `${this.recording ? '● Recording ' : ''}${fmt(this.t)} / ${fmt(this.total)}`;
+    this.timeEl.textContent = `${this.recording ? '● ' + tr('Recording') + ' ' : ''}${fmt(this.t)} / ${fmt(this.total)}`;
   };
 
   // Download: play the whole video once in real time while recording the canvas (plus the
@@ -295,7 +309,7 @@
     if (this.recording) { this._finishRecording(false); return; }
     const types = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
     const type = window.MediaRecorder && this.canvas.captureStream && types.find((t) => MediaRecorder.isTypeSupported(t));
-    if (!this.scenes.length || !type) { alert('Video download is not supported in this browser. Please try Chrome or Edge.'); return; }
+    if (!this.scenes.length || !type) { alert(tr('Video download is not supported in this browser. Please try Chrome or Edge.')); return; }
     this.pause();
     this.recording = { type, chunks: [], voice: this.voice };
     this._resize();
@@ -334,7 +348,7 @@
       const blob = new Blob(r.chunks, { type: r.type.split(';')[0] });
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `MedMotion - ${this.script.title || 'video'}.${r.type.includes('mp4') ? 'mp4' : 'webm'}`;
+      a.download = `MedMotion - ${tr(this.script.title) || 'video'}.${r.type.includes('mp4') ? 'mp4' : 'webm'}`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(a.href), 60000);
     };
@@ -387,7 +401,7 @@
     if (!('speechSynthesis' in window)) return;
     const u = new SpeechSynthesisUtterance(textStr.replace(/[↑↓]/g, ''));
     const v = pickVoice();
-    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = 'en-US';
+    if (v) { u.voice = v; u.lang = v.lang; } else u.lang = LANG === 'zh' ? 'zh-CN' : 'en-US';
     // Slightly slower than default reads as calmer and more conversational.
     u.rate = this.opts.rate || 0.95;
     u.pitch = 1;
@@ -411,7 +425,7 @@
     const opts = englishVoices().map((v) =>
       `<option value="${v.name.replace(/"/g, '&quot;')}"${cur && v.name === cur.name ? ' selected' : ''}>${voiceLabel(v)}</option>`);
     if (this.script && this.script.audio && !this._audioFailed) {
-      opts.unshift(`<option value="${RECORDED}"${recorded ? ' selected' : ''}>Natural narrator</option>`);
+      opts.unshift(`<option value="${RECORDED}"${recorded ? ' selected' : ''}>${tr('Natural narrator')}</option>`);
     }
     this.voiceSel.hidden = opts.length < 2;
     this.voiceSel.innerHTML = opts.join('');
@@ -425,11 +439,11 @@
     this.bigPlay.hidden = this.playing;
     this.btnVoice.classList.toggle('on', this.voice);
     this.btnVoice.setAttribute('aria-pressed', String(this.voice));
-    this.btnVoice.textContent = this.voice ? '🔊 Voice' : '🔇 Voice';
+    this.btnVoice.textContent = (this.voice ? '🔊 ' : '🔇 ') + tr('Voice');
     this.btnCC.classList.toggle('on', this.cc);
     this.btnCC.setAttribute('aria-pressed', String(this.cc));
-    this.btnDl.textContent = this.recording ? '■ Stop' : '⬇ Video';
-    this.btnDl.title = this.recording ? 'Cancel download' : 'Download video (plays through once while recording)';
+    this.btnDl.textContent = this.recording ? '■ ' + tr('Stop') : '⬇ ' + tr('Video');
+    this.btnDl.title = this.recording ? tr('Cancel download') : tr('Download video (plays through once while recording)');
     this.btnDl.classList.toggle('on', !!this.recording);
   };
 

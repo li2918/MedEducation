@@ -842,12 +842,21 @@
         'How much salt is OK for me each day?',
       ],
       redFlags: [
-        'Chest pain or trouble breathing: call 911',
-        'Sudden, severe headache: call 911',
-        'Trouble speaking, face drooping, or weakness on one side: call 911',
-        'Sudden changes in vision: call 911',
-        'A reading of 180/120 or higher: call your doctor right away',
+        'A reading of 180/120 or higher, even if you feel fine: call your doctor right away',
+        'Readings that stay above your goal on most days',
+        'Side effects from your blood pressure medicine',
       ],
+      // Shown in a separate tap-to-open box on the patient page, not only inside the video.
+      emergency: {
+        title: 'Blood pressure emergency? Know the danger signs',
+        items: [
+          'Chest pain or pressure, or trouble breathing',
+          'Face drooping, arm or leg weakness on one side, or trouble speaking (signs of a stroke)',
+          'A sudden, severe headache, confusion, or sudden vision changes',
+          'A reading of 180/120 or higher with any of these symptoms',
+        ],
+        action: 'Call 911 right away. Do not drive yourself.',
+      },
       quiz: [
         { q: 'What does high blood pressure mean?', options: ['Blood pushes too hard on artery walls', 'Your heart beats too slowly', 'You have too much blood'], answer: 0, explain: 'High blood pressure means the force of blood against your artery walls is too high.' },
         { q: 'For an adult, which reading is high blood pressure?', options: ['115 / 75', '118 / 78', '138 / 86'], answer: 2, explain: 'For adults, 130/80 or higher counts as high blood pressure, so 138/86 is Stage 1. Children use different charts based on age, height, and sex.' },

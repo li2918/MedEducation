@@ -2,6 +2,9 @@
 (function () {
   const $ = (id) => document.getElementById(id);
   MedData.portal = 'patient';
+  const tr = (s) => I18N.tr(s);
+  I18N.apply();
+  I18N.picker($('lang'));
 
   // A condition has one video (patient.scenes) or several shorter parts (patient.videos).
   const videosOf = (d) => d.patient.videos || [{ title: d.name, length: d.patient.length, audio: d.patient.audio, scenes: d.patient.scenes }];
@@ -17,10 +20,10 @@
       if (tab) tab.classList.add('pulse'); else $('quiz').classList.add('pulse');
       const el = endCard();
       el.innerHTML = next
-        ? `<p class="end-kicker">✓ Part ${k + 1} done</p><p class="end-title">Up next: Part ${k + 2} · ${next.title}</p>
-           <div class="end-btns"><button class="btn primary" type="button" data-act="next">▶ Watch Part ${k + 2}</button><button class="btn" type="button" data-act="replay">↻ Watch again</button></div>`
-        : `<p class="end-kicker">✓ You watched ${vids.length > 1 ? `all ${vids.length} parts` : 'the video'}</p><p class="end-title">Now check what you learned</p>
-           <div class="end-btns"><button class="btn primary" type="button" data-act="quiz">Take the quick quiz ↓</button><button class="btn" type="button" data-act="replay">↻ Watch again</button></div>`;
+        ? `<p class="end-kicker">✓ ${tr(`Part ${k + 1} done`)}</p><p class="end-title">${tr(`Up next: Part ${k + 2}`)} · ${tr(next.title)}</p>
+           <div class="end-btns"><button class="btn primary" type="button" data-act="next">▶ ${tr(`Watch Part ${k + 2}`)}</button><button class="btn" type="button" data-act="replay">↻ ${tr('Watch again')}</button></div>`
+        : `<p class="end-kicker">✓ ${tr(vids.length > 1 ? `You watched all ${vids.length} parts` : 'You watched the video')}</p><p class="end-title">${tr('Now check what you learned')}</p>
+           <div class="end-btns"><button class="btn primary" type="button" data-act="quiz">${tr('Take the quick quiz')} ↓</button><button class="btn" type="button" data-act="replay">↻ ${tr('Watch again')}</button></div>`;
       el.hidden = false;
       el.querySelectorAll('button').forEach((b) => {
         b.onclick = () => {
@@ -48,18 +51,18 @@
     const tabs = $('video-tabs');
     tabs.hidden = vids.length < 2;
     tabs.innerHTML = vids.map((x, i) =>
-      `<button type="button" data-k="${i}" class="${i === k ? 'active' : ''}"><span>Part ${i + 1}</span>${x.title}</button>`).join('');
+      `<button type="button" data-k="${i}" class="${i === k ? 'active' : ''}"><span>${tr('Part ' + (i + 1))}</span>${tr(x.title)}</button>`).join('');
     tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => loadVideo(d, +b.dataset.k); });
     history.replaceState(null, '', '#' + d.id + (k ? '/' + (k + 1) : ''));
-    player.load({ title: vids.length > 1 ? `Part ${k + 1}: ${v.title}` : d.name, length: v.length, audio: v.audio, scenes: v.scenes });
+    player.load({ title: vids.length > 1 ? `${tr('Part ' + (k + 1))}: ${tr(v.title)}` : tr(d.name), length: v.length, audio: v.audio, scenes: v.scenes });
   }
 
   function renderQuiz(quiz) {
     const body = $('quiz-body');
     body.innerHTML = quiz.map((q, i) => `
       <div class="q" data-i="${i}">
-        <p class="q-text">${i + 1}. ${q.q}</p>
-        <div class="q-options">${q.options.map((o, j) => `<button type="button" class="opt" data-j="${j}">${o}</button>`).join('')}</div>
+        <p class="q-text">${i + 1}. ${tr(q.q)}</p>
+        <div class="q-options">${q.options.map((o, j) => `<button type="button" class="opt" data-j="${j}">${tr(o)}</button>`).join('')}</div>
         <p class="q-explain" hidden></p>
       </div>`).join('');
     body.querySelectorAll('.q').forEach((el) => {
@@ -71,7 +74,7 @@
           b.classList.add(right ? 'right' : 'wrong');
           if (!right) el.querySelector(`.opt[data-j="${q.answer}"]`).classList.add('right');
           const ex = el.querySelector('.q-explain');
-          ex.textContent = (right ? 'Correct. ' : 'Not quite. ') + q.explain;
+          ex.textContent = tr(right ? 'Correct.' : 'Not quite.') + ' ' + tr(q.explain);
           ex.hidden = false;
         };
       });
@@ -92,22 +95,22 @@
     $('soon').hidden = true;
     $('result').hidden = false;
     $('quiz').classList.remove('pulse');
-    $('d-name').textContent = d.name;
-    $('d-tagline').textContent = d.patient.tagline;
+    $('d-name').textContent = tr(d.name);
+    $('d-tagline').textContent = tr(d.patient.tagline);
     $('d-icd').textContent = 'ICD-10 ' + d.icd10;
-    $('d-points').innerHTML = d.patient.keyPoints.map((k) => `<li>${k}</li>`).join('');
-    $('d-questions').innerHTML = d.patient.questions.map((k) => `<li><label><input type="checkbox"> ${k}</label></li>`).join('');
+    $('d-points').innerHTML = d.patient.keyPoints.map((k) => `<li>${tr(k)}</li>`).join('');
+    $('d-questions').innerHTML = d.patient.questions.map((k) => `<li><label><input type="checkbox"> ${tr(k)}</label></li>`).join('');
     const flags = d.patient.redFlags || [];
     $('d-flags-wrap').hidden = !flags.length;
-    $('d-flags').innerHTML = flags.map((k) => `<li>${k}</li>`).join('');
+    $('d-flags').innerHTML = flags.map((k) => `<li>${tr(k)}</li>`).join('');
     // Separate tap-to-open emergency box, so urgent signs are never only in a video's last seconds.
     const em = d.patient.emergency;
     $('d-emergency').hidden = !em;
     $('d-emergency').open = false;
     if (em) {
-      $('d-emergency-title').textContent = em.title;
-      $('d-emergency-list').innerHTML = em.items.map((k) => `<li>${k}</li>`).join('');
-      $('d-emergency-action').textContent = em.action || '';
+      $('d-emergency-title').textContent = tr(em.title);
+      $('d-emergency-list').innerHTML = em.items.map((k) => `<li>${tr(k)}</li>`).join('');
+      $('d-emergency-action').textContent = tr(em.action || '');
     }
     renderQuiz(d.patient.quiz);
     loadVideo(d, part);

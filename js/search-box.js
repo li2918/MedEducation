@@ -1,11 +1,12 @@
 // Condition search box with typeahead suggestions; shared by both portals.
 (function () {
+  const tr = (s) => (window.I18N ? I18N.tr(s) : s);
   function SearchBox(root, opts) {
     root.innerHTML = `
       <form class="search-form" role="search">
-        <input type="search" autocomplete="off" spellcheck="false" aria-label="Search conditions"
-               placeholder="${opts.placeholder || 'Search a condition'}" aria-autocomplete="list" aria-controls="suggest">
-        <button class="btn primary" type="submit">Search</button>
+        <input type="search" autocomplete="off" spellcheck="false" aria-label="${tr('Search conditions')}"
+               placeholder="${tr(opts.placeholder || 'Search a condition')}" aria-autocomplete="list" aria-controls="suggest">
+        <button class="btn primary" type="submit">${tr('Search')}</button>
       </form>
       <ul class="suggest" id="suggest" role="listbox" hidden></ul>`;
     const input = root.querySelector('input'), list = root.querySelector('.suggest');
@@ -15,11 +16,11 @@
       list.hidden = !results.length;
       list.innerHTML = results.map((e, i) => `
         <li role="option" data-i="${i}" class="${i === active ? 'active' : ''}" aria-selected="${i === active}">
-          <span class="s-name">${e.name}</span>
-          <span class="s-meta">${e.icd10}${e.available ? '' : ' · coming soon'}</span>
+          <span class="s-name">${tr(e.name)}</span>
+          <span class="s-meta">${e.icd10}${e.available ? '' : ' · ' + tr('coming soon')}</span>
         </li>`).join('');
     };
-    const pick = (e) => { if (!e) return; input.value = e.name; results = []; render(); opts.onPick(e); };
+    const pick = (e) => { if (!e) return; input.value = tr(e.name); results = []; render(); opts.onPick(e); };
 
     input.addEventListener('input', () => { results = MedData.search(input.value); active = results.length ? 0 : -1; render(); });
     input.addEventListener('keydown', (ev) => {
@@ -40,13 +41,13 @@
   // Quick-pick chips for conditions that already have animations.
   SearchBox.chips = function (root, onPick) {
     const avail = MedData.entries().filter((e) => e.available);
-    root.innerHTML = '<span class="muted">Available now:</span>' + avail.map((e) => `<button type="button" class="chip" data-id="${e.id}">${e.name}</button>`).join('');
+    root.innerHTML = `<span class="muted">${tr('Available now:')}</span>` + avail.map((e) => `<button type="button" class="chip" data-id="${e.id}">${tr(e.name)}</button>`).join('');
     root.querySelectorAll('.chip').forEach((b) => { b.onclick = () => onPick(avail.find((e) => e.id === b.dataset.id)); });
   };
 
   // Shared "coming soon" request button, counted locally in this prototype.
   SearchBox.requestSoon = function (entry) {
-    document.getElementById('soon-name').textContent = entry.name;
+    document.getElementById('soon-name').textContent = tr(entry.name);
     const msg = document.getElementById('soon-msg'), btn = document.getElementById('soon-btn');
     msg.hidden = true; btn.disabled = false;
     btn.onclick = () => {

@@ -315,21 +315,28 @@
     M.pill(ctx, 'Different problems, different parts', 620, 520, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP1.parts, TP1.parts + 0.5) });
   }
 
+  // Normal back (left) next to the changed back (right), with the same zoom into the low back,
+  // so each condition reads as a clear comparison. Symptoms are listed on the right.
+  function compareBacks(ctx, s, name, oN, oC, k = 1, a2 = 1) {
+    const L = [205, 285], R = [505, 285], r = 128;
+    lens(ctx, L[0], L[1], r, () => lumbar(ctx, L[0], L[1], 2.6, Object.assign({ s }, oN)));
+    lens(ctx, R[0], R[1], r, () => lumbar(ctx, R[0], R[1], 2.6, Object.assign({ s }, oC)), a2);
+    M.pill(ctx, 'Normal back', L[0], 128, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c' });
+    M.pill(ctx, name, R[0], 128, { size: 15, bg: '#fdecea', border: C.red, color: '#a3261f', alpha: a2 });
+    M.text(ctx, 'vs.', 355, 290, { size: 18, weight: 800, color: C.muted, alpha: a2 });
+  }
+
   // 2. Muscle strain: overloaded muscles or soft tissues; sore, tight, or achy, mostly in the
   //    low back.
   const TP2 = { muscles: 1.7, overload: 3.7, sore: 5.5, tight: 6.4, achy: 7.4 };
   function strainScene(ctx, p, s) {
     M.text(ctx, '1. Muscle strain', 480, 44, { size: 28, weight: 800 });
-    const k = ease(seg(s, TP2.overload - 0.6, TP2.overload + 0.6)), ground = 450;
-    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, ground, 260, 12);
-    const lean = lerp(0.55, 0.3, k), h = runner(ctx, 170, ground, 0, 0.1, lean, lerp(1, 0.45, k), s);
-    M.emoji(ctx, '📦', h[0] + 30, h[1] + 70, 40, 1 - k);
-    ache(ctx, ...lowBackOf(170, ground, lean), 30, k, s);
-    M.text(ctx, 'Lifting something awkwardly', 170, 486, { size: 13, weight: 800, color: C.muted });
-    stateTag(ctx, 500, 96, k);
-    lens(ctx, 500, 290, 170, () => lumbar(ctx, 500, 290, 3.0, { s, sore: 0.9 * k, glow: { muscle: (1 - k) * seg(s, TP2.muscles, TP2.muscles + 0.4) } }));
-    M.text(ctx, 'Back muscles', 440, 480, { size: 14, weight: 800, color: '#a3461f' });
-    symptomList(ctx, 800, 140, [['Sore', TP2.sore], ['Tight', TP2.tight], ['Achy', TP2.achy], ['Mostly in the low back', TP2.achy + 0.6]], s);
+    const k = ease(seg(s, TP2.overload - 0.6, TP2.overload + 0.6)), gl = seg(s, TP2.muscles, TP2.muscles + 0.4);
+    compareBacks(ctx, s, 'Muscle strain', { glow: { muscle: gl * 0.6 } }, { sore: 0.9 * k, glow: { muscle: gl * 0.6 * (1 - k) } });
+    M.text(ctx, 'Calm back muscles', 205, 440, { size: 14, weight: 800, color: '#1d7a4c' });
+    M.text(ctx, 'Overloaded, sore muscles', 505, 440, { size: 14, weight: 800, color: '#a3261f', alpha: k });
+    symptomList(ctx, 810, 140, [['Sore', TP2.sore], ['Tight', TP2.tight], ['Achy', TP2.achy], ['Mostly in the low back', TP2.achy + 0.6]], s);
+    M.text(ctx, 'Often after lifting or an awkward movement', 480, 500, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TP2.overload, TP2.overload + 0.5) });
   }
 
   // 3. Disc bulge or herniation: the disc changes shape and bulges outward; it may or may not
@@ -337,14 +344,12 @@
   const TP3 = { disc: 0.8, bulge: 2.3, notAlways: 4.4, part: 7.3 };
   function discScene(ctx, p, s) {
     M.text(ctx, '2. Disc bulge or herniation', 480, 44, { size: 28, weight: 800 });
-    const k = ease(seg(s, TP3.bulge - 0.4, TP3.bulge + 1)), touch = ease(seg(s, TP3.part, TP3.part + 0.8));
-    stateTag(ctx, 300, 96, k);
-    lens(ctx, 300, 300, 190, () => lumbar(ctx, 300, 300, 3.6, { s, bulge: k, hot: touch * 0.8, glow: { disc: seg(s, TP3.disc, TP3.disc + 0.4) * (1 - k) } }));
-    M.text(ctx, 'Disc between two bones', 300, 512, { size: 14, weight: 800, color: '#1f6fa8' });
-    M.card(ctx, 560, 110, 370, 170, { r: 18, alpha: seg(s, TP3.notAlways - 0.4, TP3.notAlways) });
-    M.text(ctx, 'Not every disc change hurts', 745, 140, { size: 17, weight: 800, alpha: seg(s, TP3.notAlways, TP3.notAlways + 0.4) });
-    [[650, '🙂', 'Bulge, no pain'], [840, '😣', 'Bulge, with pain']].forEach(([x, e, t], i) => { const a = seg(s, TP3.notAlways + i * 0.8, TP3.notAlways + i * 0.8 + 0.4); M.emoji(ctx, e, x, 200, 40, a); M.text(ctx, t, x, 252, { size: 14, weight: 800, color: C.muted, alpha: a }); });
-    symptomList(ctx, 745, 320, [['Deep back pain', TP3.part - 1.2], ['Worse with bending or sitting', TP3.part - 0.6], ['Leg symptoms if a nerve is involved', TP3.part + 0.2]], s, '#1f4fa8');
+    const k = ease(seg(s, TP3.bulge - 0.4, TP3.bulge + 1)), touch = ease(seg(s, TP3.part, TP3.part + 0.8)), gl = seg(s, TP3.disc, TP3.disc + 0.4);
+    compareBacks(ctx, s, 'Disc bulge', { glow: { disc: gl * 0.7 } }, { bulge: k, hot: touch * 0.8, glow: { disc: gl * 0.7 * (1 - k) } });
+    M.text(ctx, 'Disc sits neatly between bones', 205, 440, { size: 14, weight: 800, color: '#1d7a4c' });
+    M.text(ctx, 'Disc bulges outward', 505, 440, { size: 14, weight: 800, color: '#a3261f', alpha: k });
+    M.pill(ctx, 'Not every disc change causes pain', 355, 500, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP3.notAlways, TP3.notAlways + 0.5) });
+    symptomList(ctx, 810, 140, [['Deep back pain', TP3.part - 1.2], ['Worse with bending or sitting', TP3.part - 0.6], ['Leg symptoms if a nerve is involved', TP3.part + 0.2]], s, '#1f4fa8');
   }
 
   // 4. Sciatica / nerve irritation: one nerve root lights up and pain travels from the low back
@@ -352,16 +357,15 @@
   const TP4 = { nerve: 0.8, irritated: 1.6, travel: 3.2, buttock: 4, leg: 5.2, sciatica: 7.1 };
   function sciaticaScene(ctx, p, s) {
     M.text(ctx, '3. Sciatica: nerve irritation', 480, 44, { size: 28, weight: 800 });
-    const k = ease(seg(s, TP4.irritated - 0.3, TP4.irritated + 0.8));
-    stateTag(ctx, 560, 96, k);
-    lens(ctx, 560, 280, 150, () => lumbar(ctx, 560, 280, 2.6, { s, bulge: 0.8 * k, hot: k, glow: { nerve: seg(s, TP4.nerve, TP4.nerve + 0.4) * 0.7 } }));
-    const x = 190, y = 320, sc = 92;
+    const k = ease(seg(s, TP4.irritated - 0.3, TP4.irritated + 0.8)), gl = seg(s, TP4.nerve, TP4.nerve + 0.4);
+    compareBacks(ctx, s, 'Irritated nerve', { glow: { nerve: gl * 0.6 } }, { bulge: 0.8 * k, hot: k, glow: { nerve: gl * 0.6 } });
+    M.text(ctx, 'Nerves have room', 205, 440, { size: 14, weight: 800, color: '#1d7a4c' });
+    M.text(ctx, 'A nerve root is irritated', 505, 440, { size: 14, weight: 800, color: '#a3261f', alpha: k });
+    const x = 885, y = 410, sc = 38;
     M.person(ctx, x, y, sc, { t: s, mood: lerp(1, 0.45, k) });
     legNerve(ctx, x, y, sc, ease(seg(s, TP4.travel, TP4.leg + 0.6)), s);
-    if (s > TP4.leg + 0.6) for (let i = 0; i < 4; i++) M.text(ctx, '✶', x + 0.26 * sc + 18 * Math.sin(i * 2 + s * 3), y + (0.6 + i * 0.3) * sc, { size: 14, color: NERVE_D, alpha: 0.5 + 0.5 * Math.sin(s * 6 + i) });
-    M.pill(ctx, 'Into the buttock and down the leg', 190, 120, { size: 15, bg: '#fff8db', border: NERVE_D, color: '#8a6a00', alpha: seg(s, TP4.buttock, TP4.buttock + 0.5) });
-    symptomList(ctx, 820, 130, [['Pain down the leg', TP4.leg], ['Burning', TP4.leg + 0.5], ['Tingling', TP4.leg + 1], ['Numbness', TP4.leg + 1.5], ['Sometimes weakness', TP4.leg + 2]], s, '#8a6a00');
-    M.pill(ctx, 'Often called sciatica', 560, 480, { size: 17, bg: '#fff', border: NERVE_D, color: '#8a6a00', alpha: seg(s, TP4.sciatica, TP4.sciatica + 0.5) });
+    symptomList(ctx, 760, 110, [['Pain down the leg', TP4.leg], ['Burning', TP4.leg + 0.5], ['Tingling', TP4.leg + 1], ['Numbness', TP4.leg + 1.5], ['Sometimes weakness', TP4.leg + 2]], s, '#8a6a00');
+    M.pill(ctx, 'Pain into the buttock and leg: often called sciatica', 355, 500, { size: 15, bg: '#fff8db', border: NERVE_D, color: '#8a6a00', alpha: seg(s, TP4.buttock, TP4.buttock + 0.5) });
   }
 
   // 5. Facet joint arthritis: the small joints at the back of the spine become stiff or
@@ -369,16 +373,12 @@
   const TP5 = { joints: 0.5, stiff: 2.3, irritated: 3, local: 4.8, stiffness: 6 };
   function facetScene(ctx, p, s) {
     M.text(ctx, '4. Facet joint arthritis', 480, 44, { size: 28, weight: 800 });
-    const k = ease(seg(s, TP5.stiff - 0.4, TP5.irritated + 0.6)), ground = 450;
-    const sway = Math.sin(s * 1.6), lean = lerp(0.12 * sway, -0.12 * Math.max(0, -sway) + 0.04, k);
-    ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, ground, 260, 12);
-    runner(ctx, 170, ground, 0, 0.05, lean, lerp(1, 0.5, k * Math.max(0, -sway)), s);
-    ache(ctx, ...lowBackOf(170, ground, lean), 24, k * Math.max(0.3, -sway), s);
-    M.text(ctx, 'Leaning back or twisting', 170, 486, { size: 13, weight: 800, color: C.muted, alpha: k });
-    stateTag(ctx, 500, 96, k);
-    lens(ctx, 500, 290, 170, () => lumbar(ctx, 500, 290, 3.0, { s, flex: lerp(0.06, 0.015, k) * sway, stiff: k, glow: { facet: seg(s, TP5.joints, TP5.joints + 0.4) * (1 - k) } }));
-    M.text(ctx, 'Small joints at the back', 540, 480, { size: 14, weight: 800, color: '#1f6fa8' });
-    symptomList(ctx, 800, 140, [['Local pain', TP5.local], ['Stiffness', TP5.stiffness], ['Worse leaning back or twisting', TP5.stiffness + 0.7]], s, '#a3261f');
+    const k = ease(seg(s, TP5.stiff - 0.4, TP5.irritated + 0.6)), sway = Math.sin(s * 1.6), gl = seg(s, TP5.joints, TP5.joints + 0.4);
+    compareBacks(ctx, s, 'Stiff, irritated joints', { flex: 0.06 * sway, glow: { facet: gl * 0.6 } }, { flex: lerp(0.06, 0.015, k) * sway, stiff: k, glow: { facet: gl * 0.6 * (1 - k) } });
+    M.text(ctx, 'Small joints glide smoothly', 205, 440, { size: 14, weight: 800, color: '#1d7a4c' });
+    M.text(ctx, 'Joints are stiff and irritated', 505, 440, { size: 14, weight: 800, color: '#a3261f', alpha: k });
+    symptomList(ctx, 810, 140, [['Local pain', TP5.local], ['Stiffness', TP5.stiffness], ['Worse leaning back or twisting', TP5.stiffness + 0.7]], s, '#a3261f');
+    M.text(ctx, 'Often develops slowly over time', 355, 500, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TP5.irritated, TP5.irritated + 0.5) });
   }
 
   // 6. Spinal stenosis: less space for the nerves inside the spine (thickened tissue, joint and

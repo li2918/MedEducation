@@ -32,7 +32,11 @@
     ctx.closePath();
   }
 
+  // Every visible string goes through I18N.tr (js/i18n.js), so videos follow the page language.
+  const tr = (s) => (window.I18N ? I18N.tr(s) : s);
+
   function text(ctx, s, x, y, o = {}) {
+    s = tr(s);
     ctx.save();
     if (o.alpha != null) ctx.globalAlpha *= clamp(o.alpha);
     ctx.fillStyle = o.color || C.ink;
@@ -48,10 +52,13 @@
     const size = o.size || 18, lh = o.lineHeight || size * 1.3;
     ctx.save();
     ctx.font = `${o.weight || 500} ${size}px ${FONT}`;
-    const words = s.split(' '), lines = [];
+    s = tr(s);
+    // Chinese has no spaces between words, so it wraps between characters instead.
+    const cjk = /[㐀-鿿]/.test(s), sep = cjk ? '' : ' ';
+    const words = cjk ? Array.from(s) : s.split(' '), lines = [];
     let line = '';
     words.forEach((w) => {
-      const test = line ? line + ' ' + w : w;
+      const test = line ? line + sep + w : w;
       if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test;
     });
     if (line) lines.push(line);
@@ -61,6 +68,7 @@
   }
 
   function pill(ctx, s, x, y, o = {}) {
+    s = tr(s);
     ctx.save();
     if (o.alpha != null) ctx.globalAlpha *= clamp(o.alpha);
     const size = o.size || 16;
@@ -246,7 +254,7 @@
   // Speech bubble below (tail up) a character; '\n' splits lines.
   function say(ctx, str, x, y, a = 1, col = C.ink) {
     if (a <= 0) return;
-    const lines = str.split('\n');
+    const lines = tr(str).split('\n');
     ctx.save(); ctx.globalAlpha *= clamp(a);
     ctx.font = `800 15px ${FONT}`;
     const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 22, h = lines.length * 19 + 12;
