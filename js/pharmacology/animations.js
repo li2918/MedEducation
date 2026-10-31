@@ -433,6 +433,9 @@
   // result after them. The class's takeaway sentence joins the closing narration when the
   // animation stays within about a minute.
   function wholeBody(cls, A, cap, simple, mid, drop) {
+    // Pharmacology 3.0: classes with a storyboard get the shared route-and-camera journey.
+    const j = window.MedJourney && MedJourney.wrap(cls, A, mid, drop);
+    if (j) return j;
     const th = MedBody.themeOf(cls, A), T = cls.takeaway || {};
     const sysCap = `${th.sys} This class acts mainly ${MedBody.WHERE[A.organ] || 'at its target'}.`;
     const sysSimple = `${th.simple} This medicine works mainly in ${MedBody.WHERE_SIMPLE[A.organ] || 'one part of the body'}.`;

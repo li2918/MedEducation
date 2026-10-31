@@ -56,7 +56,9 @@
       const item = th.key === 'glucose' ? null : th.key === 'lipids'
         ? (c, px, py, on) => (th.metric.startsWith('Tri') ? (M.dot(c, px, py, on ? 6 : 4, '#ffd56b'), M.dot(c, px, py, on ? 2.5 : 1.5, '#f2a531')) : M.cholesterol(c, px, py, on ? 6 : 4, on ? 1 : 0.6, t))
         : (c, px, py, on) => M.rbc(c, px, py, on ? 5 : 3.5, on ? 1 : 0.6);
-      S.bodyWithBlood(ctx, x, y, s, t * (th.key === 'pressure' ? lerp(1, 1.6, level) : 1), { density: th.key === 'pressure' ? 1 : lerp(0.25, 1.35, level), sugarR: 6.5, item });
+      // o.k: camera zoom; blood particles shrink as the camera zooms in so organs stay visible
+      const kk = Math.max(1, (o.k || 1) * 0.55), it = item && kk > 1 ? (c, px, py, on) => { c.save(); c.translate(px, py); c.scale(1 / kk, 1 / kk); item(c, 0, 0, on); c.restore(); } : item;
+      S.bodyWithBlood(ctx, x, y, s, t * (th.key === 'pressure' ? lerp(1, 1.6, level) : 1), { density: th.key === 'pressure' ? 1 : lerp(0.25, 1.35, level), sugarR: 6.5 / kk, item: it });
       if (th.key === 'pressure') {
         // the arteries push outward when pressure is high
         const push = lerp(0.15, 1, level) * (0.6 + 0.4 * Math.max(0, Math.sin(t * 6.5)));
@@ -188,5 +190,5 @@
   const words = (t) => (t || '').split(/\s+/).filter(Boolean).length;
   const secs = (t) => words(t) / 2.6 + 1.4;
 
-  window.MedBody = { themeOf, problemScene, systemScene, resultScene, THEMES, WHERE, WHERE_SIMPLE, secs, body, at };
+  window.MedBody = { themeOf, focusOf, problemScene, systemScene, resultScene, THEMES, WHERE, WHERE_SIMPLE, LABEL, ICON, ZOOM_TO, ZOOM_SIZE, secs, body, metric, at };
 })();

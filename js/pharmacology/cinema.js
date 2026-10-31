@@ -89,7 +89,8 @@
   function scenes(cls) {
     const make = STORIES[cls.id];
     if (!make) return null;
-    return make(cls).map((sc) => Object.assign({ simple: sc.caption }, sc));
+    const out = make(cls).map((sc) => Object.assign({ simple: sc.caption }, sc));
+    return window.MedJourney ? MedJourney.dress(cls, out) : out;
   }
 
   // ================================================================================== BIGUANIDES

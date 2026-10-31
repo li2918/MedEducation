@@ -61,8 +61,14 @@
     };
   }
 
+  // Storyboards (Pharmacology 3.0): how each class is taken and where the camera goes, with
+  // kid-friendly narration (about age 10). Kept apart from the clinician content. See
+  // js/pharmacology/storyboards.js for the fields.
+  const boards = {};
+  const storyboard = (id, b) => { boards[id] = Object.assign({ classId: id }, b); };
+
   window.MedLib = {
-    ROLES, classes, mechanisms, maps,
+    ROLES, classes, mechanisms, maps, boards, storyboard,
     defineMechanism, defineClass, map, forCondition, indicationsOf, fromLegacy,
     get: (id) => classes[id],
     mech: (id) => mechanisms[id],
