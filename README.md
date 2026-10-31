@@ -9,7 +9,7 @@ This is a static prototype for the US market (English). It uses no build step an
 Open `index.html` in Chrome or Edge. That's it.
 
 - On the home page, choose **patient** or **healthcare provider**. There is no sign-in.
-- Deep links: `patient.html#t2d`, `clinician.html#htn/pharm/ace-inhibitors`, `clinician.html#t2d/patho/kidney`, `share.html#statins`. Older drug links such as `clinician.html#htn/pharm/raas` still open the matching class.
+- Deep links: `patient.html#t2d`, `clinician.html#pharm/ace-inhibitors`, `clinician.html#t2d/patho/kidney`, `share.html#statins`. Older drug links such as `clinician.html#htn/pharm/raas` still open the matching class.
 
 Narration uses the browser's built-in text-to-speech (Web Speech API). On Windows, Edge offers the most natural voices.
 
@@ -60,7 +60,7 @@ pip install edge-tts
 python tools/make-narration.py
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031h`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031i`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
 
 **Languages:** the patient portal has English and Chinese (language picker in the top bar, or `?lang=zh`). Text is translated by its English source string in `js/i18n-zh.js`; Chinese narration lives in `audio/<id>-a-zh/` and so on. After changing captions or labels, add their translations to `js/i18n-zh.js`, then run `python tools/make-narration.py --lang zh` (this also refreshes `js/audio-durations.js`, which keeps translated narration in step with the animation).
 
