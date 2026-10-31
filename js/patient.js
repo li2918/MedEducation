@@ -236,7 +236,7 @@
     $('pop-cards').innerHTML = Cat.POPULATIONS.map((p) => {
       const all = Cat.topics.filter((t) => t.population === p.id), ready = all.filter((t) => t.contentStatus === 'available').length;
       return `<button type="button" class="pop-card" data-pop="${p.id}">
-        ${icon(p.id)}
+        <span class="card-icons">${p.id === 'pregnancy' ? icon('pregnancy') + icon('postpartum') : icon(p.id)}</span>
         <span class="pc-name">${esc(tr(p.name))}</span>
         <span class="pc-blurb">${esc(tr(p.blurb))}</span>
         <span class="pc-count">${tr(`${all.length} topics`)} · ${ready ? tr(`${ready} with animations`) : tr('Animations coming soon')}</span>

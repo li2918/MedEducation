@@ -409,3 +409,4 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
   .pc-name { font-size: 1.25rem; }
   .crumbs { margin-top: 0; }
 }
+.card-icons { display: flex; gap: 4px; }
