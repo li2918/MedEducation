@@ -220,7 +220,7 @@
     M.text(ctx, 'Tendon', 680, 196, { size: 14, weight: 800, color: '#7a5f22', alpha: la });
     M.text(ctx, 'Bone', 800, 196, { size: 14, weight: 800, color: '#6b5e3e', alpha: seg(s, T2.bone, T2.bone + 0.5) * la });
     M.pill(ctx, 'Strong and rope-like', 680, 512, { size: 16, bg: '#fff8e8', border: TEN_S, color: '#7a5f22', alpha: seg(s, T2.rope, T2.rope + 0.5) });
-    M.text(ctx, 'Bundles of collagen fibers', 600, 446, { size: 13, weight: 800, color: '#7a5f22', align: 'right', alpha: seg(s, T2.tissue, T2.tissue + 0.5) * la });
+    M.text(ctx, 'Bundles of collagen fibers', 600, 446, { size: 14, weight: 800, color: '#7a5f22', align: 'right', alpha: seg(s, T2.tissue, T2.tissue + 0.5) * la });
   }
 
   // 3. How tendons work: the muscle contracts and pulls on the tendon; the tendon passes the
@@ -373,7 +373,7 @@
     if (ca(TB1.overload) > 0) {
       ctx.save(); ctx.globalAlpha *= ca(TB1.overload);
       [['Load', lv, '#e5484d'], ['What it is ready for', 0.6, C.green]].forEach(([t, v, col], i) => {
-        M.text(ctx, t, 684, 168 + i * 40, { size: 13, weight: 800, align: 'left', color: C.muted });
+        M.text(ctx, t, 684, 168 + i * 40, { size: 14, weight: 800, align: 'left', color: C.muted });
         M.rr(ctx, 684, 180 + i * 40, 220, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 684, 180 + i * 40, 220 * v, 10, 5); ctx.fillStyle = col; ctx.fill();
       });
       ctx.restore();
@@ -400,7 +400,7 @@
     });
     M.text(ctx, 'Tendinopathy', 789, 400, { size: 14, weight: 800, color: '#8a5a3c', alpha: seg(s, 12.5, 13) });
     M.pill(ctx, 'Long-lasting tendon pain is often not just inflammation', 480, 458, { size: 17, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, TB2.notJust, TB2.notJust + 0.5) });
-    M.text(ctx, 'Simplified pictures, not fixed stages', 480, 506, { size: 13, weight: 700, color: C.muted, alpha: seg(s, 0.5, 1) });
+    M.text(ctx, 'Simplified pictures, not fixed stages', 480, 506, { size: 14, weight: 700, color: C.muted, alpha: seg(s, 0.5, 1) });
   }
 
   // 3. The shoulder: four rotator cuff muscles and their tendons around the ball of the upper
@@ -438,7 +438,7 @@
     [['Healthy: it passes force to the arm bone', TB4.force, C.green], ['Too much load, too soon', TB4.load, '#6b7a90'], ['The tendon can get irritated', TB4.irritated, '#c0392b'], ['Over time, some tissue can change', TB4.change, '#8a5a3c'], ['The bursa can get inflamed', TB4.inflamed, '#1f6fa8']].forEach(([t, at, col], i) => {
       const a = seg(s, at, at + 0.5), y = 120 + i * 66;
       if (a <= 0) return;
-      M.dot(ctx, 610, y, 13, col, a); M.text(ctx, String(i + 1), 610, y + 1, { size: 13, weight: 900, color: '#fff', alpha: a });
+      M.dot(ctx, 610, y, 13, col, a); M.text(ctx, String(i + 1), 610, y + 1, { size: 14, weight: 900, color: '#fff', alpha: a });
       M.wrap(ctx, t, 770, y, 290, { size: 16, weight: 800, color: col, alpha: a });
     });
     M.pill(ctx, 'Both can add to shoulder pain', 770, 470, { size: 17, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, TB4.both, TB4.both + 0.5) });
@@ -555,7 +555,7 @@
       if (ra > 0) {
         const sx = x + 0.72 * sc, sy = y - 1.0 * sc;
         ctx.save(); ctx.globalAlpha *= ra; ctx.fillStyle = 'rgba(87,194,122,0.18)'; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.arc(sx, sy, 1.3 * sc, Math.PI / 2 - 0.52 * 2.6, Math.PI / 2 - 0.02, false); ctx.closePath(); ctx.fill(); ctx.restore();
-        M.text(ctx, 'Comfortable range', W / 2 + 90, 70, { size: 13, weight: 800, color: '#1d7a4c', alpha: ra });
+        M.text(ctx, 'Comfortable range', W / 2 + 90, 70, { size: 14, weight: 800, color: '#1d7a4c', alpha: ra });
       }
       M.person(ctx, x, y, sc, { t: s, armUp: up });
       S.phasePill(ctx, W / 2, 344, s, [[TC2.gentle, 'Gentle movement', C.green], [TC2.stiffness, 'Helps prevent stiffness', C.green]]);
@@ -609,18 +609,18 @@
       if (i === 4) { const hh = lerp(h, 220, red); M.rr(ctx, x, 500 - hh, 64, hh, 8); } else M.rr(ctx, x, 500 - h, 64, h, 8);
       ctx.save(); ctx.globalAlpha *= 0.3 + 0.7 * Math.max(on, red); ctx.fillStyle = red > 0.3 ? '#ef7b74' : M.mix('#cfe6d8', '#57c27a', i / 4); ctx.fill(); ctx.restore();
     }
-    M.text(ctx, 'Easier → harder', 230, 520, { size: 13, weight: 800, color: C.muted });
+    M.text(ctx, 'Easier → harder', 230, 520, { size: 14, weight: 800, color: C.muted });
     // pain check gauge
     const gx = 520, gy = 330, gw = 400;
     [[0, 0.33, '#8fd3ad', 'Little or none'], [0.33, 0.66, '#f7d36b', 'Mild discomfort can be OK'], [0.66, 1, '#ef7b74', 'Keeps getting worse']].forEach(([a, b, col, t], i) => {
       M.rr(ctx, gx + gw * a + 2, gy, gw * (b - a) - 4, 26, 8); ctx.fillStyle = col; ctx.fill();
-      M.wrap(ctx, t, gx + gw * (a + b) / 2, gy + 50, 130, { size: 13, weight: 800, color: '#4d5f86' });
+      M.wrap(ctx, t, gx + gw * (a + b) / 2, gy + 50, 130, { size: 14, weight: 800, color: '#4d5f86' });
     });
     M.text(ctx, 'How it feels', gx, gy - 18, { size: 14, weight: 800, color: C.muted, align: 'left' });
     const v = s < TC4.discomfort ? 0.15 : s < TC4.worse ? lerp(0.15, 0.48, ease(seg(s, TC4.discomfort, TC4.discomfort + 1))) : s < TC4.change ? lerp(0.48, 0.86, ease(seg(s, TC4.worse, TC4.worse + 1))) : lerp(0.86, 0.42, back);
     const nx = gx + gw * v;
     ctx.beginPath(); ctx.moveTo(nx, gy - 4); ctx.lineTo(nx - 9, gy - 18); ctx.lineTo(nx + 9, gy - 18); ctx.closePath(); ctx.fillStyle = '#1d2b3a'; ctx.fill();
-    M.text(ctx, 'Check how it feels later that day and the next day', 720, 430, { size: 13, weight: 700, color: C.muted, alpha: seg(s, TC4.discomfort + 0.5, TC4.discomfort + 1) });
+    M.text(ctx, 'Check how it feels later that day and the next day', 720, 430, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TC4.discomfort + 0.5, TC4.discomfort + 1) });
     M.pill(ctx, 'Pain keeps getting worse? Adjust the plan', 720, 480, { size: 16, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TC4.change, TC4.change + 0.5) });
   }
 
@@ -643,7 +643,7 @@
       M.person(ctx, 300, 418, 46, { t: s, look: { shirt: '#ffffff', shirtShade: '#dbe4ef', pants: '#5a6f94', hair: '#2f2a28', skin: '#c99272', skinShade: '#b47e60' } });
       bandPerson(ctx, 470, 418, 46, 0.5 - 0.5 * Math.cos(s * 1.5), s);
       ctx.restore();
-      M.text(ctx, 'Physical therapist', 300, 306, { size: 13, weight: 800, color: C.muted, alpha: ta });
+      M.text(ctx, 'Physical therapist', 300, 306, { size: 14, weight: 800, color: C.muted, alpha: ta });
       M.wrap(ctx, 'A healthcare professional or physical therapist can guide your recovery', 680, 400, 230, { size: 16, weight: 800, color: '#1d7a4c', alpha: seg(s, TC5.pt, TC5.pt + 0.5) });
     }
   }
@@ -655,7 +655,7 @@
     M.text(ctx, 'Return to daily life', 480, 44, { size: 28, weight: 800 });
     const tl = ease(seg(s, TC6.time, TC6.better + 0.5)), x = 190, y = 340, sc = 76;
     M.rr(ctx, 60, 84, 300, 10, 5); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 60, 84, 300 * tl, 10, 5); ctx.fillStyle = C.green; ctx.fill();
-    M.text(ctx, 'Weeks to months', 210, 110, { size: 13, weight: 800, color: C.muted });
+    M.text(ctx, 'Weeks to months', 210, 110, { size: 14, weight: 800, color: C.muted });
     const k = Math.floor(s / 3.2) % 3, ph = (s % 3.2) / 3.2, up = 0.25 + 0.6 * Math.sin(Math.PI * Math.min(1, ph * 1.2));
     M.person(ctx, x, y, sc, { t: s, armUp: up });
     const h = handOf(x, y, sc, up);
@@ -708,9 +708,9 @@
       // Part 1 explains tendons; Part 2 uses the rotator cuff to explain why a tendon can hurt;
       // Part 3 shows how tendon pain can improve.
       videos: [
-        { title: 'What are tendons, and where are they?', length: 84, audio: 'audio/tendinopathy-a/', scenes: patientScenesA },
-        { title: 'Why do tendons hurt? The rotator cuff', length: 92, audio: 'audio/tendinopathy-b/', scenes: patientScenesB },
-        { title: 'How can tendon pain improve?', length: 100, audio: 'audio/tendinopathy-c/', scenes: patientScenesC },
+        { title: 'What are tendons, and where are they?', length: 71, timing: 'audio', audio: 'audio/tendinopathy-a/', scenes: patientScenesA },
+        { title: 'Why do tendons hurt? The rotator cuff', length: 99, timing: 'audio', audio: 'audio/tendinopathy-b/', scenes: patientScenesB },
+        { title: 'How can tendon pain improve?', length: 88, timing: 'audio', audio: 'audio/tendinopathy-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Tendons are strong, rope-like tissues made of bundles of collagen fibers. They connect muscles to bones.',
@@ -718,6 +718,7 @@
         'Tendons are found throughout the body, for example the rotator cuff in the shoulder, tendons around the elbow and wrist, the tendon below the kneecap, and the Achilles tendon at the heel.',
         'Ligaments are different: they connect bones to other bones.',
         'A tendon can be hurt suddenly or overloaded over time. Long-lasting tendon pain (tendinopathy) often involves changes in the tendon fibers, not just inflammation.',
+        'Tendinopathy is different from a tendon rupture (a complete tear). A rupture usually happens suddenly, often with a pop, and causes sudden weakness; it needs prompt medical care.',
         'In the shoulder, the rotator cuff tendons and the bursa above them are different tissues, and both can add to pain. Shoulder pain does not always mean a torn tendon, and it can get better.',
         'To help tendon pain improve: reduce what makes it worse without stopping all movement, keep moving gently, and build strength gradually. Mild discomfort can be OK, but if pain keeps getting worse, adjust the plan.',
       ],
@@ -727,14 +728,15 @@
         'What exercises would help my tendon?',
       ],
       redFlags: [
-        'A sudden pop or snap, followed by weakness or not being able to move the joint',
-        'You cannot lift your arm after a fall or injury',
-        'A hot, red, swollen joint, especially with a fever',
+        'Pain that keeps getting worse, even after you change your activities',
+        'Pain or weakness that makes daily tasks, like dressing or reaching, hard',
+        'Pain that is not improving after several weeks',
       ],
       // Shown in a separate tap-to-open box on the patient page, not only inside the video.
       emergency: {
         title: 'When not to treat it on your own',
         items: [
+          'A sudden pop or snap with sudden, severe weakness, such as not being able to lift your arm or push off your foot',
           'You suddenly cannot lift your arm after a fall or injury',
           'New, obvious weakness in the arm',
           'The shoulder looks out of shape or deformed',
@@ -742,6 +744,11 @@
         ],
         action: 'Get checked by a healthcare professional promptly. For severe injuries, go to the emergency room.',
       },
+      // Related topics, shown under the quiz, to tell joint, tendon, muscle, back, and nerve pain apart.
+      related: [
+        { id: 'muscle-pain', why: 'A strain injures the muscle fibers themselves, usually after a sudden overload.' },
+        { id: 'osteoarthritis', why: 'Joint pain comes from changes across the whole joint, not from a tendon.' },
+      ],
       quiz: [
         { q: 'What does a tendon connect?', options: ['A muscle to a bone', 'A bone to another bone', 'Two muscles together'], answer: 0, explain: 'A tendon is a strong, rope-like tissue that connects a muscle to a bone.' },
         { q: 'Is long-lasting tendon pain always caused by inflammation?', options: ['Yes, always', 'No, the tendon fibers can become less organized, so it is often not just inflammation', 'Tendons cannot hurt'], answer: 1, explain: 'Soon after an injury there may be inflammation. Long-lasting tendon pain, called tendinopathy, often involves changes in the tendon itself.' },

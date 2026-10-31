@@ -50,7 +50,7 @@ pip install edge-tts
 python tools/make-narration.py
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031f`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031g`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
 
 **Languages:** the patient portal has English and Chinese (language picker in the top bar, or `?lang=zh`). Text is translated by its English source string in `js/i18n-zh.js`; Chinese narration lives in `audio/<id>-a-zh/` and so on. After changing captions or labels, add their translations to `js/i18n-zh.js`, then run `python tools/make-narration.py --lang zh` (this also refreshes `js/audio-durations.js`, which keeps translated narration in step with the animation).
 
@@ -60,7 +60,7 @@ python tools/make-narration.py
 
 1. Create `js/diseases/<name>.js` and call `MedData.register({ id, name, icd10, aliases, patient, clinician })`. Use `diabetes.js` as the template. A condition with only `patient` (or only `clinician`) content shows as coming soon in the other portal.
 2. Add a `<script>` tag for it to `patient.html` and `clinician.html`.
-   To split the patient story into parts, give `patient.videos: [{ title, length, audio, scenes }, ...]` instead of `scenes` (see `diabetes.js`). Name the arrays `patientScenesA`, `patientScenesB`, ... so `tools/make-narration.py` writes `audio/<id>-a/`, `audio/<id>-b/`.
+   To split the patient story into parts, give `patient.videos: [{ title, length, audio, scenes }, ...]` instead of `scenes` (see `diabetes.js`). Add `timing: 'audio'` to a part to fit each scene to its recorded English clip (clip length plus a 1.5 s finish, or the scene's own `dur` if a longer animation needs it) instead of stretching scenes to `length`; the musculoskeletal topics use this. An optional `patient.related: [{ id, why }]` lists related topics under the quiz. Name the arrays `patientScenesA`, `patientScenesB`, ... so `tools/make-narration.py` writes `audio/<id>-a/`, `audio/<id>-b/`.
 3. Remove it from the `comingSoon` list in `js/registry.js`.
 
 ## Important limitations

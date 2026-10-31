@@ -263,7 +263,7 @@
       ctx.restore();
       M.text(ctx, t, cx, 448, { size: 18, weight: 800, alpha: a });
     });
-    M.text(ctx, 'Helps keep you warm', 789, 474, { size: 13, weight: 700, color: C.muted, alpha: seg(s, T5.warm, T5.warm + 0.5) });
+    M.text(ctx, 'Helps keep you warm', 789, 474, { size: 14, weight: 700, color: C.muted, alpha: seg(s, T5.warm, T5.warm + 0.5) });
   }
 
   // 6. Transition: muscles are strong, but they can become sore, tight, or injured. What happens
@@ -647,7 +647,7 @@
     // a timeline that shows the steps overlapping
     const tl = ease(seg(s, TR2.starts, TR2.organized + 1));
     M.rr(ctx, 210, 482, 500, 8, 4); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 210, 482, 500 * tl, 8, 4); ctx.fillStyle = C.green; ctx.fill();
-    M.text(ctx, 'Days', 210, 506, { size: 12, weight: 800, color: C.muted, align: 'left' }); M.text(ctx, 'Weeks', 710, 506, { size: 12, weight: 800, color: C.muted, align: 'right' });
+    M.text(ctx, 'Days', 210, 506, { size: 14, weight: 800, color: C.muted, align: 'left' }); M.text(ctx, 'Weeks', 710, 506, { size: 14, weight: 800, color: C.muted, align: 'right' });
     [['Immune cells clear damaged tissue', TR2.immune, MAC, '#5b3a90'], ['Satellite cells wake up', TR2.sat, SAT, '#1d7a4c'], ['New fibers grow', TR2.build, NEWF, '#a3461f'], ['Tissue gets stronger and more organized', TR2.weeks, MUS, '#a3461f']].forEach(([t, at, col, ink], i) => {
       const a = seg(s, at, at + 0.5), y = 130 + i * 66;
       if (a <= 0) return;
@@ -673,7 +673,7 @@
     M.pill(ctx, 'Move in a comfortable range', 210, 170, { size: 14, bg: '#fff', border: '#bfe3cf', color: '#1d7a4c', alpha: seg(s, TR3.range, TR3.range + 0.4) });
     const xa = seg(s, TR3.stretch, TR3.stretch + 0.4);
     M.emoji(ctx, '🤸', 870, 120, 34, xa); crossOut(ctx, 870, 120, 22, xa);
-    M.wrap(ctx, 'No hard stretching of a fresh injury', 870, 176, 150, { size: 13, weight: 800, color: '#a3261f', alpha: xa });
+    M.wrap(ctx, 'No hard stretching of a fresh injury', 870, 176, 150, { size: 14, weight: 800, color: '#a3261f', alpha: xa });
   }
 
   // 4. Progressive strengthening: back, belly, and hip muscles work together; easy movements
@@ -690,10 +690,10 @@
     [['🪑', 'Sit to stand', 0], ['🚶', 'Longer walks', 1], ['📦', 'Light lifting', 2], ['🛍️', 'Carrying', 3]].forEach(([ic, t, i]) => {
       const x = 520 + i * 105, h = 60 + i * 50, a = Math.max(0.25, Math.min(1, lv * 4.2 - i));
       M.rr(ctx, x, 440 - h, 92, h, 10); ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = M.mix('#cfe6d8', '#57c27a', i / 3); ctx.fill(); ctx.restore();
-      M.emoji(ctx, ic, x + 46, 440 - h - 26, 30, a); M.text(ctx, t, x + 46, 462, { size: 12, weight: 800, color: C.muted, alpha: a });
+      M.emoji(ctx, ic, x + 46, 440 - h - 26, 30, a); M.text(ctx, t, x + 46, 462, { size: 14, weight: 800, color: C.muted, alpha: a });
     });
     M.text(ctx, 'Easy → harder, over time', 728, 136, { size: 14, weight: 800, color: '#1f4fa8', alpha: on(TR4.easy) });
-    M.pill(ctx, '🩺 A physical therapist can choose exercises that fit you', 700, 508, { size: 13, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: on(TR4.pt) });
+    M.pill(ctx, '🩺 A physical therapist can choose exercises that fit you', 700, 508, { size: 14, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: on(TR4.pt) });
   }
 
   // 5. Symptom care and time: change bothersome activities, short breaks, heat or cold; a mild
@@ -730,7 +730,7 @@
     const h = runner(ctx, x, ground, k === 0 ? 0 : s * 5, k === 0 ? 0.05 : 0.45, 0.06, 1, s);
     if (k === 2) M.emoji(ctx, '🛍️', h[0] + 26, h[1] + 70, 34);
     if (k === 3) M.emoji(ctx, '⚽', x + 50, ground - 14, 28);
-    [['💼 Work', TR6.work], ['🚶 Walks', TR6.walks], ['🛍️ Groceries', TR6.groceries], ['⚽ Things you enjoy', TR6.enjoy]].forEach(([t, at], i) => M.pill(ctx, t, 80 + i * 128, 110, { size: 13, bg: k === i ? '#e9f7ef' : '#fff', border: k === i ? C.green : '#d7e0ec', color: k === i ? '#1d7a4c' : '#4d5f86', alpha: seg(s, at, at + 0.4) }));
+    [['💼 Work', TR6.work], ['🚶 Walks', TR6.walks], ['🛍️ Groceries', TR6.groceries], ['⚽ Things you enjoy', TR6.enjoy]].forEach(([t, at], i) => M.pill(ctx, t, [80, 190, 320, 480][i], 110, { size: 14, bg: k === i ? '#e9f7ef' : '#fff', border: k === i ? C.green : '#d7e0ec', color: k === i ? '#1d7a4c' : '#4d5f86', alpha: seg(s, at, at + 0.4) }));
     const oa = seg(s, TR6.other - 0.4, TR6.other + 0.2);
     strainSpots(ctx, 600, 820, 300, 70, oa, ease(seg(s, TR6.other, TR6.other + 2)), s);
     M.text(ctx, 'The same ideas help strains in other places', 710, 466, { size: 14, weight: 800, color: '#1d7a4c', alpha: oa });
@@ -774,9 +774,9 @@
       // Part 1 explains muscles; Part 2 explains muscle strains, with a lower back strain; Part 3
       // shows how a strain improves.
       videos: [
-        { title: 'How do your muscles work?', length: 80, audio: 'audio/muscle-pain-a/', scenes: patientScenesA },
-        { title: 'What happens when you strain a muscle?', length: 92, audio: 'audio/muscle-pain-b/', scenes: patientScenesB },
-        { title: 'How can a muscle strain improve?', length: 108, audio: 'audio/muscle-pain-c/', scenes: patientScenesC },
+        { title: 'How do your muscles work?', length: 64, timing: 'audio', audio: 'audio/muscle-pain-a/', scenes: patientScenesA },
+        { title: 'What happens when you strain a muscle?', length: 91, timing: 'audio', audio: 'audio/muscle-pain-b/', scenes: patientScenesB },
+        { title: 'How can a muscle strain improve?', length: 114, timing: 'audio', audio: 'audio/muscle-pain-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Muscles are found throughout your body. Each muscle is made of bundles of thousands of tiny fibers.',
@@ -793,24 +793,27 @@
         'When can I go back to my usual activities or sports?',
       ],
       redFlags: [
-        'You cannot move or put weight on the area',
-        'A large, fast-growing swelling or bruise',
-        'Severe muscle pain with very dark (tea- or cola-colored) urine',
+        'You felt a pop, then weakness, or a dent or lump in the muscle',
+        'Pain that is not improving after a few weeks',
         'A red, hot, swollen area with a fever',
       ],
       // Shown in a separate tap-to-open box on the patient page, not only inside the video.
       emergency: {
-        title: 'When to get a muscle injury checked',
+        title: 'Muscle pain warning signs',
         items: [
-          'You cannot move the area or put weight on it',
-          'You felt a pop, followed by sudden weakness or a dent or lump in the muscle',
-          'Large or fast-spreading swelling or bruising',
           'Severe muscle pain with very dark (tea- or cola-colored) urine',
-          'Back pain with numbness in the groin, new bladder or bowel trouble, or leg weakness',
-          'Pain after a major fall or accident, or pain that is not improving after a few weeks',
+          'Large or fast-spreading swelling, or pain that keeps building after an injury',
+          'You cannot move the area or put weight on it after an injury',
+          'Back pain with numbness in the groin, new bladder or bowel trouble, or leg weakness that keeps getting worse',
+          'Pain after a major fall or accident',
         ],
-        action: 'Get checked by a healthcare professional. For severe symptoms, call 911 or go to the emergency room.',
+        action: 'Get medical care right away. For severe symptoms, call 911 or go to the emergency room.',
       },
+      // Related topics, shown under the quiz, to tell joint, tendon, muscle, back, and nerve pain apart.
+      related: [
+        { id: 'back-pain', why: 'Back pain can come from muscles, discs, joints, or nerves, and often no single cause is found.' },
+        { id: 'tendinopathy', why: 'Tendons connect muscle to bone; tendon pain often builds up with repeated load.' },
+      ],
       quiz: [
         { q: 'What is a muscle made of?', options: ['One solid piece', 'Bundles of thousands of tiny fibers', 'Only tendons'], answer: 1, explain: 'Each muscle is made of bundles of fibers, and each fiber has tiny strands inside that slide together.' },
         { q: 'How does a muscle move a bone?', options: ['It pushes the bone', 'A nerve signal makes the fibers contract, and a tendon carries the pull to the bone', 'The bone moves on its own'], answer: 1, explain: 'Muscles pull, not push. The tendon passes the pull to the bone.' },

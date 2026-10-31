@@ -2,8 +2,8 @@
 // this condition as coming soon.
 // Part 1 explains how the back works: the spine from neck to pelvis, what is inside (vertebrae,
 // discs, small facet joints, ligaments, muscles, and nerves), and that different structures can
-// cause different kinds of pain, while many people have no single obvious cause. Part 2 will
-// take a closer look at low back pain.
+// cause different kinds of pain, while many people have no single obvious cause. Part 2
+// compares common back problems, and Part 3 shows how common low back pain can improve.
 (function () {
   const { C, ease, seg, lerp } = M;
   const { runner } = S;
@@ -12,9 +12,10 @@
   // Patient portal: Part 1 "How your back works and why it can hurt" and Part 2
   // "What different back problems look like", Part 3 "How can back pain improve?". The star is one cartoon
   // spine seen from the side (front of the body to the right): beige vertebrae with blue discs
-  // between them, small facet joints and spiny bumps at the back, a yellow spinal cord and
-  // nerve roots, a pale ligament along the front, and red back muscles behind. Cues use s
-  // (seconds since the narration started), matched to the narrator's words.
+  // between them, small facet joints and spiny bumps at the back, a yellow spinal cord that ends
+  // near L1-L2 with separate nerve roots (the cauda equina) below it, a pale ligament along the
+  // front, and red back muscles behind. Cues use s (seconds since the narration started),
+  // matched to the narrator's words.
   // ---------------------------------------------------------------------------
   const BONE = '#f4ead6', BONE_S = '#d8caae', DISC = '#8fd0f2', DISC_D = '#4fa7d8', NERVE = '#f2c230', NERVE_D = '#c99a12', MUS = '#e07a6a', LIG = '#dfe9f6', LIG_S = '#8fa6c4';
   const hump = (s, a, b, c, d) => seg(s, a, b) * (1 - seg(s, c, d)); // rises a..b, falls c..d
@@ -76,17 +77,35 @@
     const fS = frame(0.97, 1), sb = P(1), sw = bw(1);
     ctx.beginPath(); [[0, -sw], [0, sw], [70 * k, sw * 0.7], [104 * k, 6 * k]].forEach(([u, v], i) => { const q = at(sb, { T: [fS.T[0] * Math.cos(-0.5) - fS.T[1] * Math.sin(-0.5), fS.T[0] * Math.sin(-0.5) + fS.T[1] * Math.cos(-0.5)], N: [-(fS.T[0] * Math.sin(-0.5) + fS.T[1] * Math.cos(-0.5)), fS.T[0] * Math.cos(-0.5) - fS.T[1] * Math.sin(-0.5)] }, u, v); i ? ctx.lineTo(...q) : ctx.moveTo(...q); });
     ctx.closePath(); ctx.fillStyle = BONE; ctx.fill(); ctx.strokeStyle = BONE_S; ctx.lineWidth = 2; ctx.stroke();
-    // spinal cord and nerve roots
-    const ng = g.nerve || 0, hot = o.hot || 0;
-    if (ng > 0) line((t) => along(t * 0.98, bw(t) + 9 * k), 16 * k, `rgba(242,194,48,${0.4 * ng})`);
-    line((t) => along(t * 0.98, bw(t) + 9 * k), 6 * k, NERVE);
-    for (let i = 3; i < N; i += 2) {
-      const t = (i + 0.95) / N, f = frame(t - 0.02, t), a = at(P(t), f, 0, bw(t) + 9 * k), b = at(P(t), f, 24 * k, bw(t) + 20 * k);
-      const isHot = i === N - 1 && hot > 0;
-      ctx.strokeStyle = isHot ? M.mix(NERVE, '#e5484d', hot) : NERVE_D; ctx.lineWidth = isHot ? 5 * k + 3 * hot : 3 * k;
-      ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
-      if (isHot) M.dot(ctx, b[0], b[1], 12 * k * (1 + 0.15 * Math.sin(s * 5)), `rgba(229,72,77,${0.35 * hot})`);
+    // Spinal cord, then the cauda equina. Vertebrae are C1-C7 (i 0-6), T1-T12 (7-18), and L1-L5
+    // (19-23). In adults the cord ends near the L1-L2 level, tapering into the conus medullaris;
+    // below it, separate lumbar and sacral nerve roots run down the canal (the cauda equina), each
+    // leaving through the opening (foramen) beside its own level. A root exits just below its
+    // vertebra and heads down and forward. The L4-L5 disc is the one that bulges (o.bulge), so
+    // the root it irritates (o.hot) is L5 as it passes that disc.
+    const ng = g.nerve || 0, hot = o.hot || 0, CONUS = 20 / N, cv = (t) => bw(t) + 9 * k;
+    const exitRoot = (i, col, w) => {
+      const t = (i + 0.95) / N, f = frame(t - 0.02, t), a = at(P(t), f, 0, cv(t) - 2 * k), b = at(P(t), f, 22 * k, bw(t) + 1 * k);
+      ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(...a); ctx.lineTo(...b); ctx.stroke();
+    };
+    // cauda equina strands: [vertebra the root exits below, offset in the canal]; S1 and S2 run on into the sacrum
+    const CAUDA = [[20, -3.5], [21, -1.8], [22, 0], [23, 1.8], [24, 3.5], [25, 5]];
+    if (ng > 0) {
+      line((t) => along(t * CONUS, cv(t * CONUS)), 16 * k, `rgba(242,194,48,${0.4 * ng})`);
+      line((t) => along(lerp(CONUS, 0.99, t), cv(lerp(CONUS, 0.99, t))), 9 * k, `rgba(242,194,48,${0.25 * ng})`);
     }
+    CAUDA.forEach(([i, dv]) => {
+      const end = Math.min(0.995, (i + 0.95) / N), l5 = i === N - 1, col = l5 && hot > 0 ? M.mix(NERVE, '#e5484d', hot) : NERVE;
+      line((t) => { const u = lerp(CONUS - 0.01, end, t); return along(u, cv(u) + dv * k * Math.min(1, (u - CONUS + 0.01) * 40)); }, (l5 && hot > 0 ? 2 + 1.5 * hot : 1.8) * k, col);
+      if (i < N) exitRoot(i, l5 && hot > 0 ? col : NERVE_D, (l5 && hot > 0 ? 3 + 2 * hot : 2.4) * k);
+    });
+    line((t) => along(t * (CONUS - 0.03), cv(t * (CONUS - 0.03))), 6 * k, NERVE);
+    for (let j = 0; j < 6; j++) { // the conus: the cord narrows to a point
+      const t0 = CONUS - 0.03 + j * 0.005, t1 = t0 + 0.006;
+      line((u) => along(lerp(t0, t1, u), cv(lerp(t0, t1, u))), 6 * k * (1 - j / 6.5), NERVE);
+    }
+    for (let i = 3; i < 20; i += 2) exitRoot(i, NERVE_D, 3 * k); // roots leave the cord above the conus
+    if (hot > 0) { const c = along(23 / N, cv(23 / N) + 1.8 * k); M.dot(ctx, c[0], c[1], 12 * k * (1 + 0.15 * Math.sin(s * 5)), `rgba(229,72,77,${0.35 * hot})`); }
     // small facet joints and spiny bumps at the back of each vertebra
     const stiff = o.stiff || 0, fg = g.facet || 0;
     for (let i = 0; i < N; i++) {
@@ -298,8 +317,8 @@
   const lumbar = (ctx, cx, cy, k, o) => spine(ctx, cx - 14 * k / 3.4, cy - 1290 * k / 3.4, k, Object.assign({}, o));
 
   // 1. Not all back pain is the same: a person holds their low back; inside, muscles, discs,
-  //    joints, and nerves appear one by one.
-  const TP1 = { notSame: 0.9, conditions: 4.1, parts: 5.8, spine: 6.2 };
+  //    joints, and nerves appear one by one. Often no single cause can be found.
+  const TP1 = { notSame: 0.9, conditions: 3.6, parts: 4.8, none: 6.6 };
   function notTheSame(ctx, p, s) {
     M.text(ctx, 'Not all back pain is the same', 480, 44, { size: 28, weight: 800 });
     const ground = 450, lean = 0.3;
@@ -312,7 +331,7 @@
     ctx.beginPath(); ctx.moveTo(lb[0], lb[1]); ctx.lineTo(cx - R * 0.72, cy - R * 0.7); ctx.moveTo(lb[0], lb[1]); ctx.lineTo(cx - R * 0.72, cy + R * 0.7); ctx.stroke(); ctx.restore();
     lens(ctx, cx, cy, R, () => lumbar(ctx, cx, cy, 3.4, { s, glow: { muscle: gl(0), disc: gl(1), facet: gl(2), nerve: gl(3) } }));
     [['Muscles', MUS], ['Discs', DISC_D], ['Small joints', DISC_D], ['Nerves', NERVE_D]].forEach(([t, col], i) => M.pill(ctx, t, 870, 170 + i * 56, { size: 15, bg: '#fff', border: col, color: col, alpha: gl(i) }));
-    M.pill(ctx, 'Different problems, different parts', 620, 520, { size: 16, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP1.parts, TP1.parts + 0.5) });
+    S.phasePill(ctx, 620, 520, s, [[TP1.parts, 'Different parts can be involved', '#8a5a00'], [TP1.none, 'Often no single cause is found', '#1f4fa8']]);
   }
 
   // Normal back (left) next to the changed back (right), with the same zoom into the low back,
@@ -339,32 +358,33 @@
     M.text(ctx, 'Often after lifting or an awkward movement', 480, 500, { size: 14, weight: 700, color: C.muted, alpha: seg(s, TP2.overload, TP2.overload + 0.5) });
   }
 
-  // 3. Disc bulge or herniation: the disc changes shape and bulges outward; it may or may not
-  //    reach a nerve, and many disc changes cause no pain.
-  const TP3 = { disc: 0.8, bulge: 2.3, notAlways: 4.4, part: 7.3 };
+  // 3. Disc bulge or herniation: the disc changes shape and bulges outward. Many people have
+  //    bulges on scans with no pain, so a bulge does not always explain symptoms.
+  const TP3 = { disc: 0.8, bulge: 2.3, notAlways: 3.7, part: 8.3 };
   function discScene(ctx, p, s) {
     M.text(ctx, '2. Disc bulge or herniation', 480, 44, { size: 28, weight: 800 });
     const k = ease(seg(s, TP3.bulge - 0.4, TP3.bulge + 1)), touch = ease(seg(s, TP3.part, TP3.part + 0.8)), gl = seg(s, TP3.disc, TP3.disc + 0.4);
-    compareBacks(ctx, s, 'Disc bulge', { glow: { disc: gl * 0.7 } }, { bulge: k, hot: touch * 0.8, glow: { disc: gl * 0.7 * (1 - k) } });
+    compareBacks(ctx, s, 'Disc bulge', { glow: { disc: gl * 0.7 } }, { bulge: k, hot: touch * 0.6, glow: { disc: gl * 0.7 * (1 - k) } });
     M.text(ctx, 'Disc sits neatly between bones', 205, 440, { size: 14, weight: 800, color: '#1d7a4c' });
     M.text(ctx, 'Disc bulges outward', 505, 440, { size: 14, weight: 800, color: '#a3261f', alpha: k });
-    M.pill(ctx, 'Not every disc change causes pain', 355, 500, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP3.notAlways, TP3.notAlways + 0.5) });
+    M.pill(ctx, 'Many disc bulges cause no pain', 355, 500, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TP3.notAlways, TP3.notAlways + 0.5) });
     symptomList(ctx, 810, 140, [['Deep back pain', TP3.part - 1.2], ['Worse with bending or sitting', TP3.part - 0.6], ['Leg symptoms if a nerve is involved', TP3.part + 0.2]], s, '#1f4fa8');
   }
 
   // 4. Sciatica / nerve irritation: one nerve root lights up and pain travels from the low back
   //    into the buttock and down the leg, with tingling or numbness, sometimes weakness.
-  const TP4 = { nerve: 0.8, irritated: 1.6, travel: 3.2, buttock: 4, leg: 5.2, sciatica: 7.1 };
+  //    Irritation is the key idea; a disc or narrowed space pressing nearby is one common reason.
+  const TP4 = { nerve: 1.2, irritated: 2.3, presses: 4.4, travel: 7.4, buttock: 8.9, leg: 10, sciatica: 11.9 };
   function sciaticaScene(ctx, p, s) {
     M.text(ctx, '3. Sciatica: nerve irritation', 480, 44, { size: 28, weight: 800 });
-    const k = ease(seg(s, TP4.irritated - 0.3, TP4.irritated + 0.8)), gl = seg(s, TP4.nerve, TP4.nerve + 0.4);
-    compareBacks(ctx, s, 'Irritated nerve', { glow: { nerve: gl * 0.6 } }, { bulge: 0.8 * k, hot: k, glow: { nerve: gl * 0.6 } });
+    const k = ease(seg(s, TP4.irritated - 0.3, TP4.irritated + 0.8)), kb = ease(seg(s, TP4.presses, TP4.presses + 1.2)), gl = seg(s, TP4.nerve, TP4.nerve + 0.4);
+    compareBacks(ctx, s, 'Irritated nerve', { glow: { nerve: gl * 0.6 } }, { bulge: 0.8 * kb, hot: k, glow: { nerve: gl * 0.6 } });
     M.text(ctx, 'Nerves have room', 205, 440, { size: 14, weight: 800, color: '#1d7a4c' });
     M.text(ctx, 'A nerve root is irritated', 505, 440, { size: 14, weight: 800, color: '#a3261f', alpha: k });
     const x = 885, y = 410, sc = 38;
     M.person(ctx, x, y, sc, { t: s, mood: lerp(1, 0.45, k) });
     legNerve(ctx, x, y, sc, ease(seg(s, TP4.travel, TP4.leg + 0.6)), s);
-    symptomList(ctx, 760, 110, [['Pain down the leg', TP4.leg], ['Burning', TP4.leg + 0.5], ['Tingling', TP4.leg + 1], ['Numbness', TP4.leg + 1.5], ['Sometimes weakness', TP4.leg + 2]], s, '#8a6a00');
+    symptomList(ctx, 760, 110, [['Pain down the leg', TP4.leg], ['Burning', TP4.leg + 0.4], ['Tingling', TP4.leg + 0.8], ['Numbness', TP4.leg + 1.2], ['Sometimes weakness', TP4.leg + 1.6]], s, '#8a6a00');
     M.pill(ctx, 'Pain into the buttock and leg: often called sciatica', 355, 500, { size: 15, bg: '#fff8db', border: NERVE_D, color: '#8a6a00', alpha: seg(s, TP4.buttock, TP4.buttock + 0.5) });
   }
 
@@ -384,7 +404,8 @@
   // 6. Spinal stenosis: less space for the nerves inside the spine (thickened tissue, joint and
   //    disc changes); pain, heaviness, or numbness with standing or walking, eased by leaning
   //    forward or sitting.
-  const TP6 = { less: 1.3, nerves: 2.1, stenosis: 5.4, pain: 7, heavy: 7.9, numb: 8.9, walking: 11.4 };
+  //    Not everyone with a narrow canal has symptoms.
+  const TP6 = { less: 1.6, nerves: 2.5, stenosis: 5.6, pain: 7.4, heavy: 8.2, numb: 9, walking: 10.1, notAll: 11.7 };
   function stenosisScene(ctx, p, s) {
     M.text(ctx, '5. Spinal stenosis', 480, 44, { size: 28, weight: 800 });
     const k = ease(seg(s, TP6.less - 0.3, TP6.nerves + 1));
@@ -403,20 +424,22 @@
     if (walk && cyc > 0.3) { M.text(ctx, '✶', x + 8, ground - 30, { size: 16, color: NERVE_D, alpha: 0.6 + 0.4 * Math.sin(s * 6) }); }
     M.text(ctx, walk ? (cyc > 0.3 ? 'Walking: legs feel heavy or tingly' : 'Walking') : 'Leaning forward or sitting: eases', 280, 470, { size: 14, weight: 800, color: walk && cyc > 0.3 ? '#a3261f' : '#1d7a4c', alpha: seg(s, TP6.walking - 1, TP6.walking - 0.5) });
     symptomList(ctx, 820, 110, [['Pain', TP6.pain], ['Heaviness', TP6.heavy], ['Numbness', TP6.numb], ['With standing or walking', TP6.walking]], s, '#a3261f');
+    M.wrap(ctx, 'Not everyone with a narrow canal has symptoms', 820, 360, 220, { size: 14, weight: 800, color: '#1f4fa8', alpha: seg(s, TP6.notAll, TP6.notAll + 0.5) });
   }
 
   // 7. Key takeaway: back to the low back model; each structure lights up again, then the
-  //    patient. Different problems look and feel different, and can overlap.
-  const TP7 = { look: 1.3, feel: 3.6, why: 5.1, structures: 6.3, explain: 7.8 };
+  //    patient. Parts can overlap; symptoms and scans don't always point to one cause, and most
+  //    low back pain gets better.
+  const TP7 = { feel: 2.7, why: 4.1, explain: 7.5, better: 10.7 };
   function backTakeaway(ctx, p, s) {
     M.text(ctx, 'Different problems, different symptoms', 480, 44, { size: 28, weight: 800 });
     const i = Math.floor(s / 1.2) % 5, on = (j) => (j === i ? 1 : 0.12);
     lens(ctx, 300, 290, 200, () => lumbar(ctx, 300, 290, 3.4, { s, sore: i === 0 ? 0.8 : 0, bulge: i === 1 ? 0.9 : 0.2, hot: i === 2 ? 0.9 : 0, stiff: i === 3 ? 0.9 : 0, glow: { muscle: on(0), disc: on(1), nerve: i === 2 || i === 4 ? 1 : 0.12, facet: on(3) } }));
     [['Muscle', MUS], ['Disc', DISC_D], ['Nerve', NERVE_D], ['Small joint', DISC_D], ['Canal', '#c2410c']].forEach(([t, col], j) => M.pill(ctx, t, 620, 130 + j * 52, { size: 15, bg: j === i ? '#fff8db' : '#fff', border: col, color: col }));
     const pa = seg(s, TP7.why, TP7.why + 0.5);
-    M.person(ctx, 820, 330, 60, { t: s, mood: 0.7, alpha: pa });
+    M.person(ctx, 820, 330, 60, { t: s, mood: lerp(0.7, 1, seg(s, TP7.better, TP7.better + 0.6)), alpha: pa });
     M.wrap(ctx, 'Sometimes more than one part is involved', 820, 470, 220, { size: 14, weight: 800, color: C.muted, alpha: seg(s, TP7.feel, TP7.feel + 0.5) });
-    M.pill(ctx, 'Knowing the structure helps explain the symptoms', 480, 518, { size: 16, bg: '#e8f0fd', border: M.C.blue, color: '#1f4fa8', alpha: seg(s, TP7.explain - 0.5, TP7.explain) });
+    S.phasePill(ctx, 480, 518, s, [[TP7.explain, "Symptoms and scans don't always show one cause", '#1f4fa8'], [TP7.better, 'Most low back pain gets better', '#1d7a4c']]);
   }
 
   // ---- Part 3: How can back pain improve? -----------------------------------------------
@@ -493,7 +516,7 @@
     M.rr(ctx, 120, 330, 64, 12, 4); ctx.fillStyle = '#b08a64'; ctx.fill(); ctx.fillRect(116, 260, 10, 160); ctx.fillRect(172, 340, 8, 80);
     ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, 420, 260, 12);
     runner(ctx, 200, 420, 0, 0.05, 0.5 * (1 - cyc) + 0.05, 1, s);
-    M.text(ctx, 'Example: sit to stand', 190, 452, { size: 13, weight: 800, color: C.muted, alpha: seg(s, TR3.strength, TR3.strength + 0.5) });
+    M.text(ctx, 'Example: sit to stand', 190, 452, { size: 14, weight: 800, color: C.muted, alpha: seg(s, TR3.strength, TR3.strength + 0.5) });
     const k = 0.84, on = (at) => seg(s, at, at + 0.5), work = 0.4 + 0.6 * cyc;
     const g = spine(ctx, 560, 80, k, { s, flex: 0.25 * (1 - cyc), glow: { muscle: on(TR3.back) * (s > TR3.together ? work : 1) } });
     coreMuscles(ctx, g, k, on(TR3.belly) * (s > TR3.together ? work : 1), on(TR3.hip) * (s > TR3.together ? work : 1));
@@ -518,8 +541,8 @@
       ctx.save(); ctx.globalAlpha *= a;
       if (i === 0) { const ph = Math.floor((s - at) / 1.6) % 3; runner(ctx, cx, 380, 0, 0.05, [0.06, 0.25, 0.12][ph], 1, s); M.text(ctx, ['Stand', 'Lean', 'Sit'][ph], cx + 60, 230, { size: 14, weight: 800, color: '#1d7a4c' }); }
       if (i === 1) { runner(ctx, cx - 10, 380, s * 5, 0.4, 0.06, 1, s); M.emoji(ctx, '⏱️', cx + 60, 210, 30); }
-      if (i === 2) { [0, 1, 2].forEach((j) => M.emoji(ctx, '📦', cx - 50 + j * 50, 330 - (j === 1 ? 6 * Math.abs(Math.sin(s * 2)) : 0), 30)); M.text(ctx, '1 big load → 3 smaller ones', cx, 250, { size: 12, weight: 800, color: C.muted }); }
-      if (i === 3) { [22, 30, 38].forEach((sz, j) => M.emoji(ctx, '📦', cx - 60 + j * 56, 340, sz * (0.6 + 0.4 * seg(s, at + j * 0.6, at + j * 0.6 + 0.5)))); M.text(ctx, 'Light → heavier, over time', cx, 250, { size: 12, weight: 800, color: C.muted }); }
+      if (i === 2) { [0, 1, 2].forEach((j) => M.emoji(ctx, '📦', cx - 50 + j * 50, 330 - (j === 1 ? 6 * Math.abs(Math.sin(s * 2)) : 0), 30)); M.text(ctx, '1 big load → 3 smaller ones', cx, 250, { size: 14, weight: 800, color: C.muted }); }
+      if (i === 3) { [22, 30, 38].forEach((sz, j) => M.emoji(ctx, '📦', cx - 60 + j * 56, 340, sz * (0.6 + 0.4 * seg(s, at + j * 0.6, at + j * 0.6 + 0.5)))); M.text(ctx, 'Light → heavier, over time', cx, 250, { size: 14, weight: 800, color: C.muted }); }
       ctx.restore();
       M.wrap(ctx, t, cx, 440, 190, { size: 16, weight: 800, alpha: a });
     });
@@ -558,13 +581,13 @@
     M.text(ctx, 'Return to daily life', 480, 44, { size: 28, weight: 800 });
     const gx = 80, gy = 120, gw = 800, gh = 220, prog = ease(seg(s, TR6.time, TR6.family + 1));
     M.rr(ctx, gx, gy, gw, gh, 16); ctx.fillStyle = '#fff'; ctx.fill(); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.stroke();
-    M.text(ctx, 'How you feel and what you can do', gx + 16, gy + 22, { size: 13, weight: 800, color: C.muted, align: 'left' });
-    M.text(ctx, 'Weeks →', gx + gw - 16, gy + gh - 14, { size: 13, weight: 800, color: C.muted, align: 'right' });
+    M.text(ctx, 'How you feel and what you can do', gx + 16, gy + 22, { size: 14, weight: 800, color: C.muted, align: 'left' });
+    M.text(ctx, 'Weeks →', gx + gw - 16, gy + gh - 14, { size: 14, weight: 800, color: C.muted, align: 'right' });
     const f = (u) => 0.18 + 0.6 * u + 0.08 * Math.sin(u * 17) + (u > 0.55 && u < 0.66 ? -0.16 * Math.sin((u - 0.55) / 0.11 * Math.PI) : 0);
     ctx.save(); ctx.strokeStyle = C.green; ctx.lineWidth = 4; ctx.lineJoin = 'round'; ctx.beginPath();
     for (let i = 0; i <= 80 * prog; i++) { const u = i / 80, x = gx + 30 + u * (gw - 60), y = gy + gh - 30 - f(u) * (gh - 60); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
     ctx.stroke(); ctx.restore();
-    if (prog > 0.6) M.text(ctx, 'A setback', gx + 30 + 0.6 * (gw - 60), gy + gh - 30 - f(0.6) * (gh - 60) + 28, { size: 12, weight: 800, color: '#a3261f', alpha: seg(s, TR6.days + 2, TR6.days + 2.6) });
+    if (prog > 0.6) M.text(ctx, 'A setback', gx + 30 + 0.6 * (gw - 60), gy + gh - 30 - f(0.6) * (gh - 60) + 28, { size: 14, weight: 800, color: '#a3261f', alpha: seg(s, TR6.days + 2, TR6.days + 2.6) });
     M.pill(ctx, "Not always a straight line", 480, gy + gh + 30, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TR6.line, TR6.line + 0.5) });
     [['💼', 'Work', TR6.work], ['🚶', 'Walks', TR6.walks], ['🌱', 'Bending and chores', TR6.walks + 0.5], ['👨‍👩‍👧', 'Time with family', TR6.family]].forEach(([ic, t, at], i) => {
       const a = ease(seg(s, at, at + 0.5)), x = 60 + i * 220;
@@ -576,8 +599,8 @@
   }
 
   const patientScenesA = [
-    { label: 'The spine from top to bottom', caption: 'Your back is made of many parts working together. Your spine runs from your neck down to your pelvis.', draw: spineTopBottom },
-    { label: 'What is inside the back?', caption: 'Inside your back are bones called vertebrae, soft discs between the bones, small joints, ligaments, muscles, and nerves.', draw: insideBack },
+    { label: 'The spine from top to bottom', dur: 9, caption: 'Your back is made of many parts working together. Your spine runs from your neck down to your pelvis.', draw: spineTopBottom },
+    { label: 'What is inside the back?', dur: 9.4, caption: 'Inside your back are bones called vertebrae, soft discs between the bones, small joints, ligaments, muscles, and nerves.', draw: insideBack },
     { label: 'How the back moves', caption: 'Your spine helps support your body and allows you to bend, turn, sit, stand, and move. These structures all help your back move and stay stable.', draw: backMoves },
     { label: 'Different structures, different pain', caption: 'Because so many structures work together, different problems can cause different kinds of back pain.', draw: differentStructures },
     { label: 'Different problems can feel different', caption: 'If muscles or ligaments are irritated, the pain may feel sore or tight. If joints become stiff or inflamed, the pain may feel more local and harder to move through. If a disc or nearby nerve is involved, pain may spread into the buttock or leg, and sometimes cause tingling or numbness.', draw: feelDifferent },
@@ -585,13 +608,13 @@
   ];
 
   const patientScenesB = [
-    { label: 'Not all back pain is the same', caption: 'Back pain is not always caused by the same problem. Different back conditions can affect different parts of the spine.', draw: notTheSame },
+    { label: 'Not all back pain is the same', caption: "Back pain is not always caused by the same problem. Different parts of the spine can play a part, and often no single cause can be found.", draw: notTheSame },
     { label: 'Muscle strain', caption: 'Sometimes the pain comes from muscles or soft tissues that have been overloaded. This may feel sore, tight, or achy.', draw: strainScene },
-    { label: 'Disc bulge or herniation', caption: 'Sometimes a disc changes shape and bulges outward. These changes do not always cause pain, but they can become part of the problem.', draw: discScene },
-    { label: 'Sciatica: nerve irritation', caption: 'If a nearby nerve becomes irritated, pain may travel into the buttock or down the leg. This is often called sciatica.', draw: sciaticaScene },
+    { label: 'Disc bulge or herniation', caption: "Sometimes a disc changes shape and bulges outward. Many people have disc bulges on scans and feel no pain at all, so a bulge does not always explain symptoms.", draw: discScene },
+    { label: 'Sciatica: nerve irritation', caption: "Sometimes a nearby nerve root becomes irritated, for example where a disc or a narrowed space presses near it. Pain may then travel into the buttock or down the leg. This is often called sciatica.", draw: sciaticaScene },
     { label: 'Facet joint arthritis', caption: 'Small joints in the spine can also become stiff or irritated, leading to more local pain and stiffness.', draw: facetScene },
-    { label: 'Spinal stenosis', caption: 'In some people, there is less space for the nerves inside the spine. This is called spinal stenosis, and it may cause pain, heaviness, or numbness, especially with standing or walking.', draw: stenosisScene },
-    { label: 'Key takeaway', caption: 'Different back problems can look different inside the body, and they may feel different too. That is why understanding the structures involved can help explain your symptoms.', draw: backTakeaway },
+    { label: 'Spinal stenosis', caption: "In some people, there is less space for the nerves inside the spine. This is called spinal stenosis. It may cause pain, heaviness, or numbness in the legs with standing or walking, but not everyone with a narrow spine has symptoms.", draw: stenosisScene },
+    { label: 'Key takeaway', caption: "Different parts of the back can add to pain, and they can overlap. Symptoms alone can't always show which part is involved, and scans don't always match how much it hurts. Most low back pain still gets better.", draw: backTakeaway },
   ];
 
   const patientScenesC = [
@@ -613,16 +636,16 @@
       // Part 1 explains the back; Part 2 compares common back problems; Part 3 shows how
       // common low back pain can improve.
       videos: [
-        { title: 'How your back works and why it can hurt', length: 82, audio: 'audio/back-pain-a/', scenes: patientScenesA },
-        { title: 'What different back problems look like', length: 90, audio: 'audio/back-pain-b/', scenes: patientScenesB },
-        { title: 'How can back pain improve?', length: 100, audio: 'audio/back-pain-c/', scenes: patientScenesC },
+        { title: 'How your back works and why it can hurt', length: 71, timing: 'audio', audio: 'audio/back-pain-a/', scenes: patientScenesA },
+        { title: 'What different back problems look like', length: 88, timing: 'audio', audio: 'audio/back-pain-b/', scenes: patientScenesB },
+        { title: 'How can back pain improve?', length: 97, timing: 'audio', audio: 'audio/back-pain-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your spine runs from your neck to your pelvis. It is made of bones called vertebrae, soft discs, small joints, ligaments, muscles, and nerves.',
         'These parts work together to support your body and let you bend, turn, sit, and stand.',
         'Different structures can cause different kinds of pain: sore or tight (muscles), local and stiff (small joints), or spreading into the buttock or leg (a disc or nearby nerve).',
         'Many people with back pain do not have one single obvious cause.',
-        'Common back problems involve different structures: muscle strain (sore, tight, achy), disc bulge (not always painful), sciatica (nerve pain down the leg), facet joint arthritis (local pain and stiffness), and spinal stenosis (less room for nerves; leg symptoms with standing or walking).',
+        'Common back problems involve different structures: muscle strain (sore, tight, achy), disc bulge (often painless), sciatica (an irritated nerve root; pain down the leg), facet joint arthritis (local pain and stiffness), and spinal stenosis (less room for nerves; leg symptoms with standing or walking, though not always). Symptoms alone cannot always tell which structure is involved.',
         'Pain is real, but it does not always mean something is badly damaged, and scans do not always match symptoms. Most low back pain gets better.',
         'For common low back pain, keep moving: a short rest can help, but days in bed usually do not. Gentle movement, gradual strengthening, flexible daily habits, and a plan that fits you can help. Recovery is often not a straight line.',
       ],
@@ -647,12 +670,18 @@
         ],
         action: 'Get emergency care right away. Call 911 or go to the nearest emergency room.',
       },
+      // Related topics, shown under the quiz, to tell joint, tendon, muscle, back, and nerve pain apart.
+      related: [
+        { id: 'muscle-pain', why: 'How a true muscle strain happens and heals, and why not all back pain is a strain.' },
+        { id: 'nerve-pain', why: 'How nerves work, and why an irritated nerve can cause tingling or pain down a limb.' },
+      ],
       quiz: [
         { q: 'What is inside your back?', options: ['Only bones', 'Vertebrae, discs, small joints, ligaments, muscles, and nerves', 'Only muscles'], answer: 1, explain: 'Many parts work together to support your body and help it move.' },
         { q: 'If a disc or nearby nerve is involved, how might the pain feel?', options: ['Only a mild ache in one spot', 'It may spread into the buttock or leg, sometimes with tingling or numbness', 'It always feels like itching'], answer: 1, explain: 'Irritated nerves can send pain, tingling, or numbness along the path of the nerve.' },
         { q: 'Does low back pain always mean something is badly damaged?', options: ['Yes, pain always means damage', 'No, pain is real but often happens without serious damage, and most people improve', 'Only if it lasts one day'], answer: 1, explain: 'Many people improve even when the exact source is not clear, and scans do not always match how much it hurts.' },
         { q: 'Is staying in bed for days the best treatment for common low back pain?', options: ['Yes, rest until all pain is gone', 'No, a short rest can help, but keeping gently active usually helps recovery', 'Only exercise when pain is zero'], answer: 1, explain: 'Days in bed can make the back stiffer and weaker. Gentle, manageable activity usually helps.' },
         { q: 'Is there one perfect posture or one best exercise for everyone?', options: ['Yes, everyone needs the same core exercises', 'No, changing positions and many kinds of exercise can help, fitted to you', 'Only sitting very straight helps'], answer: 1, explain: 'Different activities can help. A healthcare professional or physical therapist can tailor a plan to your symptoms and goals.' },
+        { q: 'If a scan shows a disc bulge, does that always explain the pain?', options: ['Yes, a bulge always causes pain', 'No, many people have disc bulges with no pain, so scans do not always match symptoms', 'Scans are never useful'], answer: 1, explain: 'Disc bulges are common in people without pain. Your symptoms and an exam help explain what is going on.' },
         { q: 'Does all back pain have one clear cause?', options: ['Yes, always', 'No, many people with back pain do not have one single obvious cause', 'Only in older adults'], answer: 1, explain: 'Back pain often involves several structures together, which can make it hard to pinpoint.' },
       ],
     },

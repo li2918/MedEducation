@@ -208,7 +208,7 @@
       M.card(ctx, x0, y0, 270, 104, { r: 18, alpha: a, border: '#f3c9a0' });
       M.emoji(ctx, ic, x0 + 34, y0 + 36, 28, a);
       M.text(ctx, title, x0 + 60, y0 + 34, { size: 17, weight: 800, align: 'left', alpha: a });
-      lines.forEach(([t, lat], i) => M.text(ctx, t, x0 + 20, y0 + 64 + i * 22, { size: 13, weight: 700, align: 'left', color: '#7a4a20', alpha: a * seg(s, lat, lat + 0.5) }));
+      lines.forEach(([t, lat], i) => M.text(ctx, t, x0 + 20, y0 + 64 + i * 22, { size: 14, weight: 700, align: 'left', color: '#7a4a20', alpha: a * seg(s, lat, lat + 0.5) }));
     };
     card(40, 110, '✋', 'Hands', [['Stiff, swollen, or knobby joints', T4.hands + 0.7], ['Gripping gets harder', T4.grip]], T4.hands, x - 0.72 * sc, y + 0.16 * sc, -1);
     card(650, 220, '🚶', 'Hip', [['Walking may hurt in the groin', T4.hip + 1], ['or the side of the hip', T4.hip + 2.8]], T4.hip, x + 0.3 * sc, y + 0.22 * sc, 1);
@@ -287,7 +287,7 @@
     ctx.save(); ctx.globalAlpha *= a;
     for (let i = 0; i < 10; i++) M.dot(ctx, x + i * 14, y, 5, M.mix('#57c27a', '#e5484d', i / 9));
     ctx.restore();
-    M.text(ctx, 'Pressure: low → high', x + 64, y + 20, { size: 13, weight: 700, color: C.muted, alpha: a });
+    M.text(ctx, 'Pressure: low → high', x + 64, y + 20, { size: 14, weight: 700, color: C.muted, alpha: a });
   };
 
   // ---- Part 2: Why does arthritis hurt? -----------------------------------------------
@@ -373,7 +373,7 @@
       M.pill(ctx, t, ex + 10, src[1] + 22, { size: 14, bg: "#fff8db", border: "#e0a800", color: "#8a6a00", alpha: a, align: "left" });
     });
     M.text(ctx, 'Ouch!', brain[0] + 76, brain[1] - 30, { size: 20, weight: 800, color: '#c2410c', alpha: seg(s, TB4.brain, TB4.brain + 0.4) });
-    M.pill(ctx, 'Cartilage: no nerves', X, 500, { size: 13, bg: '#fff', border: '#c8d6ee', color: C.muted, alpha: seg(s, TB4.nerves, TB4.nerves + 0.5) });
+    M.pill(ctx, 'Cartilage: no nerves', X, 500, { size: 14, bg: '#fff', border: '#c8d6ee', color: C.muted, alpha: seg(s, TB4.nerves, TB4.nerves + 0.5) });
     M.wrap(ctx, "Pain isn't always explained by how much cartilage is missing", 760, 486, 320, { size: 15, weight: 800, color: '#1f4fa8', alpha: seg(s, TB4.why, TB4.why + 0.5) });
   }
 
@@ -420,7 +420,7 @@
       M.person(ctx, x + 290, 300, 52, { t: s + i, mood: seg(s, TB6.pain, TB6.pain + 0.5) > 0 ? mood : 1 });
       ctx.restore();
       M.text(ctx, name, x + 290, 140, { size: 16, weight: 800, alpha: a });
-      M.text(ctx, 'X-ray', x + 110, 378, { size: 13, weight: 700, color: C.muted, alpha: a });
+      M.text(ctx, 'X-ray', x + 110, 378, { size: 14, weight: 700, color: C.muted, alpha: a });
       const pa = seg(s, TB6.pain, TB6.pain + 0.5);
       meter(ctx, x + 30, 440, 330, pain * ease(seg(s, TB6.pain, TB6.pain + 1)), 'Pain', col, pa);
       M.text(ctx, word, x + 360, 424, { size: 14, weight: 800, color: col, align: 'right', alpha: pa });
@@ -536,7 +536,7 @@
     for (let i = 0; i < n; i++) {
       const x = 60 + i * 70, h = 30 + i * 30, a = seg(q * n, i, i + 0.6);
       M.rr(ctx, x, 470 - h, 66, h, 8); ctx.save(); ctx.globalAlpha *= 0.4 + 0.6 * a; ctx.fillStyle = M.mix('#cfe6d8', '#57c27a', i / (n - 1)); ctx.fill(); ctx.restore();
-      M.text(ctx, `Week ${i + 1}`, x + 33, 492, { size: 12, weight: 800, color: C.muted, alpha: seg(s, TC5.weeks, TC5.weeks + 0.5) });
+      M.text(ctx, `Week ${i + 1}`, x + 33, 492, { size: 14, weight: 800, color: C.muted, alpha: seg(s, TC5.weeks, TC5.weeks + 0.5) });
     }
     const pos = Math.min(n - 1, q * n), xi = Math.floor(pos), f = pos - xi;
     const rx = 93 + xi * 70 + f * 70, ground = 470 - (30 + xi * 30);
@@ -600,9 +600,9 @@
       // Three shorter videos, each around one question. length: seconds (scenes stretch to a
       // calmer pace); audio: recorded narration from tools/make-narration.py.
       videos: [
-        { title: 'What is osteoarthritis?', length: 86, audio: 'audio/osteoarthritis-a/', scenes: patientScenesA },
-        { title: 'Why does osteoarthritis hurt?', length: 88, audio: 'audio/osteoarthritis-b/', scenes: patientScenesB },
-        { title: 'How can you manage osteoarthritis?', length: 85, audio: 'audio/osteoarthritis-c/', scenes: patientScenesC },
+        { title: 'What is osteoarthritis?', length: 88, timing: 'audio', audio: 'audio/osteoarthritis-a/', scenes: patientScenesA },
+        { title: 'Why does osteoarthritis hurt?', length: 81, timing: 'audio', audio: 'audio/osteoarthritis-b/', scenes: patientScenesB },
+        { title: 'How can you manage osteoarthritis?', length: 73, timing: 'audio', audio: 'audio/osteoarthritis-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Osteoarthritis is one type of arthritis, and the most common. It can affect the small joints of the hands, the base of the thumb, the hips, the knees, and the spine.',
@@ -617,10 +617,9 @@
         'What can I do when my joint pain flares up?',
       ],
       redFlags: [
-        'A hot, red, swollen joint, especially with a fever',
-        'You cannot put weight on your leg',
-        'Sudden, severe swelling after an injury',
         'Pain that keeps getting worse, or wakes you up every night',
+        'A joint that suddenly swells, locks, or gives way',
+        'Morning stiffness that lasts more than an hour, or many swollen joints (this may be a different type of arthritis)',
       ],
       // Shown in a separate tap-to-open box on the patient page, not only inside the video.
       emergency: {
@@ -632,6 +631,11 @@
         ],
         action: 'Get medical care right away. For severe symptoms, call 911 or go to the emergency room.',
       },
+      // Related topics, shown under the quiz, to tell joint, tendon, muscle, back, and nerve pain apart.
+      related: [
+        { id: 'tendinopathy', why: 'Pain from a tendon near a joint, often with use, rather than from the joint itself.' },
+        { id: 'back-pain', why: 'Arthritis can also affect the small joints of the spine, one of several causes of back pain.' },
+      ],
       quiz: [
         { q: 'Which joints can osteoarthritis affect?', options: ['Only the knees', 'Many joints, like the hands, the base of the thumb, hips, knees, and spine', 'Only joints that were injured before'], answer: 1, explain: 'Osteoarthritis is one type of arthritis. It can affect many joints, and it changes the whole joint, not just the cartilage.' },
         { q: 'Where does osteoarthritis pain come from?', options: ['Only from the cartilage, which has many nerves', 'From the irritated joint lining, the bone underneath, and other tissues with nerves', 'From the skin'], answer: 1, explain: 'Cartilage has no nerves. The lining, bone, and tissues around the joint send the pain signals.' },

@@ -18,17 +18,19 @@
   const hump = (s, a, b, c, d) => seg(s, a, b) * (1 - seg(s, c, d)); // rises a..b, falls c..d
 
   // Nerve paths on a front-view person (M.person at x, y, size sc), in body units. Each path
-  // starts at the spinal cord and runs out to the body.
+  // starts at the spinal cord and runs out to the body. The cord ends in the upper low back
+  // (near L1-L2, just below the ribs); the leg nerves start there as roots that run down to the
+  // pelvis before heading into the legs.
   const PATHS = {
     armR: [[0, -1.1], [0.42, -1.06], [0.68, -0.85], [0.73, -0.4], [0.74, 0.08]],
     armL: [[0, -1.1], [-0.42, -1.06], [-0.68, -0.85], [-0.73, -0.4], [-0.74, 0.08]],
-    legR: [[0, 0.02], [0.18, 0.18], [0.27, 0.6], [0.28, 1.1], [0.3, 1.58]],
-    legL: [[0, 0.02], [-0.18, 0.18], [-0.27, 0.6], [-0.28, 1.1], [-0.3, 1.58]],
+    legR: [[0, -0.24], [0.03, 0.02], [0.18, 0.18], [0.27, 0.6], [0.28, 1.1], [0.3, 1.58]],
+    legL: [[0, -0.24], [-0.03, 0.02], [-0.18, 0.18], [-0.27, 0.6], [-0.28, 1.1], [-0.3, 1.58]],
     ribR1: [[0, -0.85], [0.3, -0.84], [0.5, -0.72]], ribL1: [[0, -0.85], [-0.3, -0.84], [-0.5, -0.72]],
     ribR2: [[0, -0.6], [0.3, -0.58], [0.5, -0.46]], ribL2: [[0, -0.6], [-0.3, -0.58], [-0.5, -0.46]],
     ribR3: [[0, -0.35], [0.28, -0.33], [0.46, -0.22]], ribL3: [[0, -0.35], [-0.28, -0.33], [-0.46, -0.22]],
   };
-  const CORD = [[0, -1.36], [0, 0.04]];
+  const CORD = [[0, -1.36], [0, -0.24]];
   const pts = (path, x, y, sc) => path.map(([u, v]) => [x + u * sc, y + v * sc]);
   function strokePath(ctx, P, w, col) {
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = col; ctx.lineWidth = w;
@@ -285,8 +287,9 @@
   // ---- Part 2: Why do nerves hurt? A carpal tunnel example ------------------------------
   // An overview of common nerve problems (different patterns, not the same diagnosis), a
   // comparison of a healthy nerve, a nerve squeezed in one spot, and widespread neuropathy,
-  // then carpal tunnel syndrome in detail: a real-life scenario, the tunnel's anatomy, rising
-  // pressure squeezing the median nerve, and where symptoms are felt.
+  // then carpal tunnel syndrome in detail: night-time tingling, the tunnel's anatomy, rising
+  // pressure squeezing the median nerve (wrist position can make it worse), and where symptoms
+  // are felt.
   const TEN = '#eef4fb', TEN_S = '#9fb6d6', LIG = '#c9d6e8', BONE = '#f4ead6', BONE_S = '#d8caae';
   // Cartoon palm-up hand (left hand seen from the palm, thumb on the right). k scales it.
   // med (0..1): the median nerve's area glows (thumb, index, middle, half the ring finger);
@@ -402,7 +405,7 @@
       if (a <= 0) return;
       M.card(ctx, cx - 135, cy - 34, 270, 68, { r: 14, alpha: a, border: '#f3c9a0' });
       M.text(ctx, t, cx, cy - 12, { size: 15, weight: 800, alpha: a });
-      M.text(ctx, d, cx, cy + 13, { size: 13, weight: 700, color: '#a3461f', alpha: a });
+      M.text(ctx, d, cx, cy + 13, { size: 14, weight: 700, color: '#a3461f', alpha: a });
     };
     card('Neck: pinched nerve', 'Pain or tingling down the arm', TN1.neck, 800, 130);
     card('Elbow: cubital tunnel', 'Ring and little fingers tingle', TN1.elbow, 160, 220);
@@ -432,43 +435,35 @@
     });
   }
 
-  // 3. A real-life scenario for carpal tunnel: hours of typing and phone use with bent wrists,
-  //    then waking at night with a tingling, numb hand and shaking it.
-  const TN3 = { closer: 1.2, hours: 3.8, typing: 4.2, phone: 5.7, bent: 6.7, night: 8, wake: 8.9, tingling: 9.6, shake: 12.1 };
-  function cubicleScene(ctx, p, s) {
-    M.text(ctx, 'A common story: carpal tunnel', 480, 44, { size: 28, weight: 800 });
-    const night = ease(seg(s, TN3.night - 0.5, TN3.night + 0.5));
-    // day: desk with laptop and phone, a clock spinning
-    ctx.save(); ctx.globalAlpha *= 1 - night;
-    M.person(ctx, 300, 330, 70, { t: s });
-    M.rr(ctx, 120, 330, 380, 18, 6); ctx.fillStyle = '#b08a64'; ctx.fill(); ctx.fillRect(140, 348, 12, 120); ctx.fillRect(468, 348, 12, 120);
-    M.emoji(ctx, '💻', 270, 306, 50); M.emoji(ctx, '📱', 360, 316, 28);
-    const cx = 520, cy = 140, ang = s * 3;
-    M.dot(ctx, cx, cy, 36, '#ffffff'); ctx.strokeStyle = '#4c6fa8'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(cx, cy, 36, 0, M.TAU); ctx.stroke();
-    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang) * 26, cy + Math.sin(ang) * 26); ctx.moveTo(cx, cy); ctx.lineTo(cx + Math.cos(ang / 12) * 16, cy + Math.sin(ang / 12) * 16); ctx.stroke();
-    M.pill(ctx, 'Hours of typing and scrolling', 300, 120, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: seg(s, TN3.hours, TN3.hours + 0.4) });
-    M.pill(ctx, 'Wrists bent', 300, 168, { size: 15, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TN3.bent, TN3.bent + 0.4) });
-    ctx.restore();
-    // night: lying in bed, waking with a tingling hand and shaking it
-    if (night > 0) {
-      ctx.save(); ctx.globalAlpha *= night;
-      ctx.fillStyle = '#2b3654'; ctx.fillRect(40, 80, 600, 430);
-      M.emoji(ctx, '🌙', 580, 130, 40);
-      M.rr(ctx, 90, 380, 460, 26, 10); ctx.fillStyle = '#c9b49a'; ctx.fill(); M.rr(ctx, 94, 366, 452, 18, 8); ctx.fillStyle = '#eef2f8'; ctx.fill();
-      const awake = seg(s, TN3.wake, TN3.wake + 0.6);
-      ctx.save(); ctx.translate(300, 330); ctx.rotate(-Math.PI / 2); M.person(ctx, 0, 0, 52, { t: s, mood: lerp(1, 0.45, awake) }); ctx.restore();
-      M.rr(ctx, 280, 300, 250, 60, 16); ctx.fillStyle = '#7d9bd1'; ctx.fill();
-      const shake = seg(s, TN3.shake, TN3.shake + 0.3) * Math.sin(s * 22) * 10, hx = 430 + shake, hy = 250;
-      M.emoji(ctx, '✋', hx, hy, 46, awake);
-      if (s > TN3.tingling) for (let i = 0; i < 5; i++) M.text(ctx, '✶', hx - 26 + (i % 3) * 22, hy - 34 + Math.floor(i / 3) * 56, { size: 16, color: '#f2c230', alpha: 0.5 + 0.5 * Math.sin(s * 7 + i) });
-      M.say(ctx, 'My hand\nfeels numb!', 220, 170, seg(s, TN3.tingling, TN3.tingling + 0.4), '#a3461f');
-      ctx.restore();
-    }
-    // the wrist, highlighted, with a lens hint
+  // 3. Carpal tunnel syndrome, starting with a common symptom: waking at night with tingling or
+  //    numb fingers. The median nerve's area of the hand lights up, then we zoom into the wrist.
+  const TN3 = { closer: 2.2, wake: 4.5, tingling: 5.5, numb: 6.4, fingers: 7.1, why: 8.3, inside: 9.7, wrist: 10.4 };
+  function nightTingle(ctx, p, s) {
+    M.text(ctx, 'Carpal tunnel syndrome', 480, 44, { size: 28, weight: 800 });
+    ctx.fillStyle = '#2b3654'; M.rr(ctx, 40, 80, 600, 430, 18); ctx.fill();
+    M.emoji(ctx, '🌙', 580, 130, 40);
+    for (let i = 0; i < 6; i++) M.dot(ctx, 90 + i * 85, 110 + (i % 3) * 30, 2, '#ffffff', 0.5 + 0.5 * Math.sin(s * 2 + i));
+    M.rr(ctx, 90, 380, 460, 26, 10); ctx.fillStyle = '#c9b49a'; ctx.fill(); M.rr(ctx, 94, 366, 452, 18, 8); ctx.fillStyle = '#eef2f8'; ctx.fill();
+    const awake = seg(s, TN3.wake, TN3.wake + 0.6);
+    ctx.save(); ctx.translate(300, 330); ctx.rotate(-Math.PI / 2); M.person(ctx, 0, 0, 52, { t: s, mood: lerp(1, 0.45, awake) }); ctx.restore();
+    M.rr(ctx, 280, 300, 250, 60, 16); ctx.fillStyle = '#7d9bd1'; ctx.fill();
+    if (awake < 1) M.text(ctx, 'z z z', 210, 250 - 10 * Math.sin(s * 2), { size: 20, weight: 800, color: '#c8d6ee', alpha: 1 - awake });
+    const shake = seg(s, TN3.numb, TN3.numb + 0.3) * (1 - seg(s, TN3.why, TN3.why + 0.4)) * Math.sin(s * 22) * 10, hx = 430 + shake, hy = 250;
+    M.emoji(ctx, '✋', hx, hy, 46, awake);
+    if (s > TN3.tingling) for (let i = 0; i < 5; i++) M.text(ctx, '✶', hx - 26 + (i % 3) * 22, hy - 34 + Math.floor(i / 3) * 56, { size: 16, color: '#f2c230', alpha: 0.5 + 0.5 * Math.sin(s * 7 + i) });
+    M.say(ctx, 'My fingers\nfeel numb!', 220, 170, seg(s, TN3.tingling, TN3.tingling + 0.4), '#a3461f');
+    // the hand up close: the median nerve's area tingles, then a lens on the wrist
     const ha = seg(s, TN3.closer, TN3.closer + 0.5);
     M.card(ctx, 670, 100, 260, 360, { r: 20, alpha: ha });
-    if (ha > 0) { ctx.save(); ctx.globalAlpha *= ha; hand(ctx, 800, 290, 0.95, s, { med: seg(s, TN3.tingling, TN3.tingling + 0.6), tingle: seg(s, TN3.tingling, TN3.tingling + 0.6) }); ctx.restore(); }
-    M.text(ctx, 'Wrist', 800, 440, { size: 15, weight: 800, color: C.muted, alpha: ha });
+    if (ha > 0) {
+      ctx.save(); ctx.globalAlpha *= ha;
+      hand(ctx, 800, 290, 0.95, s, { med: seg(s, TN3.fingers, TN3.fingers + 0.6), tingle: seg(s, TN3.tingling, TN3.tingling + 0.6) });
+      const z = ease(seg(s, TN3.inside, TN3.inside + 0.6));
+      if (z > 0) { ctx.save(); ctx.globalAlpha *= z; ctx.strokeStyle = M.C.blue; ctx.lineWidth = 4; ctx.setLineDash([7, 5]); ctx.beginPath(); ctx.arc(806, 395, 30 + 6 * z, 0, M.TAU); ctx.stroke(); ctx.restore(); }
+      ctx.restore();
+    }
+    M.text(ctx, 'Palm side', 800, 440, { size: 14, weight: 800, color: C.muted, alpha: ha * (1 - seg(s, TN3.inside, TN3.inside + 0.4)) });
+    M.pill(ctx, 'Look inside the wrist', 800, 486, { size: 15, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TN3.wrist - 0.3, TN3.wrist + 0.2) });
   }
 
   // 4. Inside the wrist: the carpal tunnel. Bones form the floor, the transverse carpal
@@ -490,19 +485,21 @@
     lab('Wrist bones (the floor)', 560, 490, 560, 395, TN4.bones, BONE_S, '#6b5e3e');
     lab('9 finger tendons', 850, 380, 650, 340, TN4.tendons, TEN_S, '#3a5a9a');
     lab('Median nerve', 860, 210, 600, 262, TN4.nerve, NERVE_D, '#8a6a00');
-    M.text(ctx, 'Palm side', 120, 470, { size: 13, weight: 800, color: C.muted });
+    M.text(ctx, 'Palm side', 120, 470, { size: 14, weight: 800, color: C.muted });
   }
 
-  // 5. Pressure builds: tendon linings swell or the wrist stays bent, pressure rises, the
-  //    median nerve is squeezed and signals don't travel as well. Many things can play a part.
-  const TN5 = { swell: 1.5, bent: 3.5, pressure: 5.4, room: 8.3, squeezed: 9.9, signals: 11.1, many: 13.1, items: [14.9, 16.1, 17.1, 18.3] };
+  // 5. Pressure builds: tendon linings swell, pressure rises, the median nerve is squeezed and
+  //    signals don't travel as well. A wrist kept bent (as in sleep) can raise the pressure more
+  //    and may make symptoms worse; it is one factor, not the single cause. Pregnancy, diabetes,
+  //    and arthritis can also play a part.
+  const TN5 = { swell: 1.8, pressure: 2.9, room: 5.6, squeezed: 7.7, signals: 8.8, bent: 11, other: 18.1, items: [18.7, 19.6, 20.8] };
   function pressureBuilds(ctx, p, s) {
     M.text(ctx, 'When pressure builds up', 480, 44, { size: 28, weight: 800 });
-    const sw = ease(seg(s, TN5.swell - 0.3, TN5.room + 0.5));
+    const sw = ease(seg(s, TN5.swell - 0.3, TN5.room + 0.5)), extra = ease(seg(s, TN5.bent + 0.4, TN5.bent + 1.6));
     carpalTunnel(ctx, 330, 270, 1.15, s, { swell: sw, sig: 1 });
-    S.phasePill(ctx, 330, 96, s, [[TN5.swell, 'Tissues around the tendons swell', '#c2410c'], [TN5.pressure, 'Pressure inside goes up', '#c2410c'], [TN5.squeezed, 'The median nerve gets squeezed']]);
+    S.phasePill(ctx, 330, 96, s, [[TN5.swell, 'Tissues around the tendons swell', '#c2410c'], [TN5.pressure, 'Pressure inside goes up', '#c2410c'], [TN5.squeezed, 'The median nerve gets squeezed'], [TN5.bent, 'A bent wrist can raise it more', '#c2410c']]);
     // pressure gauge
-    const v = lerp(0.2, 0.9, sw);
+    const v = lerp(0.2, 0.82, sw) + 0.14 * extra;
     M.text(ctx, 'Pressure in the tunnel', 330, 440, { size: 14, weight: 800, color: C.muted });
     ctx.save(); M.rr(ctx, 170, 456, 320, 14, 7); ctx.fillStyle = '#e3e9f2'; ctx.fill(); M.rr(ctx, 170, 456, 320 * v, 14, 7); ctx.fillStyle = M.mix('#f2b705', '#e5484d', v); ctx.fill(); ctx.restore();
     // signals through the squeezed nerve
@@ -510,12 +507,23 @@
     M.text(ctx, 'Signals in the nerve', 785, 126, { size: 14, weight: 800, color: C.muted });
     nerveStrip(ctx, 670, 190, 230, s, 'pinch', ease(seg(s, TN5.squeezed, TN5.signals + 0.6)));
     M.text(ctx, "Don't travel as well", 785, 232, { size: 14, weight: 800, color: '#a3261f', alpha: seg(s, TN5.signals, TN5.signals + 0.5) });
-    M.card(ctx, 640, 270, 290, 230, { r: 18, alpha: seg(s, TN5.many - 0.3, TN5.many + 0.2) });
-    M.text(ctx, 'Many things can play a part', 785, 298, { size: 15, weight: 800, alpha: seg(s, TN5.many, TN5.many + 0.4) });
-    [['🖐️', 'Repeated hand use'], ['🤰', 'Pregnancy'], ['🩸', 'Diabetes'], ['🦴', 'Arthritis']].forEach(([ic, t], i) => {
-      const a = seg(s, TN5.items[i], TN5.items[i] + 0.4);
-      M.emoji(ctx, ic, 680, 340 + i * 42, 24, a); M.text(ctx, t, 706, 340 + i * 42, { size: 15, weight: 800, align: 'left', alpha: a });
-    });
+    // wrist position may make symptoms worse; other things can also play a part
+    const ba = seg(s, TN5.bent - 0.3, TN5.bent + 0.2);
+    M.card(ctx, 640, 270, 290, 240, { r: 18, alpha: ba });
+    if (ba > 0) {
+      ctx.save(); ctx.globalAlpha *= ba;
+      M.text(ctx, 'May make it worse', 785, 296, { size: 15, weight: 800, color: '#a3461f' });
+      wristSide(ctx, 720, 336, 0.3, s, 0.75); M.emoji(ctx, '🌙', 668, 312, 18);
+      M.text(ctx, 'Wrist bent', 850, 328, { size: 14, weight: 800 });
+      M.text(ctx, 'for a long time', 850, 348, { size: 14, weight: 800 });
+      const oa = seg(s, TN5.other, TN5.other + 0.4);
+      M.text(ctx, 'Can also play a part', 785, 394, { size: 15, weight: 800, alpha: oa });
+      [['🤰', 'Pregnancy'], ['🩸', 'Diabetes'], ['🦴', 'Arthritis']].forEach(([ic, t], i) => {
+        const a = seg(s, TN5.items[i], TN5.items[i] + 0.4);
+        M.emoji(ctx, ic, 700, 426 + i * 26, 20, a); M.text(ctx, t, 722, 426 + i * 26, { size: 14, weight: 800, align: 'left', alpha: a });
+      });
+      ctx.restore();
+    }
   }
 
   // 6. Where you feel it: thumb, index, middle, and part of the ring finger (not the little
@@ -662,7 +670,7 @@
       const bx = 80, bw = 340, by = 210;
       M.rr(ctx, bx, by - 9, bw, 18, 9); ctx.fillStyle = '#e3e9f2'; ctx.fill();
       M.rr(ctx, bx + bw * 0.35, by - 9, bw * 0.3, 18, 9); ctx.fillStyle = 'rgba(63,179,122,0.55)'; ctx.fill();
-      M.text(ctx, 'Healthy range', bx + bw * 0.5, by + 30, { size: 13, weight: 800, color: '#1d7a4c', alpha: seg(s, TN34.range, TN34.range + 0.4) });
+      M.text(ctx, 'Healthy range', bx + bw * 0.5, by + 30, { size: 14, weight: 800, color: '#1d7a4c', alpha: seg(s, TN34.range, TN34.range + 0.4) });
       const mv = ease(seg(s, TN34.range - 0.4, TN34.range + 0.8)), mx = bx + bw * lerp(0.88, 0.5, mv);
       M.dot(ctx, mx, by, 13, M.mix('#e5484d', '#3fb37a', mv)); M.dot(ctx, mx, by, 5, '#fff');
       const lim = seg(s, TN34.limit, TN34.limit + 0.5);
@@ -718,7 +726,7 @@
         i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
       }
       ctx.stroke();
-      M.text(ctx, 'Tests check how well the nerve works', 305, 450, { size: 13, weight: 800, color: C.muted });
+      M.text(ctx, 'Tests check how well the nerve works', 305, 450, { size: 14, weight: 800, color: C.muted });
       ctx.restore();
     }
     const sa = seg(s, TN35.surgery - 0.4, TN35.surgery + 0.2);
@@ -761,7 +769,7 @@
       [['Now', 1, TN36.improve], ['Weeks', 0.5, TN36.weeks], ['Months', 0.15, TN36.months]].forEach(([t, tg, at], i) => {
         const a = seg(s, at, at + 0.4), hx = 120 + i * 175;
         ctx.save(); ctx.globalAlpha *= a; hand(ctx, hx, 440, 0.2, s, { med: tg, tingle: tg }); ctx.restore();
-        M.text(ctx, t, hx, 498, { size: 13, weight: 800, color: C.muted, alpha: a });
+        M.text(ctx, t, hx, 498, { size: 14, weight: 800, color: C.muted, alpha: a });
       });
       ctx.restore();
     }
@@ -782,9 +790,9 @@
   const patientScenesB = [
     { label: 'Common nerve pain', caption: "Nerve pain can show up in different parts of the body. A pinched nerve in the neck can send pain or tingling down the arm. At the elbow, a squeezed nerve can make the ring and little fingers tingle. At the wrist, carpal tunnel syndrome affects the thumb side of the hand. In the lower back, sciatica can send pain down the leg. And peripheral neuropathy can cause burning or numbness in the feet.", draw: commonNerve },
     { label: 'Not all the same', caption: "These problems are not all the same. A healthy nerve carries clear signals. When a nerve is squeezed in one spot, symptoms show up in the area that nerve serves. With peripheral neuropathy, many nerves are damaged, often starting at the far ends, in the feet.", draw: compareNerves },
-    { label: 'A common story', caption: "Let's look closer at carpal tunnel syndrome. Imagine spending hours typing or scrolling on your phone with your wrists bent. Later that night, you wake up with a tingling, numb hand, and you shake it to wake it up.", draw: cubicleScene },
+    { label: 'Waking with tingling fingers', caption: "Let's look at a common nerve problem called carpal tunnel syndrome. Some people wake up at night with tingling or numbness in their fingers. To understand why, let's look inside the wrist.", draw: nightTingle },
     { label: 'Inside the carpal tunnel', caption: "Inside your wrist is a narrow tunnel. The wrist bones form the floor, and a strong band called the transverse carpal ligament forms the roof. Nine tendons that bend your fingers pass through it, along with the median nerve.", draw: insideTunnel },
-    { label: 'When pressure builds up', caption: "If the tissues around the tendons swell, or the wrist stays bent for a long time, the pressure inside the tunnel goes up. With less room, the median nerve gets squeezed, and its signals don't travel as well. Many things can play a part, like repeated hand use, pregnancy, diabetes, or arthritis.", draw: pressureBuilds },
+    { label: 'When pressure builds up', caption: "If the tissues around the tendons swell, the pressure inside the tunnel goes up. With less room, the median nerve gets squeezed, and its signals don't travel as well. Keeping the wrist bent for a long time, like during sleep, can raise the pressure more and may make symptoms worse. Things like pregnancy, diabetes, and arthritis can also play a part.", draw: pressureBuilds },
     { label: 'Where you may feel it', caption: "The median nerve carries feeling from the thumb, index, middle, and part of the ring finger. That's where you may feel tingling, numbness, or burning. The little finger is usually fine. Symptoms are often worse at night, and over time your grip may get weaker. Next, let's see how carpal tunnel can get better.", draw: whereFeel },
   ];
 
@@ -807,9 +815,9 @@
       // Part 1 explains nerves; Part 2 compares common nerve problems and looks closely at carpal
       // tunnel syndrome; Part 3 shows how nerve pain can improve, depending on the cause.
       videos: [
-        { title: 'How do nerves work?', length: 80, audio: 'audio/nerve-pain-a/', scenes: patientScenesA },
-        { title: 'Why do nerves hurt? Carpal tunnel', length: 112, audio: 'audio/nerve-pain-b/', scenes: patientScenesB },
-        { title: 'How can nerve pain improve?', length: 98, audio: 'audio/nerve-pain-c/', scenes: patientScenesC },
+        { title: 'How do nerves work?', length: 83, timing: 'audio', audio: 'audio/nerve-pain-a/', scenes: patientScenesA },
+        { title: 'Why do nerves hurt? Carpal tunnel', length: 121, timing: 'audio', audio: 'audio/nerve-pain-b/', scenes: patientScenesB },
+        { title: 'How can nerve pain improve?', length: 107, timing: 'audio', audio: 'audio/nerve-pain-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your brain and spinal cord are the control center. Nerves branch out to every part of your body.',
@@ -842,6 +850,11 @@
         ],
         action: 'Call 911 or go to the nearest emergency room.',
       },
+      // Related topics, shown under the quiz, to tell joint, tendon, muscle, back, and nerve pain apart.
+      related: [
+        { id: 'back-pain', why: 'Sciatica and spinal stenosis: how nerve roots in the low back can be irritated.' },
+        { id: 'muscle-pain', why: 'Muscle pain often feels sore or tight, rather than tingling, burning, or numb.' },
+      ],
       quiz: [
         { q: 'What do sensory nerves do?', options: ['They carry feelings like touch and warmth to the brain', 'They make your heart beat', 'They grow your bones'], answer: 0, explain: 'Sensory nerves send messages from your body to your spinal cord and brain, so you can feel.' },
         { q: 'How does your hand move when you decide to wave?', options: ['The muscle moves on its own', 'The brain sends a signal down the spinal cord and through a nerve to the muscle', 'The skin pushes the hand'], answer: 1, explain: 'Motor nerves carry signals from the brain to muscles. The muscles tighten, and the hand moves.' },
@@ -849,6 +862,7 @@
         { q: 'Which fingers usually tingle with carpal tunnel syndrome?', options: ['Only the little finger', 'The thumb, index, middle, and part of the ring finger', 'All fingers and toes'], answer: 1, explain: 'Those fingers get their feeling from the median nerve. The little finger is usually fine.' },
         { q: 'How can a wrist splint help carpal tunnel syndrome?', options: ['It keeps the wrist straight at night, giving the nerve more room', 'It makes the nerve grow longer', 'It stops all nerve signals'], answer: 0, explain: 'A straight, neutral wrist leaves more room in the tunnel, which may ease symptoms for some people.' },
         { q: 'After pressure on a nerve is reduced, how fast does it get better?', options: ['Always overnight', 'Often over weeks to months, and some nerves may not recover fully', 'It never gets better'], answer: 1, explain: 'Nerves recover slowly. Follow-up visits help track how you are doing.' },
+        { q: 'Is all nerve pain caused by a squeezed nerve?', options: ['Yes, always', 'No, nerves can also be harmed by conditions like diabetes, or by an injury', 'Nerves cannot cause pain'], answer: 1, explain: 'A squeezed nerve, like in carpal tunnel, is one cause. Peripheral neuropathy, often from diabetes, affects many nerves in a different way.' },
         { q: 'What can happen when a nerve is injured or squeezed?', options: ['Signals can get mixed up, causing tingling, numbness, burning, or weakness', 'Nothing ever changes', 'You get taller'], answer: 0, explain: 'Hurt nerves may send the wrong signals or not enough signals.' },
       ],
     },

@@ -1,6 +1,9 @@
 // Timeline player: turns a scene script into a scrubbable, narrated canvas animation.
 // Script shape: { title, length?, audio?, scenes: [{ label, caption, dur?, draw(ctx, p, s) }] }
 //   length: optional target running time in seconds; scenes stretch evenly to reach it.
+//   timing: 'audio' fits each scene to its recorded English clip instead (clip length plus a
+//     short visual finish, or the scene's own dur if longer); length is then only a fallback
+//     for when the clip lengths are unknown.
 //   audio: optional folder of pre-recorded narration, one file per scene (<folder><n>.mp3).
 //     It plays instead of the browser voice; if a file is missing, the browser voice takes over.
 //   p = 0..1 progress through the scene, s = seconds since the scene started.
@@ -10,6 +13,7 @@
   const tr = (s) => (window.I18N ? I18N.tr(s) : s);
   const LANG = window.I18N ? I18N.lang : 'en';
   const CAP_H = 96; // caption band added under the picture in downloaded videos
+  const TAIL = 1.5; // seconds of picture after a recorded clip ends, with timing: 'audio'
 
   // Scene length is at least long enough for the narration to finish.
   function sceneLength(sc) {
@@ -155,14 +159,15 @@
     this.pause();
     this.script = script;
     let start = 0;
-    const base = script.scenes.map(sceneLength), sum = base.reduce((a, b) => a + b, 0);
-    const stretch = script.length > sum ? script.length / sum : 1;
+    const DUR = window.AUDIO_DUR || {}, enClip = (i) => script.audio && DUR[`${script.audio}${i + 1}.mp3`];
+    const fit = script.timing === 'audio' && script.scenes.every((sc, i) => enClip(i));
+    const base = script.scenes.map((sc, i) => (fit ? Math.max(sc.dur || 0, enClip(i) + TAIL) : sceneLength(sc)));
+    const sum = base.reduce((a, b) => a + b, 0), stretch = !fit && script.length > sum ? script.length / sum : 1;
     // Other languages play their own recordings (audio/<id>-zh/ ...). Scene timing is written for
     // the English narration, so each scene's clock is scaled by English / translated clip length
     // (rs) to keep the animation in step with the translated voice. ?v= changes whenever a caption
     // changes, so browsers never replay an old cached recording.
     const folder = script.audio && (LANG === 'en' ? script.audio : script.audio.replace(/\/?$/, `-${LANG}/`));
-    const DUR = window.AUDIO_DUR || {};
     this.scenes = script.scenes.map((sc, i) => {
       const caption = tr(sc.caption || ''), n = `${i + 1}.mp3`;
       const en = script.audio && DUR[script.audio + n], other = folder && DUR[folder + n];

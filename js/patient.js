@@ -54,7 +54,7 @@
       `<button type="button" data-k="${i}" class="${i === k ? 'active' : ''}"><span>${tr('Part ' + (i + 1))}</span>${tr(x.title)}</button>`).join('');
     tabs.querySelectorAll('button').forEach((b) => { b.onclick = () => loadVideo(d, +b.dataset.k); });
     history.replaceState(null, '', '#' + d.id + (k ? '/' + (k + 1) : ''));
-    player.load({ title: vids.length > 1 ? `${tr('Part ' + (k + 1))}: ${tr(v.title)}` : tr(d.name), length: v.length, audio: v.audio, scenes: v.scenes });
+    player.load({ title: vids.length > 1 ? `${tr('Part ' + (k + 1))}: ${tr(v.title)}` : tr(d.name), length: v.length, timing: v.timing, audio: v.audio, scenes: v.scenes });
   }
 
   function renderQuiz(quiz) {
@@ -113,6 +113,14 @@
       $('d-emergency-action').textContent = tr(em.action || '');
     }
     renderQuiz(d.patient.quiz);
+    // Related topics: short links to nearby conditions, each with a line on how it differs.
+    const rel = (d.patient.related || []).filter((r) => MedData.get(r.id));
+    $('related').hidden = !rel.length;
+    $('d-related').innerHTML = rel.map((r) =>
+      `<li><a href="#${r.id}" data-id="${r.id}">${tr(MedData.get(r.id).name)}</a><span>${tr(r.why)}</span></li>`).join('');
+    $('d-related').querySelectorAll('a').forEach((a) => {
+      a.onclick = (e) => { e.preventDefault(); show(MedData.entries().find((x) => x.id === a.dataset.id)); };
+    });
     loadVideo(d, part);
     $('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
