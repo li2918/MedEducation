@@ -287,3 +287,10 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
 .cb-area h3 { margin: 0 0 6px; font-size: 0.82em; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
 .cb-area .chips { margin-top: 0; }
 .chip.spec { border-style: dashed; }
+
+/* Patient | Provider switch in the header */
+.role-switch { display: inline-flex; background: #eef2f8; border: 1px solid var(--line); border-radius: 999px; padding: 3px; }
+.role-switch a { padding: 6px 16px; border-radius: 999px; font-weight: 700; color: var(--muted); text-decoration: none; }
+.role-switch a:hover { color: var(--ink); }
+.role-switch a[aria-current="page"] { background: #fff; color: var(--blue-dark); box-shadow: 0 1px 4px rgba(30, 50, 80, 0.15); }
+.role-switch.pro a[aria-current="page"] { color: var(--pro); }
