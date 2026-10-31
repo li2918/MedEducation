@@ -168,6 +168,148 @@
     ];
   });
 
+  // ==================================================================== GLP-1 RECEPTOR AGONISTS
+  // One medicine, several organs: the same patient eats a meal; the medicine reaches the
+  // pancreas, brain, and stomach by separate routes (not one chain); each organ's effect is shown
+  // in place; then the camera returns to the patient for glucose and appetite outcomes over time.
+  def('glp1-ra', (cls) => {
+    const th = B().themeOf(cls, { organ: 'pancreas' });
+    const P = { pancreas: '#14a38b', brain: '#2f6fde', stomach: '#f2a531' };   // pathway colours
+    const mouth = [270, 300 - 1.55 * 108];
+    const gutPath = () => [mouth, [272, 300 - 1.0 * 108], at('stomach'), [at('stomach')[0] - 10, at('stomach')[1] + 30], at('gut')];
+    // The patient at a table; the fork travels between plate and mouth. food: plate fullness.
+    const meal = (ctx, s, food, eating, mood = 0.75) => {
+      M.person(ctx, 270, 300, 108, { t: s, mood });
+      ctx.fillStyle = '#c8a27a'; M.rr(ctx, 110, 330, 330, 18, 6); ctx.fill(); ctx.fillRect(130, 348, 12, 130); ctx.fillRect(408, 348, 12, 130);
+      M.dot(ctx, 330, 322, 30, '#ffffff'); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(330, 322, 30, 0, M.TAU); ctx.stroke();
+      for (let i = 0; i < Math.round(6 * food); i++) M.dot(ctx, 316 + (i % 3) * 14, 316 + Math.floor(i / 3) * 10, 6, ['#e8a33c', '#7fbf5a', '#c96f4a'][i % 3]);
+      if (eating) { const u = 0.5 - 0.5 * Math.cos(s * 2.2), fx = lerp(326, mouth[0] + 12, u), fy = lerp(316, mouth[1] + 10, u); ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 22, fy + 18); ctx.stroke(); if (u < 0.9) M.dot(ctx, fx, fy, 4, '#e8a33c'); }
+    };
+    const paths = (ctx, s, a) => {
+      const h = at('heart');
+      [['pancreas', at('pancreas')], ['brain', [at('brain')[0], at('brain')[1] + 30]], ['stomach', at('stomach')]].forEach(([k, to], i) => {
+        const aa = a[i]; if (aa <= 0) return;
+        const mid = [(h[0] + to[0]) / 2 + (i - 1) * 60, (h[1] + to[1]) / 2];
+        ctx.save(); ctx.globalAlpha *= aa; ctx.strokeStyle = P[k]; ctx.lineWidth = 3; ctx.setLineDash([7, 6]); ctx.lineDashOffset = -s * 30;
+        ctx.beginPath(); ctx.moveTo(...h); ctx.quadraticCurveTo(...mid, ...to); ctx.stroke(); ctx.restore();
+        flow(ctx, [h, mid, to], 2, s, 0.35, (x, y) => hex(ctx, x, y, 6, aa));
+      });
+    };
+    // Brain close-up: satiety signals arrive in the blood and along gut-to-brain nerves.
+    const brainClose = (ctx, s, sat) => {
+      M.brain(ctx, 400, 250, 190);
+      const hy = [430, 300];
+      const g = ctx.createRadialGradient(...hy, 0, ...hy, 60); g.addColorStop(0, `rgba(47,111,222,${0.2 + 0.5 * sat})`); g.addColorStop(1, 'rgba(47,111,222,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(...hy, 60, 0, M.TAU); ctx.fill();
+      M.text(ctx, 'Appetite centres (hypothalamus, brainstem)', 430, 390, { size: 13, weight: 800, color: '#1f4fa8' });
+      ctx.save(); ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(500, 520); ctx.quadraticCurveTo(560, 420, hy[0] + 30, hy[1] + 20); ctx.stroke(); ctx.restore();
+      M.text(ctx, 'Gut–brain nerve signals', 600, 470, { size: 12, align: 'left', weight: 700, color: '#a36b00' });
+      flow(ctx, [[500, 520], [560, 420], [hy[0] + 30, hy[1] + 20]], Math.round(1 + 4 * sat), s, 0.5, (x, y) => M.dot(ctx, x, y, 5, '#ffc83c'));
+      for (let i = 0; i < Math.round(1 + 4 * sat); i++) { const a = i * 1.3 + s * 1.5; M.dot(ctx, hy[0] + Math.cos(a) * 34, hy[1] + Math.sin(a) * 22, 4, P.brain); }
+    };
+    // Two stomachs: usual emptying and slower emptying with treatment (qualitative).
+    const emptying = (ctx, s, a) => {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a;
+      [[250, 'Usual', 1], [690, 'With treatment', 0.45]].forEach(([cx, t, rate]) => {
+        M.card(ctx, cx - 190, 90, 380, 380, { r: 18 });
+        M.text(ctx, t, cx, 120, { size: 16, weight: 800, color: rate < 1 ? '#1f4fa8' : C.ink });
+        M.stomach(ctx, cx, 270, 120);
+        ctx.strokeStyle = '#f2c7b8'; ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx - 102, 330); ctx.quadraticCurveTo(cx - 150, 400, cx - 60, 420); ctx.lineTo(cx + 120, 420); ctx.stroke();
+        M.text(ctx, 'Small intestine', cx + 40, 450, { size: 12, color: C.muted, weight: 700 });
+        for (let i = 0; i < 8; i++) M.dot(ctx, cx + 10 + (i % 4) * 16 - 20, 250 + Math.floor(i / 4) * 18 + Math.sin(s * 2 + i) * 2, 6, '#a77b4f');
+        flow(ctx, [[cx - 100, 330], [cx - 150, 400], [cx - 60, 420], [cx + 120, 420]], Math.round(2 + 4 * rate), s, 0.18 * rate + 0.05, (x, y) => M.dot(ctx, x, y, 5, '#a77b4f'));
+      });
+      ctx.restore();
+    };
+    const betaA = { type: 'receptor-agonist', cell: 'Pancreatic beta cell', outside: 'Blood: glucose is high after the meal', target: 'GLP-1 receptor',
+      ligand: { kind: 'hormone', color: '#2f6fde', label: 'Native GLP-1' }, baseline: 0.3, output: { kind: 'hormone', color: '#14a38b', label: 'Insulin' }, outX: 840,
+      chain: ['cAMP signaling ↑', 'Insulin granules released', 'Insulin ↑ when glucose is high'] };
+    return [
+      { label: 'After a meal', dur: 9, caption: 'After a meal, blood glucose rises. In type 2 diabetes, the body may not release enough insulin to control that rise effectively.',
+        simple: 'After you eat, sugar from food goes into your blood. With type 2 diabetes, your body may not make enough insulin to handle it.',
+        draw(ctx, p, s) {
+          const r = fade(p, 0.45, 0.75);
+          if (r < 1) { ctx.save(); ctx.globalAlpha *= 1 - r; meal(ctx, s, lerp(1, 0.7, fade(p, 0, 0.45)), true); ctx.restore(); }
+          if (r > 0) {
+            ctx.save(); ctx.globalAlpha *= r; B().body(ctx, th, lerp(0.35, 0.95, fade(p, 0.6, 1)), s); ctx.restore();
+            flow(ctx, gutPath(), 5, s, 0.3, (x, y) => M.dot(ctx, x, y, 5, '#a77b4f', r));
+          }
+          tag(ctx, 'After a meal', 740, 150, fade(p, 0.05, 0.2), 'key');
+          meter(ctx, 'Blood glucose', lerp(0.35, 0.95, fade(p, 0.6, 1)), 600, 230, fade(p, 0.55, 0.7));
+          tag(ctx, 'Blood glucose rises', 740, 330, fade(p, 0.7, 0.85));
+        } },
+      { label: 'One medicine, multiple organs', dur: 11, caption: 'GLP-1 receptor agonists act on several systems. Important effects involve the pancreas, the brain, and the stomach.',
+        simple: 'This medicine sends signals to several parts of your body: the pancreas, the brain, and the stomach.',
+        draw(ctx, p, s) {
+          ctx.save(); ctx.globalAlpha *= 0.6; B().body(ctx, th, 0.95, s); ctx.restore();
+          const seq = [fade(p, 0.15, 0.3), fade(p, 0.3, 0.45), fade(p, 0.45, 0.6)];
+          paths(ctx, s, seq);
+          ['pancreas', 'brain', 'stomach'].forEach((o, i) => {
+            if (seq[i] <= 0) return;
+            ctx.save(); ctx.globalAlpha *= seq[i]; xray(ctx, [o], o, s); ctx.restore();
+            const [ox, oy] = at(o), ly = [330, 150, 240][i];
+            ctx.save(); ctx.globalAlpha *= seq[i]; ctx.strokeStyle = P[o]; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(ox + 18, oy); ctx.lineTo(650, ly); ctx.stroke(); ctx.restore();
+            M.pill(ctx, o[0].toUpperCase() + o.slice(1), 720, ly, { size: 16, bg: '#fff', border: P[o], color: P[o], alpha: seq[i] });
+          });
+          tag(ctx, 'One medicine. Multiple effects.', 720, 440, fade(p, 0.65, 0.8), 'key');
+          M.text(ctx, 'Brain effects include gut–brain signals', 720, 470, { size: 12, color: C.muted, weight: 700, alpha: fade(p, 0.7, 0.85) });
+        } },
+      { label: 'Pancreas: insulin and glucagon', dur: 15, caption: 'In the pancreas, GLP-1 receptor activation helps beta cells release more insulin when glucose is elevated. It also helps reduce inappropriate glucagon secretion.',
+        simple: 'In the pancreas, the signal helps release more insulin when blood sugar is high, and less of a hormone that raises blood sugar.',
+        draw(ctx, p, s) {
+          const z = fade(p, 0, 0.22), toCell = fade(p, 0.4, 0.52);
+          if (toCell < 1) {
+            ctx.save(); ctx.globalAlpha *= 1 - toCell;
+            zoom(ctx, z, at('pancreas'), [330, 280], () => { B().body(ctx, th, 0.95, s); xray(ctx, ['pancreas'], 'pancreas', s); }, () => window.MedAssets.islet(ctx, s, { bound: 0, insulin: 0.45, glucagon: 0.7, betaLoss: 0.2 }));
+            ctx.restore();
+            if (z >= 1) tag(ctx, 'Pancreatic islet', 330, 470, 1 - toCell, 'key');
+          }
+          if (toCell > 0) {
+            ctx.save(); ctx.globalAlpha *= toCell;
+            MedAnim.organView(ctx, 'pancreas', 150, 280, 70, { t: s });
+            MedAnim.cellStage(ctx, p, s, betaA, fade(p, 0.52, 0.75));
+            ctx.restore();
+          }
+          const ia = fade(p, 0.8, 0.92);
+          if (ia > 0) {
+            M.card(ctx, 30, 380, 250, 140, { r: 14, alpha: ia });
+            ctx.save(); ctx.globalAlpha *= ia; cam(ctx, 330, 280, 0.32, 150, 445, () => window.MedAssets.islet(ctx, s, { bound: 1, insulin: 0.9, glucagon: lerp(0.7, 0.2, fade(p, 0.85, 1)), betaLoss: 0.2, drugColor: C.purple })); ctx.restore();
+            M.text(ctx, 'Glucagon ↓ (when glucose is high)', 155, 510, { size: 12, weight: 800, color: '#7a4ea8', alpha: ia });
+          }
+        } },
+      { label: 'Brain and stomach', dur: 14, caption: 'GLP-1 medicines also affect appetite regulation, helping many people feel full sooner and eat less. They can also slow stomach emptying, although this effect varies over time.',
+        simple: 'The medicine also helps you feel full sooner, so you may eat less. It can slow how fast food leaves your stomach.',
+        draw(ctx, p, s) {
+          const out = fade(p, 0, 0.12), brainZ = fade(p, 0.12, 0.3), full = fade(p, 0.45, 0.52) * (1 - fade(p, 0.58, 0.64)), stom = fade(p, 0.62, 0.72);
+          if (brainZ < 1 && p < 0.3) {
+            ctx.save(); ctx.globalAlpha *= out; zoom(ctx, brainZ, at('brain'), [400, 250], () => { B().body(ctx, th, 0.85, s); xray(ctx, ['brain', 'stomach'], 'brain', s); }, () => brainClose(ctx, s, 0.2)); ctx.restore();
+            if (out < 1) { ctx.save(); ctx.globalAlpha *= 1 - out; MedAnim.organView(ctx, 'pancreas', 150, 280, 70, { t: s }); ctx.restore(); }
+          } else if (p < 0.47) {
+            brainClose(ctx, s, fade(p, 0.3, 0.45));
+            tag(ctx, 'Satiety ↑', 780, 200, fade(p, 0.32, 0.4), 'good'); tag(ctx, 'Appetite ↓', 780, 250, fade(p, 0.36, 0.44), 'good');
+          }
+          if (full > 0) { ctx.save(); ctx.globalAlpha *= full; meal(ctx, s, 0.5, false, 1); M.say(ctx, 'I feel full', 380, 120, 1, '#1d7a4c'); ctx.restore(); }
+          emptying(ctx, s, stom);
+          tag(ctx, 'Gastric emptying may slow', 470, 500, fade(p, 0.75, 0.85), 'key');
+          M.text(ctx, 'varies by agent; often lessens over time', 470, 526, { size: 12, color: C.muted, weight: 700, alpha: fade(p, 0.8, 0.9) });
+        } },
+      { label: 'Whole-body result', dur: 14, caption: 'Together, these effects improve blood glucose control and can help reduce food intake and body weight over time. Certain medicines in this class also have proven heart or kidney benefits.',
+        simple: 'Together, this helps control blood sugar and can help you eat less and lose some weight over time. Some of these medicines also protect the heart or kidneys.',
+        draw(ctx, p, s) {
+          const lv = lerp(0.95, 0.45, fade(p, 0.1, 0.55));
+          B().body(ctx, th, lv, s);
+          xray(ctx, ['pancreas', 'brain', 'stomach'], null, s, 1 - fade(p, 0.4, 0.55));
+          meter(ctx, 'Blood glucose', lv, 600, 100, 1);
+          const wa = fade(p, 0.45, 0.6);
+          meter(ctx, 'Food intake and body weight (gradual, variable)', lerp(0.75, 0.5, fade(p, 0.55, 1)), 600, 190, wa);
+          timeChip(ctx, ['Days', 'Weeks', 'Months'], seg(p, 0.5, 0.95), 740, 300);
+          if (fade(p, 0.6, 0.75) > 0) { ctx.save(); ctx.globalAlpha *= fade(p, 0.6, 0.75); M.heart(ctx, 612, 370, 20); M.kidney(ctx, 648, 370, 18); ctx.restore(); M.text(ctx, 'Additional benefits with certain agents', 672, 370, { size: 13, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, 0.6, 0.75) }); }
+          tag(ctx, 'GI side effects are common', 740, 425, fade(p, 0.78, 0.9), 'warn');
+          [['Better glucose regulation', 0.2], ['Reduced appetite', 0.35], ['Potential weight reduction over time', 0.5]].forEach(([t, a], i) => M.text(ctx, '✓ ' + t, 600, 476 + i * 24, { size: 14, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, a + 0.3, a + 0.4) }));
+        } },
+    ];
+  });
+
   // ============================================================================ SGLT2 INHIBITORS
   def('sglt2-inhibitors', (cls) => {
     const th = B().themeOf(cls, { organ: 'kidney' }), K = [330, 280];
