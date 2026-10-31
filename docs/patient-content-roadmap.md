@@ -36,7 +36,7 @@ insulin, vessels, organs), the player, and the page layout.
 |---|---|---|
 | Adults | 31 | 11 modules (13 topics: sciatica and neuropathy open existing modules) |
 | Pediatrics | 27 | 0 |
-| Pregnancy & Postpartum | 26 | 0 |
+| Pregnancy & Postpartum | 33 | 0 |
 
 All available modules are marked *Draft · pending clinical review*.
 
@@ -65,6 +65,29 @@ concept.
    physiology modules are reused as background inside items 1 and 2.
 7. **Postpartum depression and anxiety**: listed under Postpartum Recovery, with crisis
    guidance. There is no separate mental-health portal.
+8. **Thyroid & Hormone Conditions** (category added; all *Coming soon*):
+   - *How pregnancy changes thyroid tests*: normal pregnancy changes (for example a lower
+     TSH in early pregnancy, pregnancy-specific ranges), kept clearly apart from disease.
+   - *Hypothyroidism in pregnancy*: hypothyroidism present before pregnancy, Hashimoto's
+     thyroiditis, and the higher thyroid hormone need during pregnancy.
+   - *Hyperthyroidism in pregnancy*: Graves' disease, effects of excess thyroid hormone,
+     and pregnancy-specific monitoring.
+   - *Gestational transient thyrotoxicosis*: hCG briefly stimulating the thyroid in early
+     pregnancy, and how it is told apart from Graves' disease.
+   - *Postpartum thyroiditis*: inflammation after birth with a possible high phase, a
+     possible low phase, or only one of them.
+   - Future: *thyroid nodules during pregnancy*; *thyroid function and the baby's
+     development*.
+
+   Animation plan for each: the mother's thyroid gland → making thyroid hormone →
+   what pregnancy changes (hCG, higher needs, test ranges) → effects on the mother →
+   the baby's development as context → why monitoring may be needed. Patient-friendly
+   cartoons; never the adult hypothyroidism or hyperthyroidism modules relabelled.
+   Clinical content must be reviewed against the current (2026) American Thyroid
+   Association guidance for thyroid disease in pregnancy and postpartum before release.
+   Search: broad test words ("low TSH pregnancy", "high TSH pregnancy") deliberately list
+   several thyroid topics, including the normal-changes topic, rather than pointing to one
+   diagnosis.
 
 ### Pediatrics
 

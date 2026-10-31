@@ -35,16 +35,8 @@
       result: 'Sugar rises less after eating. The effect is short, but blood sugar can still drop too low, especially if a meal is skipped.',
     },
   });
-  sb('tzds', {
-    route: 'pill', dest: 'blood', target: 'fat', time: ['Weeks', 'Months'], caution: 'Fluid buildup can strain the heart',
-    lines: {
-      take: 'This medicine is a pill taken once a day. It soaks into the blood and travels to fat tissue.',
-      travel: 'We zoom into fat tissue. Fat cells send signals that change how the whole body answers insulin.',
-      target: "Inside each fat cell's control center is a gene switch called PPAR-gamma.",
-      moa: 'The medicine flips this switch on. Fat is stored in safer places, and muscle and liver respond better to insulin.',
-      result: 'Over weeks, blood sugar slowly comes down. Some people hold on to extra fluid and gain weight, so the heart needs watching.',
-    },
-  });
+  // the TZD "same insulin, better response" story has its own pill scene, narration and fluid warning
+  sb('tzds', { route: 'pill', dest: 'blood', target: 'fat', time: ['Weeks', 'Months'], caution: 'Fluid buildup can strain the heart', opening: false });
   sb('alpha-glucosidase-inhibitors', {
     route: 'pill', routeLabel: 'A pill with the first bite', dest: 'local', target: 'gut', zoomName: 'small intestine', caution: 'Gas and bloating are common',
     lines: {
@@ -70,17 +62,8 @@
       'Blood sugar comes down, and some of these medicines also protect the heart and kidneys. Drinking enough fluid matters.',
     ],
   });
-  sb('insulin', {
-    route: 'shot', alt: 'Some insulin is breathed in', dest: 'blood', target: 'muscle', caution: 'Blood sugar can drop too low',
-    lines: {
-      take: 'Insulin is given as a small shot under the skin. From the fat under the skin, it slowly soaks into the blood.',
-      travel: 'It travels to muscle and fat cells all over the body, and to the liver.',
-      // insulin keeps its two hand-built scenes: insulin at the cell, then the action profiles
-      midLabels: ['Insulin at the cell', 'Fast and slow insulins'],
-      mid: ['Insulin is like a key. It fits a lock on muscle and fat cells, and sugar doors open so sugar can leave the blood. The liver also makes less new sugar.', 'Different insulins soak in at different speeds. Some work fast around meals, and some work slowly all day and night.'],
-      result: 'Blood sugar comes down. Too much insulin, or too little food, can make blood sugar drop too low.',
-    },
-  });
+  // the insulin "key" story has its own opening, injection scene, narration and low-sugar safety
+  sb('insulin', { route: 'shot', alt: 'Some insulin is breathed in', dest: 'blood', target: 'muscle', caution: 'Blood sugar can drop too low', opening: false });
   sb('amylin-analogs', {
     route: 'shot', routeLabel: 'A small shot before meals', dest: 'blood', target: 'brain', caution: 'Low blood sugar risk with insulin',
     lines: {
@@ -104,26 +87,10 @@
 
   // ------------------------------------------------------------------------- hypertension
   const HTN = 'With high blood pressure, blood pushes too hard on the artery walls.';
-  sb('ace-inhibitors', {
-    route: 'pill', dest: 'blood', target: 'vessel',
-    scenes: [
-      `${HTN} This medicine is a pill that soaks into the blood.`,
-      'The body has a pressure-control team that works through the blood vessels and the kidneys.',
-      'An enzyme called ACE makes a hormone, angiotensin two, that squeezes blood vessels tight.',
-      'The medicine slows ACE, so less of the squeezing hormone is made. Vessels relax, and the kidneys keep less salt.',
-      'Blood pressure comes down. Doctors check the kidneys and potassium. A dry cough can happen.',
-    ],
-  });
-  sb('arbs', {
-    route: 'pill', dest: 'blood', time: ['Days', 'Weeks'], caution: 'Doctors check kidneys and potassium',
-    lines: {
-      take: `${HTN} This medicine is a pill that soaks into the blood and travels to the arteries.`,
-      travel: 'We zoom into the wall of an artery. The muscle here can squeeze tight or relax.',
-      target: 'A hormone called angiotensin two fits into a receiver on the muscle and makes it squeeze.',
-      moa: 'The medicine covers this receiver, so the hormone cannot make the muscle squeeze. The artery relaxes.',
-      result: 'Arteries widen, the kidneys keep less salt, and blood pressure comes down over a few weeks.',
-    },
-  });
+  // ACE inhibitors and ARBs share one coordinated blood-pressure series with their own openings
+  // and narration (cinema.js: bpStory)
+  sb('ace-inhibitors', { route: 'pill', dest: 'blood', target: 'vessel', caution: 'Doctors check kidneys and potassium', opening: false });
+  sb('arbs', { route: 'pill', dest: 'blood', target: 'vessel', caution: 'Doctors check kidneys and potassium', opening: false });
   sb('ccbs', {
     route: 'pill', dest: 'blood', caution: 'Ankle swelling can happen',
     lines: {

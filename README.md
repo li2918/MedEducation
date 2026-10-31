@@ -55,18 +55,22 @@ Provider pharmacology is organized by medication class, not individual drug. A m
 
 ### Narration
 
-Patient videos play pre-recorded MP3 narration from `audio/<id>/<n>.mp3` (one file per scene) in a natural neural voice. If the files are missing, the player falls back to the browser's speech voices, which differ by device and can sound robotic. To create or refresh the audio after editing captions:
+Patient videos play pre-recorded MP3 narration from `audio/<id>/<n>.mp3` (one file per scene) in a natural neural voice. Provider pharmacology videos do the same from `audio/pharm/<class-id>/<n>.mp3`, recorded from each scene's spoken text (`say`, or the caption) and loudness-normalised. If the files are missing, the player falls back to the browser's speech voices, which differ by device and can sound robotic. To create or refresh the audio after editing captions:
 
 ```
-pip install edge-tts
-python tools/make-narration.py
+pip install edge-tts imageio-ffmpeg
+python tools/make-narration.py               # patient videos
+python tools/make-narration.py --pharm       # every medication class (needs Edge or Chrome)
+python tools/make-narration.py --pharm glp1-ra insulin   # only these classes
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261101d`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+Each pharmacology clip's words are fingerprinted in `js/audio-durations.js`. If a caption changes and the class is not re-recorded, the provider page notices and uses the browser voice for that class instead of playing outdated words.
+
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261101e`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
 
 **Languages:** the patient portal has English and Chinese (language picker in the top bar, or `?lang=zh`). Text is translated by its English source string in `js/i18n-zh.js`; Chinese narration lives in `audio/<id>-a-zh/` and so on. After changing captions or labels, add their translations to `js/i18n-zh.js`, then run `python tools/make-narration.py --lang zh` (this also refreshes `js/audio-durations.js`, which keeps translated narration in step with the animation).
 
-**Download video:** the `⬇ Video` button plays the video once in real time while recording it, then saves an MP4 (or WebM) with the narration and burned-in captions. Keep the tab visible while it records. The narration is only captured from the website (http/https), not from a page opened as a local file.
+**Download video:** the `⬇ Video` button draws every frame off screen and encodes a 1080p, 60 fps MP4 with burned-in captions and the recorded narration (WebCodecs plus the bundled Mediabunny library in `js/vendor/`, MPL-2.0). It does not need to play in real time, so frames are never dropped. Browsers without WebCodecs fall back to playing the video once while recording (keep the tab visible). Narration is only included on the website (http/https), not from a page opened as a local file, and only recorded narration can be included (browser voices cannot be captured).
 
 ### Adding a condition
 

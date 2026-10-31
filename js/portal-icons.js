@@ -2,7 +2,7 @@
 // a 72 × 72 box with soft shading so it reads as a real object or anatomy at card size:
 // people (adults, children, a pregnant woman in profile, a mother holding a newborn), organs
 // (heart, lungs, stomach, brain, kidney), a knee joint, a glucose meter, a thermometer, a
-// height chart, a placenta, a blood-pressure cuff, and a warning sign.
+// height chart, a placenta, a thyroid gland, a blood-pressure cuff, and a warning sign.
 (function () {
   const TAU = Math.PI * 2;
   const mix = (a, b, t) => M.mix(a, b, t);
@@ -285,6 +285,26 @@
     ctx.fillStyle = 'rgba(255,255,255,0.18)'; path(ctx, () => ctx.ellipse(24, 22, 9, 4, -0.5, 0, TAU)); ctx.fill();
     ctx.restore();
   }
+  // The thyroid: a butterfly-shaped gland wrapped around the front of the windpipe.
+  function thyroid(ctx) {
+    ctx.save(); ctx.lineCap = 'round';
+    // windpipe with cartilage rings, and the voice box above
+    ctx.fillStyle = lin(ctx, 29, 0, 43, 0, [[0, '#e9c9c4'], [0.5, '#f7e3df'], [1, '#e2bdb7']]);
+    M.rr(ctx, 29, 12, 14, 56, 6); ctx.fill();
+    ctx.strokeStyle = 'rgba(150,90,85,0.45)'; ctx.lineWidth = 1.4;
+    for (let y = 22; y < 66; y += 6) { path(ctx, () => { ctx.moveTo(30, y); ctx.quadraticCurveTo(36, y + 2.5, 42, y); }); ctx.stroke(); }
+    ctx.fillStyle = lin(ctx, 0, 4, 0, 20, [[0, '#f1d3ce'], [1, '#dcb2ab']]);
+    path(ctx, () => { ctx.moveTo(27, 6); ctx.lineTo(45, 6); ctx.lineTo(41, 20); ctx.lineTo(31, 20); ctx.closePath(); }); ctx.fill();
+    // the two lobes and the bridge between them
+    const lobe = (x, ang) => { ctx.save(); ctx.translate(x, 40); ctx.rotate(ang); path(ctx, () => ctx.ellipse(0, 0, 9.5, 17, 0, 0, TAU)); ctx.restore(); };
+    ctx.fillStyle = 'rgba(30,40,60,0.12)'; ctx.save(); ctx.translate(1.5, 2); lobe(24, -0.28); ctx.fill(); lobe(48, 0.28); ctx.fill(); ctx.restore();
+    const g = rad(ctx, 30, 32, 2, 36, 42, 26, [[0, '#f29a8f'], [0.65, '#d9605f'], [1, '#b8434a']]);
+    ctx.fillStyle = g; lobe(24, -0.28); ctx.fill(); lobe(48, 0.28); ctx.fill();
+    M.rr(ctx, 26, 39, 20, 10, 5); ctx.fill();
+    ctx.strokeStyle = '#9c3540'; ctx.lineWidth = 1.6; lobe(24, -0.28); ctx.stroke(); lobe(48, 0.28); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)'; path(ctx, () => ctx.ellipse(21, 32, 3, 6, -0.3, 0, TAU)); ctx.fill(); path(ctx, () => ctx.ellipse(45, 32, 3, 6, 0.3, 0, TAU)); ctx.fill();
+    ctx.restore();
+  }
   const bez = (a, b, c, d, t) => (1 - t) ** 3 * a + 3 * (1 - t) ** 2 * t * b + 3 * (1 - t) * t * t * c + t ** 3 * d;
   function bpCuff(ctx) {
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
@@ -320,7 +340,7 @@
     pediatrics: (ctx) => { figure(ctx, { x: 26, foot: 68, h: 44, age: 'kid', hairStyle: 'kid', top: '#ffd36b', bottomColor: '#5b8def' }); figure(ctx, { x: 49, foot: 68, h: 31, age: 'toddler', hairStyle: 'kid', hair: '#8a5a2b', skin: SKIN.b, top: '#7fd1a8', bottomColor: '#e0794a' }); },
     pregnancy: pregnantSide,
     postpartum: (ctx) => figure(ctx, { x: 36, foot: 68, h: 62, hairStyle: 'long', top: '#f19cba', bottom: 'dress', hold: 'baby' }),
-    heart, lungs, stomach, brain, kidney, bone: knee, glucose: meter, thermometer, growth, placenta, bp: bpCuff, warning,
+    heart, lungs, stomach, brain, kidney, bone: knee, glucose: meter, thermometer, growth, placenta, thyroid, bp: bpCuff, warning,
   };
   window.PortalIcons = { draw: (ctx, kind) => ICONS[kind] && ICONS[kind](ctx), has: (kind) => !!ICONS[kind] };
 })();

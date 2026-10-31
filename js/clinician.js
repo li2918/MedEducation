@@ -276,7 +276,10 @@
     markActive();
     if (changed || !pharmPlayer.scenes.length) {
       state.info = 'overview';
-      pharmPlayer.load({ title: cls.name, scenes: MedAnim.scenesFor(cls) });
+      // recorded narration (audio/pharm/<id>/) when it matches the current words; each scene is
+      // then fitted to its clip
+      const scenes = MedAnim.scenesFor(cls), folder = `audio/pharm/${cls.id}/`, rec = Player.hasRecording(folder, scenes);
+      pharmPlayer.load({ title: cls.name, scenes, audio: rec ? folder : undefined, timing: rec ? 'audio' : undefined });
       renderHeader(); renderInfo();
     }
     setHash(`#pharm/${cls.id}`, push);

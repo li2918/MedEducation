@@ -448,7 +448,7 @@ I18N.add('zh', {
   "Don't travel as well": "传得没那么顺畅",
   "Don't wait": "不要等",
   "Download video": "下载视频",
-  "Download video (plays through once while recording)": "下载视频（录制时会完整播放一遍）",
+  "Exporting": "正在导出",
   "Draft · pending clinical review": "草稿 · 待临床审核",
   "During a flare": "发作期间",
   "During a flare, warmth, short rest breaks, and the treatment plan from your care team can ease your symptoms, so you can keep moving.": "症状发作时，热敷、短暂休息，以及医疗团队给你的治疗计划，都能缓解症状，让你可以继续活动。",

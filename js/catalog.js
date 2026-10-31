@@ -5,8 +5,9 @@
 // reviewed-for-that-population content (contentId, a MedData id); everything else is listed
 // as Coming soon. Content status and clinical review status are tracked separately.
 //
-// Topic: { id, concept, population, category, name, desc, aliases, ages (pediatrics:
-//   'infant' | 'child' | 'teen'), contentId (MedData id or null), part (video part to open),
+// Topic: { id, concept, population, category, name, desc, aliases, covers (what a coming-soon
+//   module will explain), ages (pediatrics: 'infant' | 'child' | 'teen'), contentId (MedData
+//   id or null), part (video part to open),
 //   contentStatus: 'available' | 'coming-soon', clinicalReviewStatus: 'pending' | 'reviewed' }
 // Existing adult module ids (t2d, htn, asthma, ...) are kept as the adult topic ids, so old
 // links such as patient.html#t2d and #asthma/3 keep working. The provider portal does not use
@@ -38,6 +39,7 @@
     ],
     pregnancy: [
       { id: 'diabetes', name: 'Diabetes in Pregnancy', icon: 'glucose' },
+      { id: 'thyroid', name: 'Thyroid & Hormone Conditions', icon: 'thyroid' },
       { id: 'blood-pressure', name: 'Blood Pressure Disorders', icon: 'bp' },
       { id: 'common', name: 'Common Pregnancy Conditions', icon: 'stomach' },
       { id: 'physiology', name: 'Pregnancy Physiology', icon: 'placenta' },
@@ -161,6 +163,24 @@
     ['pregnancy-gestational-diabetes', 'diabetes', 'Gestational diabetes', 'High blood sugar that first develops during pregnancy', ['gdm', 'pregnancy diabetes', 'sugar in pregnancy', 'glucose test']],
     ['pregnancy-preexisting-type1-diabetes', 'diabetes', 'Type 1 diabetes in pregnancy', 'Type 1 diabetes that was present before pregnancy', ['type 1 diabetes', 'pre existing diabetes', 'preexisting diabetes', 't1d']],
     ['pregnancy-preexisting-type2-diabetes', 'diabetes', 'Type 2 diabetes in pregnancy', 'Type 2 diabetes that was present before pregnancy', ['type 2 diabetes', 'pre existing diabetes', 'preexisting diabetes', 't2d']],
+  ]);
+  // Thyroid modules are pregnancy-specific (pregnancy changes thyroid hormone needs and test
+  // ranges); the adult hypothyroidism and hyperthyroidism topics are never shown in their place.
+  // Broad test words (high / low TSH) match several topics on purpose: a search result is a
+  // list to learn from, never a diagnosis. covers: what the module will explain.
+  add('pregnancy', 'thyroid', [
+    ['pregnancy-thyroid-tests', 'thyroid-physiology', 'How pregnancy changes thyroid tests', 'Normal changes in thyroid blood tests during pregnancy, and how they differ from thyroid disease', ['thyroid in pregnancy', 'thyroid test', 'thyroid blood test', 'thyroid levels', 'tsh', 'high tsh', 'low tsh', 'free t4', 'thyroid'],
+      { covers: ['Why thyroid test results can look different in pregnancy, especially early on', 'Why pregnancy has its own normal ranges', 'When a result may need more checking'] }],
+    ['pregnancy-hypothyroidism', 'hypothyroidism', 'Hypothyroidism in pregnancy', 'An underactive thyroid during pregnancy, including thyroid conditions that started before pregnancy', ['hypothyroidism', 'hypothyroid', 'underactive thyroid', 'low thyroid', 'hashimoto', 'hashimotos', 'hashimotos thyroiditis', 'high tsh', 'thyroid in pregnancy', 'thyroid'],
+      { covers: ['Hypothyroidism that started before pregnancy', "Hashimoto's thyroiditis", 'Why the body often needs more thyroid hormone during pregnancy'] }],
+    ['pregnancy-hyperthyroidism', 'hyperthyroidism', 'Hyperthyroidism in pregnancy', "An overactive thyroid during pregnancy, most often from Graves' disease", ['hyperthyroidism', 'hyperthyroid', 'overactive thyroid', 'high thyroid', 'graves', 'graves disease', 'low tsh', 'thyroid in pregnancy', 'thyroid'],
+      { covers: ["Graves' disease", 'What too much thyroid hormone does in the body', 'Extra check-ups that may be needed during pregnancy'] }],
+    ['pregnancy-gestational-thyrotoxicosis', 'gestational-thyrotoxicosis', 'Gestational transient thyrotoxicosis', 'A short-lived rise in thyroid hormone in early pregnancy, linked to the pregnancy hormone hCG', ['gtt', 'transient thyrotoxicosis', 'gestational thyrotoxicosis', 'hcg', 'hcg thyroid', 'high thyroid', 'low tsh', 'thyroid in pregnancy', 'thyroid'],
+      { covers: ['How the pregnancy hormone hCG can briefly stimulate the thyroid', 'Why it is most common in early pregnancy', "How it differs from Graves' disease"] }],
+    ['pregnancy-postpartum-thyroiditis', 'postpartum-thyroiditis', 'Postpartum thyroiditis', 'Inflammation of the thyroid in the months after birth', ['postpartum thyroiditis', 'thyroid after delivery', 'thyroid after birth', 'thyroid after pregnancy', 'thyroid breastfeeding', 'breastfeeding', 'high tsh', 'low tsh', 'thyroid'],
+      { covers: ['Thyroid inflammation after childbirth', 'A possible phase with too much thyroid hormone', 'A possible phase with too little thyroid hormone', 'Some people have only one of these phases'] }],
+    ['pregnancy-thyroid-nodules', 'thyroid-nodules', 'Thyroid nodules during pregnancy', 'A lump in the thyroid found during pregnancy', ['thyroid nodule', 'thyroid lump', 'neck lump', 'thyroid in pregnancy', 'thyroid']],
+    ['pregnancy-thyroid-baby', 'fetal-development', "Thyroid function and the baby's development", "How the mother's thyroid hormone supports the growing baby", ['thyroid baby', 'baby thyroid', 'fetal thyroid', 'baby brain', 'thyroid in pregnancy', 'thyroid']],
   ]);
   add('pregnancy', 'blood-pressure', [
     ['pregnancy-chronic-hypertension', 'hypertension', 'Chronic hypertension in pregnancy', 'High blood pressure that started before pregnancy or before 20 weeks', ['high blood pressure', 'hypertension', 'blood pressure']],

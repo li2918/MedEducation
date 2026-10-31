@@ -403,6 +403,8 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
 .badge.pop { background: #e8f0fd; color: var(--blue-dark); }
 .soon-meta { font-weight: 700; color: var(--blue-dark); margin: 0; }
 .soon-desc { font-size: 1.05rem; }
+.soon-covers-title { margin: 4px 0 2px; font-weight: 700; }
+.soon-covers { display: inline-block; text-align: left; margin: 0 0 12px; padding-left: 22px; line-height: 1.55; }
 .empty { text-align: center; margin-top: 18px; }
 @media (max-width: 560px) {
   .pop-card, .cat-card { padding: 16px; }

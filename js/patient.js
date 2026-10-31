@@ -289,6 +289,9 @@
     SearchBox.requestSoon(t);
     $('soon-meta').textContent = listed ? `${popName(t.population)} · ${catName(t.population, t.category)}` : '';
     $('soon-desc').textContent = t.desc ? tr(t.desc) : '';
+    const covers = t.covers || [];
+    $('soon-covers-wrap').hidden = !covers.length;
+    $('soon-covers').innerHTML = covers.map((c) => `<li>${esc(tr(c))}</li>`).join('');
     $('soon-status').innerHTML = listed ? statusHtml(t, true) : `<span class="st soon">${tr('Coming soon')}</span>`;
     $('soon-why').textContent = listed ? tr(WHY[t.population]) : '';
     const urgent = listed && t.population === 'pregnancy' && (t.category === 'warning' || t.category === 'blood-pressure');

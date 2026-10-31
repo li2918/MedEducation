@@ -601,8 +601,10 @@
     ctx.fillStyle = '#d65a50'; rr(ctx, x - R * 2.0, y + R * 0.05 + aff * R * 0.09 + 3, R * 1.5, Math.max(4, affW - 6), 4); ctx.fill();
     ctx.fillStyle = '#f2b8ae'; rr(ctx, x - R * 2.0, y - R * 0.3, R * 1.5, R * 0.16, 6); ctx.fill();
     ctx.fillStyle = '#d65a50'; rr(ctx, x - R * 2.0, y - R * 0.27, R * 1.5, R * 0.1, 4); ctx.fill();
-    text(ctx, 'Afferent', x - R * 1.6, y + R * 0.52, { size: 14, color: C.muted });
-    text(ctx, 'Efferent', x - R * 1.6, y - R * 0.48, { size: 14, color: C.muted });
+    if (o.labels !== false) {
+      text(ctx, 'Afferent', x - R * 1.6, y + R * 0.52, { size: 14, color: C.muted });
+      text(ctx, 'Efferent', x - R * 1.6, y - R * 0.48, { size: 14, color: C.muted });
+    }
     // capsule
     ctx.beginPath(); ctx.arc(x, y, R, 0, TAU); ctx.fillStyle = '#f7f1ff'; ctx.fill();
     ctx.lineWidth = 6; ctx.strokeStyle = '#9b7bd1'; ctx.stroke();

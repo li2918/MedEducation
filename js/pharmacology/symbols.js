@@ -111,6 +111,63 @@
     if (closed > 0) { ctx.globalAlpha *= closed; M.rr(ctx, x - 18 * k, y - 30 * k, 36 * k, 10 * k, 5 * k); ctx.fill(); ctx.stroke(); }
     ctx.restore();
   }
+  // A fat cell (TZDs): a round cell almost filled by one big yellow fat droplet, with its small
+  // nucleus (the cell's "control center") pressed against the edge.
+  function fatCell(ctx, x, y, r = 20, a = 1) {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fillStyle = '#fff3c4'; ctx.fill(); ctx.lineWidth = Math.max(1.5, r * 0.08); ctx.strokeStyle = '#d9b44a'; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x + r * 0.08, y + r * 0.05, r * 0.78, 0, M.TAU); ctx.fillStyle = '#ffe28a'; ctx.fill();
+    M.dot(ctx, x - r * 0.15, y - r * 0.25, r * 0.18, 'rgba(255,255,255,0.7)');
+    ctx.beginPath(); ctx.ellipse(x - r * 0.78, y - r * 0.2, r * 0.16, r * 0.26, 0.3, 0, M.TAU); ctx.fillStyle = '#8a74c9'; ctx.fill();
+    ctx.restore();
+  }
+  // ---- blood pressure (ACE inhibitors, ARBs) --------------------------------------------------
+  // The vessel-tightening signal (angiotensin II): a red four-point star, so it never looks like
+  // a round red blood cell.
+  function tightSignal(ctx, x, y, r = 8, a = 1) {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.beginPath();
+    for (let i = 0; i < 8; i++) { const ang = i * Math.PI / 4 - Math.PI / 2, rr = i % 2 ? r * 0.45 : r; ctx.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); }
+    ctx.closePath(); ctx.fillStyle = '#e0342b'; ctx.fill(); ctx.lineWidth = Math.max(1.2, r * 0.14); ctx.strokeStyle = '#8f1d17'; ctx.stroke();
+    M.dot(ctx, 0, 0, r * 0.2, '#ffd7d2');
+    ctx.restore();
+  }
+  // The signal's receiver on vessel muscle: a blue cup on a short stem, standing on the surface
+  // at (x, y) and opening toward dir (1 = down, -1 = up). o.signal: a signal sitting in the cup
+  // (the receiver is switched on); o.blocked: an ARB diamond sitting in the cup instead.
+  function sigReceiver(ctx, x, y, dir = -1, o = {}) {
+    const k = o.scale || 1, on = o.signal || 0;
+    if (on > 0) { const g = ctx.createRadialGradient(x, y + dir * 16 * k, 0, x, y + dir * 16 * k, 34 * k); g.addColorStop(0, `rgba(255,120,90,${0.5 * on})`); g.addColorStop(1, 'rgba(255,120,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y + dir * 16 * k, 34 * k, 0, M.TAU); ctx.fill(); }
+    ctx.save(); ctx.fillStyle = '#3d7be0'; ctx.strokeStyle = '#1f4fa8'; ctx.lineWidth = 2.5; ctx.lineJoin = 'round';
+    M.rr(ctx, x - 5 * k, dir > 0 ? y - 12 * k : y, 10 * k, 12 * k, 3 * k); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); const yb = y + dir * 4 * k, yt = y + dir * 24 * k;
+    ctx.moveTo(x - 15 * k, yt); ctx.lineTo(x - 15 * k, yb); ctx.lineTo(x + 15 * k, yb); ctx.lineTo(x + 15 * k, yt); ctx.lineTo(x + 9 * k, yt); ctx.lineTo(x + 9 * k, yb + dir * 6 * k); ctx.lineTo(x - 9 * k, yb + dir * 6 * k); ctx.lineTo(x - 9 * k, yt); ctx.closePath();
+    ctx.fill(); ctx.stroke(); ctx.restore();
+    if (o.blocked > 0) medicine(ctx, x, y + dir * 17 * k, 10 * k, o.blocked);
+    else if (on > 0) tightSignal(ctx, x, y + dir * 17 * k, 9 * k, on);
+  }
+  // ACE, the signal-making enzyme: an orange machine with an intake on the left, a turning gear,
+  // and an outlet on the right. rate: how fast it works (1 normal; slower when the medicine
+  // blocks it, never stopped for good).
+  function aceMachine(ctx, x, y, k = 1, rate = 1, s = 0) {
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k);
+    ctx.fillStyle = '#f6a33a'; ctx.strokeStyle = '#a65d00'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(-46, -14); ctx.lineTo(-30, -6); ctx.lineTo(-30, 6); ctx.lineTo(-46, 14); ctx.closePath(); ctx.fill(); ctx.stroke();
+    M.rr(ctx, -30, -22, 60, 44, 10); ctx.fill(); ctx.stroke();
+    M.rr(ctx, 30, -7, 16, 14, 4); ctx.fill(); ctx.stroke();
+    ctx.save(); ctx.translate(-6, 0); ctx.rotate(s * 3 * rate); ctx.fillStyle = '#ffe2b0';
+    for (let i = 0; i < 8; i++) { ctx.save(); ctx.rotate(i / 8 * M.TAU); ctx.fillRect(-2.5, -15, 5, 6); ctx.restore(); }
+    ctx.beginPath(); ctx.arc(0, 0, 10, 0, M.TAU); ctx.fill(); M.dot(ctx, 0, 0, 3.5, '#a65d00'); ctx.restore();
+    M.text(ctx, 'ACE', 17, 1, { size: 11, weight: 900, color: '#6b3a00' });
+    ctx.restore();
+  }
+  function salt(ctx, x, y, r = 6, a = 1) {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(0.3);
+    M.rr(ctx, -r, -r, 2 * r, 2 * r, r * 0.25); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.restore();
+  }
   function food(ctx, x, y, r = 8, a = 1, i = 0) {
     if (a <= 0) return;
     const c = ['#c98b4a', '#7fbf5a', '#e0a33c', '#b46a4a'][i % 4];
@@ -138,6 +195,17 @@
     'dpp4-enzyme': { title: 'DPP-4 (scissors)', note: 'Breaks down messages', icon: (ctx, x, y) => scissors(ctx, x + 4, y, 14, { open: 0.6 }) },
     'sulfonylurea-medicine': { title: 'Sulfonylurea medicine', note: 'Purple diamond', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     'potassium-gate': { title: 'Tiny cell gate', note: 'On the insulin-making cell', icon: (ctx, x, y) => gate(ctx, x, y, 0.5, 0) },
+    'ace-medicine': { title: 'ACE inhibitor', note: 'Purple diamond', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    'arb-medicine': { title: 'ARB medicine', note: 'Purple diamond', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    'ace-enzyme': { title: 'ACE', note: 'Signal-making enzyme', icon: (ctx, x, y) => aceMachine(ctx, x + 2, y, 0.34) },
+    'angiotensin-signal': { title: 'Tightening signal', note: 'Tells vessels to squeeze', icon: (ctx, x, y) => tightSignal(ctx, x, y, 11) },
+    'angiotensin-receiver': { title: 'Message receiver', note: 'On vessel muscle', icon: (ctx, x, y) => sigReceiver(ctx, x, y + 11, -1, { scale: 0.62 }) },
+    salt: { title: 'Salt', note: 'Sodium', icon: (ctx, x, y) => salt(ctx, x, y, 7) },
+    water: { title: 'Water', note: 'Kept or let go by the kidneys', icon: (ctx, x, y) => M.drop(ctx, x, y + 2, 9, 1, '#5aa9e6') },
+    'insulin-medicine': { title: 'Insulin medicine', note: 'The same teal key', icon: (ctx, x, y) => insulin(ctx, x + 2, y, 0.95, 1, 0) },
+    'tzd-medicine': { title: 'TZD medicine', note: 'Purple diamond', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    'fat-cell': { title: 'Fat cell', note: 'Where the medicine starts', icon: (ctx, x, y) => fatCell(ctx, x, y, 13) },
+    'insulin-response': { title: 'Insulin response', note: 'Red weak · green better', icon: (ctx, x, y) => { M.rr(ctx, x - 14, y - 9, 12, 18, 3); ctx.fillStyle = '#e0524a'; ctx.fill(); M.rr(ctx, x + 2, y - 9, 12, 18, 3); ctx.fillStyle = '#2fa36b'; ctx.fill(); } },
     'metformin-medicine': { title: 'Metformin (Medicine)', note: 'Helps the liver release less sugar', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     liver: { title: 'Liver', note: 'Helps control blood sugar', icon: (ctx, x, y) => M.liver(ctx, x + 1, y + 2, 15) },
     'high-output': { title: 'More sugar released', note: 'Too much leaves the liver', icon: (ctx, x, y) => flowArrow(ctx, x - 13, y, x + 13, y, 9, '#e0524a') },
@@ -152,7 +220,8 @@
     ctx.restore();
   }
   // items: keys of ITEMS, or { key, title, note, dim }. Drawn as a stack at the top right by
-  // default (x, y: top-left corner). Rows can be dimmed to keep the focus on the others.
+  // default, below the player's title line (x, y: top-left corner). Rows can be dimmed to keep
+  // the focus on the others.
   function drawMoleculeLegend(ctx, items, o = {}) {
     const a = o.alpha == null ? 1 : o.alpha;
     if (a <= 0 || !items.length) return;
@@ -166,7 +235,7 @@
     // on a small screen (canvas shown under 520 px wide) the notes are dropped and rows shrink
     const compact = o.compact != null ? o.compact : !!(ctx.canvas && ctx.canvas.clientWidth && ctx.canvas.clientWidth < 520);
     if (compact) { tw = 0; ctx.save(); ctx.font = `800 17px ${M.FONT}`; rows.forEach((r) => { tw = Math.max(tw, ctx.measureText(T(r.title)).width); }); ctx.restore(); }
-    const rh = compact ? 40 : 54, w = o.w || Math.max(compact ? 120 : 170, Math.ceil(tw) + 64), x = o.x == null ? 944 - w : o.x, y = o.y == null ? 16 : o.y, h = rows.length * rh + 12;
+    const rh = compact ? 40 : 54, w = o.w || Math.max(compact ? 120 : 170, Math.ceil(tw) + 64), x = o.x == null ? 944 - w : o.x, y = o.y == null ? 50 : o.y, h = rows.length * rh + 12;
     ctx.save(); ctx.globalAlpha *= Math.min(1, a);
     M.card(ctx, x, y, w, h, { r: 14, fill: 'rgba(255,255,255,0.94)', border: '#d7e0ec' });
     rows.forEach((r, i) => {
@@ -210,5 +279,5 @@
     ctx.restore();
   }
 
-  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, fragment, scissors, gate, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
+  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, fragment, scissors, gate, fatCell, tightSignal, sigReceiver, aceMachine, salt, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
 })();

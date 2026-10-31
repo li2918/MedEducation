@@ -16,6 +16,8 @@
   const LANG = window.I18N ? I18N.lang : 'en';
   const CAP_H = 96; // caption band added under the picture in downloaded videos
   const TAIL = 1.5; // seconds of picture after a recorded clip ends, with timing: 'audio'
+  // MP4 writer for downloads (Mediabunny, MPL-2.0), next to this script in js/vendor/
+  const MEDIABUNNY = new URL('vendor/mediabunny-1.61.4.mjs', (document.currentScript && document.currentScript.src) || location.href).href;
 
   // Scene length is at least long enough for the narration to finish.
   function sceneLength(sc) {
@@ -120,7 +122,7 @@
     this.btnPlay.onclick = toggle;
     this.bigPlay.onclick = toggle;
     this.canvas.onclick = toggle;
-    this.scrub.oninput = () => { if (!this.recording) this.seek((this.scrub.value / 1000) * this.total); };
+    this.scrub.oninput = () => { if (!this.recording && !this.exporting) this.seek((this.scrub.value / 1000) * this.total); };
     this.btnDl = root.querySelector('.btn-dl');
     this.btnDl.onclick = () => this.download();
     this.btnVoice.onclick = () => {
@@ -186,14 +188,14 @@
     this.chaptersEl.innerHTML = this.scenes.map((sc, i) =>
       `<li><button type="button" data-i="${i}"><span>${i + 1}</span>${sc.label}</button></li>`).join('');
     this.chaptersEl.querySelectorAll('button').forEach((b) => {
-      b.onclick = () => { if (this.recording) return; this.seek(this.scenes[+b.dataset.i].start + 0.001); if (!this.playing) this.play(); else this._speak(this.cur); };
+      b.onclick = () => { if (this.recording || this.exporting) return; this.seek(this.scenes[+b.dataset.i].start + 0.001); if (!this.playing) this.play(); else this._speak(this.cur); };
     });
     this._resize();
     this._syncButtons();
   };
 
   Player.prototype.play = function () {
-    if (!this.scenes.length) return;
+    if (!this.scenes.length || this.exporting) return;
     if (this.t >= this.total - 0.01) this.t = 0;
     this.playing = true;
     this.ended = false;
@@ -265,16 +267,18 @@
     return 0;
   };
 
-  Player.prototype.render = function () {
-    const ctx = this.ctx;
-    ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+  // Draw the frame at time t into ctx at the given scale; band adds the caption strip used in
+  // downloaded videos. Shared by the on-screen player and the frame-by-frame export, so a
+  // download looks exactly like playback. Returns the scene index (-1 when nothing is loaded).
+  Player.prototype._paint = function (ctx, scale, t, band) {
+    ctx.setTransform(scale, 0, 0, scale, 0, 0);
     const g = ctx.createLinearGradient(0, 0, 0, H);
     g.addColorStop(0, '#f7faff'); g.addColorStop(1, '#eaf1fa');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-    if (!this.scenes.length) return;
+    if (!this.scenes.length) return -1;
 
-    const i = this._sceneAt(this.t), sc = this.scenes[i];
-    const s = Math.min(this.t - sc.start, sc.dur), p = M.clamp(s / sc.dur), sEn = s * sc.rs;
+    const i = this._sceneAt(t), sc = this.scenes[i];
+    const s = Math.min(t - sc.start, sc.dur), p = M.clamp(s / sc.dur), sEn = s * sc.rs;
     // Cross-fade from the previous scene's last frame, so a scene change (or a pause while the
     // next clip loads) never flashes an empty background.
     const fade = i === 0 ? 1 : M.clamp(s / 0.35);
@@ -291,7 +295,18 @@
 
     M.pill(ctx, `${i + 1}/${this.scenes.length}  ${sc.label}`, 22, 32, { align: 'left', bg: 'rgba(255,255,255,0.92)', border: '#dbe5f5', color: M.C.blue, size: 14 });
     if (this.script.title) M.text(ctx, tr(this.script.title), W - 22, 32, { size: 14, align: 'right', color: M.C.muted, weight: 600 });
+    if (band) {
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, H, W, CAP_H);
+      ctx.fillStyle = '#d7e0ec'; ctx.fillRect(0, H, W, 1);
+      M.wrap(ctx, sc.caption || '', W / 2, H + 34, W - 80, { size: 22, weight: 600, color: M.C.ink });
+    }
+    return i;
+  };
 
+  Player.prototype.render = function () {
+    const i = this._paint(this.ctx, this.scale, this.t, !!this.recording);
+    if (i < 0) return;
+    const sc = this.scenes[i];
     if (i !== this.cur) {
       this.cur = i;
       if (this.playing) this._speak(i);
@@ -301,19 +316,94 @@
       this.captionEl.textContent = sc.caption || '';
       this.chaptersEl.querySelectorAll('li').forEach((li, k) => li.classList.toggle('active', k === i));
     }
-    if (this.recording) {
-      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, H, W, CAP_H);
-      ctx.fillStyle = '#d7e0ec'; ctx.fillRect(0, H, W, 1);
-      M.wrap(ctx, sc.caption || '', W / 2, H + 34, W - 80, { size: 22, weight: 600, color: M.C.ink });
-    }
     this.scrub.value = Math.round((this.t / this.total) * 1000);
-    this.timeEl.textContent = `${this.recording ? '● ' + tr('Recording') + ' ' : ''}${fmt(this.t)} / ${fmt(this.total)}`;
+    this.timeEl.textContent = this.exporting ? `${tr('Exporting')} ${Math.round(this.exporting.progress * 100)}%`
+      : `${this.recording ? '● ' + tr('Recording') + ' ' : ''}${fmt(this.t)} / ${fmt(this.total)}`;
   };
 
-  // Download: play the whole video once in real time while recording the canvas (plus the
-  // recorded narration), then save it as MP4 where the browser can, otherwise WebM.
+  // Download. Where the browser has WebCodecs (Chrome, Edge, recent Safari and Firefox), every
+  // frame is drawn off screen and encoded to a 1080p 60 fps MP4 with the recorded narration
+  // mixed in at each scene's start: no dropped frames, and it does not need to play in real
+  // time. Otherwise (or if that fails) it falls back to playing the video once while recording.
   Player.prototype.download = function () {
+    if (this.exporting) { this.exporting.cancelled = true; return; }
     if (this.recording) { this._finishRecording(false); return; }
+    if (!this.scenes.length) return;
+    if (window.VideoEncoder && window.OfflineAudioContext) {
+      this._exportFrames().catch((e) => {
+        const cancelled = this.exporting && this.exporting.cancelled;
+        this.exporting = null;
+        this._syncButtons(); this.render();
+        if (!cancelled) { console.warn('Frame-by-frame export failed, recording in real time instead:', e); this._recordRealtime(); }
+      });
+      return;
+    }
+    this._recordRealtime();
+  };
+
+  // The narration as one track: each recorded clip placed at its scene's start (the player locks
+  // a scene's clock to its clip, so this matches playback). Null without recorded clips, or when
+  // they cannot be read (pages opened from file://).
+  Player.prototype._narrationTrack = async function (rate) {
+    if (!this._recorded() || location.protocol === 'file:') return null;
+    const off = new OfflineAudioContext(1, Math.ceil(this.total * rate), rate);
+    let any = false;
+    for (const sc of this.scenes) {
+      if (!sc.audio) continue;
+      const res = await fetch(sc.audio);
+      if (!res.ok) return null;
+      const buf = await off.decodeAudioData(await res.arrayBuffer());
+      const src = off.createBufferSource(); src.buffer = buf; src.connect(off.destination); src.start(sc.start);
+      any = true;
+    }
+    return any ? off.startRendering() : null;
+  };
+
+  Player.prototype._exportFrames = async function () {
+    const FPS = 60, SCALE = 2, w = W * SCALE, h = (H + CAP_H) * SCALE;
+    const MB = await import(MEDIABUNNY);
+    const vcodec = await MB.getFirstEncodableVideoCodec(['avc', 'vp9', 'av1'], { width: w, height: h, frameRate: FPS });
+    if (!vcodec) throw new Error('no video encoder');
+    this.pause();
+    this.exporting = { progress: 0, cancelled: false };
+    this._syncButtons(); this.render();
+    const canvas = document.createElement('canvas'); canvas.width = w; canvas.height = h;
+    const ctx = canvas.getContext('2d');
+    const output = new MB.Output({ format: new MB.Mp4OutputFormat({ fastStart: 'in-memory' }), target: new MB.BufferTarget() });
+    const video = new MB.CanvasSource(canvas, { codec: vcodec, quality: new MB.Quality({ bitrate: 5e6 }) });
+    output.addVideoTrack(video, { frameRate: FPS });
+    const narration = await this._narrationTrack(48000);
+    let audio = null;
+    if (narration) {
+      const acodec = await MB.getFirstEncodableAudioCodec(['aac', 'opus'], { numberOfChannels: 1, sampleRate: 48000 });
+      if (acodec) { audio = new MB.AudioBufferSource({ codec: acodec, quality: new MB.Quality({ bitrate: 128e3 }) }); output.addAudioTrack(audio); }
+    }
+    await output.start();
+    if (audio) await audio.add(narration);
+    const frames = Math.ceil(this.total * FPS);
+    for (let f = 0; f <= frames; f++) {
+      if (this.exporting.cancelled) { await output.cancel(); throw new Error('cancelled'); }
+      this._paint(ctx, SCALE, Math.min(f / FPS, this.total), true);
+      await video.add(f / FPS, 1 / FPS, f % (FPS * 2) ? undefined : { keyFrame: true });
+      if (f % 15 === 0) { this.exporting.progress = f / frames; this.timeEl.textContent = `${tr('Exporting')} ${Math.round(this.exporting.progress * 100)}%`; }
+    }
+    await output.finalize();
+    this.exporting = null;
+    this._save(new Blob([output.target.buffer], { type: 'video/mp4' }), 'mp4');
+    this._syncButtons(); this.render();
+  };
+
+  Player.prototype._save = function (blob, ext) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `MedMotion - ${tr(this.script.title) || 'video'}.${ext}`;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  };
+
+  // Fallback download: play the whole video once in real time while recording the canvas (plus
+  // the recorded narration), then save it as MP4 where the browser can, otherwise WebM.
+  Player.prototype._recordRealtime = function () {
     const types = ['video/mp4;codecs=avc1,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm'];
     const type = window.MediaRecorder && this.canvas.captureStream && types.find((t) => MediaRecorder.isTypeSupported(t));
     if (!this.scenes.length || !type) { alert(tr('Video download is not supported in this browser. Please try Chrome or Edge.')); return; }
@@ -352,12 +442,7 @@
     this.recording = null;
     r.rec.onstop = () => {
       if (!save) return;
-      const blob = new Blob(r.chunks, { type: r.type.split(';')[0] });
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = `MedMotion - ${tr(this.script.title) || 'video'}.${r.type.includes('mp4') ? 'mp4' : 'webm'}`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+      this._save(new Blob(r.chunks, { type: r.type.split(';')[0] }), r.type.includes('mp4') ? 'mp4' : 'webm');
     };
     if (r.rec.state !== 'inactive') r.rec.stop();
     this.voice = r.voice;
@@ -457,12 +542,24 @@
     this.btnVoice.title = noVoice ? tr('Narration could not start in this browser') : tr('Narration');
     this.btnCC.classList.toggle('on', this.cc);
     this.btnCC.setAttribute('aria-pressed', String(this.cc));
-    this.btnDl.textContent = this.recording ? '■ ' + tr('Stop') : '⬇ ' + tr('Video');
-    this.btnDl.title = this.recording ? tr('Cancel download') : tr('Download video (plays through once while recording)');
-    this.btnDl.classList.toggle('on', !!this.recording);
+    const busy = !!(this.recording || this.exporting);
+    this.btnDl.textContent = busy ? '■ ' + tr('Stop') : '⬇ ' + tr('Video');
+    this.btnDl.title = busy ? tr('Cancel download') : tr('Download video');
+    this.btnDl.classList.toggle('on', busy);
   };
 
   Player.prototype.stop = function () { this.pause(); };
+
+  // True when <folder><n>.mp3 exists for every scene and was recorded from the words the scene
+  // says now (tools/make-narration.py writes AUDIO_DUR and the AUDIO_SAY fingerprints). A clip
+  // made from an older caption would say the wrong thing, so then the browser voice is used.
+  Player.hasRecording = function (folder, scenes) {
+    const DUR = window.AUDIO_DUR || {}, SAY = window.AUDIO_SAY || {};
+    return scenes.length > 0 && scenes.every((sc, i) => {
+      const f = `${folder}${i + 1}.mp3`;
+      return DUR[f] && SAY[f] === textTag(sc.say || sc.caption || '');
+    });
+  };
 
   window.Player = Player;
 })();

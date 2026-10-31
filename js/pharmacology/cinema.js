@@ -376,24 +376,26 @@
   };
   // Magnified skin: the medicine is placed in the fat under the skin and soaks slowly into a
   // nearby small blood vessel (never injected into the vessel). Returns the first particle.
-  const skin = (ctx, s, dose, soak) => {
-    let first = [760, 222];
-    ctx.save(); ctx.beginPath(); ctx.arc(760, 250, 140, 0, M.TAU); ctx.clip();
-    ctx.fillStyle = '#f6d8c4'; ctx.fillRect(610, 100, 300, 70); ctx.fillStyle = '#ffeec4'; ctx.fillRect(610, 170, 300, 230);
-    for (let i = 0; i < 9; i++) M.dot(ctx, 640 + (i % 5) * 60, 210 + Math.floor(i / 5) * 60, 22, '#fff4d6');
-    M.rr(ctx, 610, 330, 300, 22, 11); ctx.fillStyle = '#e8a39c'; ctx.fill();
-    if (dose > 0 && soak < 0.6) { ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(760, 60); ctx.lineTo(760, 100 + 110 * Math.min(1, dose * 3)); ctx.stroke(); }
+  // particle draws one piece of medicine (default the purple diamond; insulin passes a teal key).
+  const skin = (ctx, s, dose, soak, particle) => {
+    let first = [760, 242];
+    ctx.save(); ctx.beginPath(); ctx.arc(760, 270, 140, 0, M.TAU); ctx.clip();
+    ctx.fillStyle = '#f6d8c4'; ctx.fillRect(610, 120, 300, 70); ctx.fillStyle = '#ffeec4'; ctx.fillRect(610, 190, 300, 230);
+    for (let i = 0; i < 9; i++) M.dot(ctx, 640 + (i % 5) * 60, 230 + Math.floor(i / 5) * 60, 22, '#fff4d6');
+    M.rr(ctx, 610, 350, 300, 22, 11); ctx.fillStyle = '#e8a39c'; ctx.fill();
+    if (dose > 0 && soak < 0.6) { ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(760, 80); ctx.lineTo(760, 120 + 110 * Math.min(1, dose * 3)); ctx.stroke(); }
     for (let i = 0; i < 6; i++) {
       if (dose <= 0) break;
-      const sp = seg(soak, i / 8, i / 8 + 0.5), x = lerp(745 + (i % 3) * 14, 700 + i * 22, sp), y = lerp(220 + Math.floor(i / 3) * 16, 340, sp);
+      const sp = seg(soak, i / 8, i / 8 + 0.5), x = lerp(745 + (i % 3) * 14, 700 + i * 22, sp), y = lerp(240 + Math.floor(i / 3) * 16, 360, sp);
       if (!i) first = [x, y];
-      MedSym.medicine(ctx, x, y, 9, Math.min(1, dose * 2) * (1 - 0.5 * sp));
+      const a = Math.min(1, dose * 2) * (1 - 0.5 * sp);
+      if (particle) particle(ctx, x, y, a); else MedSym.medicine(ctx, x, y, 9, a);
     }
     ctx.restore();
-    ctx.save(); ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(760, 250, 140, 0, M.TAU); ctx.stroke(); ctx.restore();
-    M.text(ctx, 'Skin', 610, 135, { size: 13, align: 'right', weight: 800, color: '#a3461f' });
-    M.text(ctx, 'Fat under the skin', 610, 240, { size: 13, align: 'right', weight: 800, color: '#8a5a00' });
-    M.text(ctx, 'Small blood vessel', 610, 340, { size: 13, align: 'right', weight: 800, color: '#a3261f' });
+    ctx.save(); ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(760, 270, 140, 0, M.TAU); ctx.stroke(); ctx.restore();
+    M.text(ctx, 'Skin', 610, 155, { size: 13, align: 'right', weight: 800, color: '#a3461f' });
+    M.text(ctx, 'Fat under the skin', 610, 260, { size: 13, align: 'right', weight: 800, color: '#8a5a00' });
+    M.text(ctx, 'Small blood vessel', 610, 360, { size: 13, align: 'right', weight: 800, color: '#a3261f' });
     return first;
   };
 
@@ -414,36 +416,50 @@
   // DPP-4 story uses a smaller gain, since the effect is usually modest).
   // o.variant 'su': a tiny gate on the pancreas closes under the medicine and insulin starts
   // leaving straight away, whether or not sugar is high (sulfonylureas are not glucose-
-  // dependent). o.panels: per-panel { on, title, meal (0 = missed), mealText, plan, status }.
+  // dependent). o.panels: per-panel { on, title, meal (0 = missed), mealText, plan, status,
+  // response }.
+  // o.variant 'tzd': no medicine at the pancreas and the SAME insulin in both panels; what
+  // changes is the muscle's response: plan.doors (how many sugar doors the signal opens) and
+  // plan.open (how far), with a "weak / better response" tag on the muscle (cfg.response).
+  // o.variant 'insulin': the pancreas releases the same natural insulin in both panels; the
+  // extra insulin comes only from the injection (cfg.shot keys, drawn as the same teal key),
+  // never from the pancreas.
   const CMP_PLAN = { off: { keys: 2, docked: 1, inCell: 3 }, on: { keys: 5, docked: 2, inCell: 8 } };
   const CMP_PX = [16, 372], CMP_W = 340;
   const CMP_TONE = { meal: ['#f1f4f9', '#8a9bb4', '#3b4a5c'], high: ['#fdecea', '#e0524a', '#a3261f'], mid: ['#fff6dc', '#e8a10c', '#8a5a00'], low: ['#e9f7ef', '#2fa36b', '#1d7a4c'] };
+  // A status bar (blood sugar, blood pressure) that blends from one state to the next, never an
+  // instant jump: the colours mix, the old words fade out, then the new words fade in.
+  // steps: [[from t, tone (CMP_TONE key), text, small second line?], ...].
+  function statusBar(ctx, x, w, t, steps, y = 452) {
+    let i = 0; while (i < steps.length - 1 && t >= steps[i + 1][0]) i++;
+    const k = i > 0 ? seg(t, steps[i][0], steps[i][0] + 0.05) : 1, prev = steps[Math.max(0, i - 1)], cur = steps[i];
+    const P = CMP_TONE[prev[1]], T = CMP_TONE[cur[1]], col = (j) => mix(P[j], T[j], k);
+    M.rr(ctx, x, y, w, 50, 25); ctx.fillStyle = col(0); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col(1); ctx.stroke();
+    M.dot(ctx, x + 28, y + 25, 10, col(1));
+    const words = (st, al) => {
+      if (al <= 0) return;
+      const [, , text, sub] = st, c = col(2), base = sub ? 16 : 17;
+      // long words shrink to fit beside the dot
+      ctx.save(); ctx.font = `900 ${base}px ${M.FONT}`; const tw = ctx.measureText(window.I18N ? I18N.tr(text) : text).width; ctx.restore();
+      const size = tw > w - 70 ? Math.floor(base * (w - 70) / tw) : base;
+      M.text(ctx, text, x + w / 2 + 14, y + (sub ? 17 : 26), { size, weight: 900, color: c, alpha: al });
+      if (sub) M.text(ctx, sub, x + w / 2 + 14, y + 37, { size: 12, weight: 800, color: c, alpha: al });
+    };
+    if (i > 0 && k < 1) words(prev, 1 - seg(k, 0, 0.6));
+    words(cur, i > 0 ? seg(k, 0.4, 1) : 1);
+  }
   function drawGlucoseTreatmentComparison(ctx, o) {
     const Y = window.MedSym, t = o.t, s = o.s, rec = o.receivers || ['glp1'], a = o.alpha == null ? 1 : o.alpha;
     const anchors = {};
     if (a <= 0) return anchors;
     ctx.save(); ctx.globalAlpha *= a;
     ctx.fillStyle = '#f4f7fb'; ctx.fillRect(0, 0, 960, 540);
-    // a status bar that blends from one state to the next (never an instant jump): the colours
-    // mix, the old words fade out, then the new words fade in
-    const status = (x0, steps, y = 452) => {
-      let i = 0; while (i < steps.length - 1 && t >= steps[i + 1][0]) i++;
-      const k = i > 0 ? seg(t, steps[i][0], steps[i][0] + 0.05) : 1, prev = steps[Math.max(0, i - 1)], cur = steps[i];
-      const P = CMP_TONE[prev[1]], T = CMP_TONE[cur[1]], col = (j) => mix(P[j], T[j], k);
-      M.rr(ctx, x0 + 12, y, CMP_W - 24, 50, 25); ctx.fillStyle = col(0); ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col(1); ctx.stroke();
-      M.dot(ctx, x0 + 40, y + 25, 10, col(1));
-      [[prev, 1 - seg(k, 0, 0.5)], [cur, seg(k, 0.5, 1)]].forEach(([st, al]) => {
-        if (al <= 0 || (st === prev && k >= 1)) return;
-        const [, , text, sub] = st, c = col(2);
-        M.text(ctx, text, x0 + CMP_W / 2 + 14, y + (sub ? 17 : 26), { size: sub ? 16 : 17, weight: 900, color: c, alpha: al });
-        if (sub) M.text(ctx, sub, x0 + CMP_W / 2 + 14, y + 37, { size: 12, weight: 800, color: c, alpha: al });
-      });
-    };
+    const status = (x0, steps, y = 452) => statusBar(ctx, x0 + 12, CMP_W - 24, t, steps, y);
     const frame = (x0, on, title) => {
       M.rr(ctx, x0, 60, CMP_W, 452, 22); ctx.fillStyle = '#ffffff'; ctx.fill();
       ctx.save(); M.rr(ctx, x0, 60, CMP_W, 452, 22); ctx.clip(); ctx.fillStyle = on ? '#f1ecff' : '#eef2f7'; ctx.fillRect(x0, 60, CMP_W, 46); ctx.restore();
       M.rr(ctx, x0, 60, CMP_W, 452, 22); ctx.lineWidth = 3; ctx.strokeStyle = on ? '#b9a6ee' : '#cfd9e6'; ctx.stroke();
-      if (on) Y.medicine(ctx, x0 + 30, 83, 11);
+      if (on) { if (o.headIcon) o.headIcon(ctx, x0 + 30, 83); else Y.medicine(ctx, x0 + 30, 83, 11); }
       M.text(ctx, title || (on ? o.title || 'With Medicine' : 'Without Medicine'), x0 + CMP_W / 2 + (on ? 10 : 0), 84, { size: title ? 18 : 20, weight: 900, color: on ? '#4b3a8f' : '#3b4a5c' });
     };
     const vessel = (x, y, w, h, label = 'Blood') => {
@@ -491,7 +507,7 @@
           x = lerp(L.from[0], bx, ease(u)); y = lerp(L.from[1], by, ease(u));
         }
         if (i < plan.inCell) {
-          const st = L.take[0] + i * L.take[1], u = seg(t, st, st + 0.1), d = L.doors[i % plan.docked], sp = L.spots[i];
+          const st = L.take[0] + i * L.take[1], u = seg(t, st, st + 0.1), d = L.doors[i % L.doors.length], sp = L.spots[i];
           if (u > 0) { if (u < 0.5) { x = lerp(x, d[0], ease(u * 2)); y = lerp(y, d[1], ease(u * 2)); } else { x = lerp(d[0], sp[0], ease((u - 0.5) * 2)); y = lerp(d[1], sp[1], ease((u - 0.5) * 2)); } }
           if (u >= 1 && L.energy) M.text(ctx, '⚡', x + 13, y - 11, { size: 12, alpha: 0.6 + 0.4 * Math.sin(s * 5 + i) });
           if (i === 0 && u > 0.3) L.anchor.sugarIn = [x, y];
@@ -545,7 +561,7 @@
 
     CMP_PX.forEach((x0, side) => {
       // each panel: medicine or not, its title, the meal (1 eaten, 0 missed), counts and status
-      const PLAN = o.plan || CMP_PLAN, dpp4 = o.variant === 'dpp4', su = o.variant === 'su';
+      const PLAN = o.plan || CMP_PLAN, dpp4 = o.variant === 'dpp4', su = o.variant === 'su', tzd = o.variant === 'tzd', insulin = o.variant === 'insulin';
       const cfg = Object.assign({ on: side === 1, meal: 1, mealText: 'Same meal' }, (o.panels || [])[side]);
       const on = cfg.on, plan = cfg.plan || (on ? PLAN.on : PLAN.off), A = side === 1 ? anchors : {};
       frame(x0, on, cfg.title);
@@ -555,8 +571,14 @@
         ctx.fillStyle = '#c8a27a'; M.rr(ctx, x0 + 70, 168, 74, 7, 3); ctx.fill();
         M.dot(ctx, x0 + 104, 160, 13, '#ffffff'); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x0 + 104, 160, 13, 0, M.TAU); ctx.stroke();
         for (let i = 0; i < Math.round(4 * cfg.meal * (1 - seg(t, 0, 0.2))); i++) M.dot(ctx, x0 + 97 + (i % 2) * 13, 156 + Math.floor(i / 2) * 8, 4.5, ['#e8a33c', '#7fbf5a', '#c96f4a', '#e8a33c'][i]);
-        M.text(ctx, 'Same person', x0 + 202, 140, { size: 13, weight: 800, color: C.muted });
-        M.text(ctx, cfg.mealText, x0 + 202, 162, { size: 13, weight: 800, color: cfg.meal ? C.muted : '#a3261f' });
+        if (insulin) {
+          M.text(ctx, 'Same person & meal', x0 + 200, 140, { size: 13, weight: 800, color: C.muted });
+          if (cfg.shot) { ctx.save(); ctx.translate(x0 + 150, 192); ctx.scale(0.4, 0.4); pen(ctx, 0, 0, 0.45, 1); ctx.restore(); M.text(ctx, '+ Insulin shot', x0 + 212, 164, { size: 14, weight: 900, color: '#0f6b60' }); }
+          else M.text(ctx, 'No insulin shot', x0 + 200, 164, { size: 13, weight: 800, color: C.muted });
+        } else {
+          M.text(ctx, 'Same person', x0 + 202, 140, { size: 13, weight: 800, color: C.muted });
+          M.text(ctx, cfg.mealText, x0 + 202, 162, { size: 13, weight: 800, color: cfg.meal ? C.muted : '#a3261f' });
+        }
         const ck = [x0 + CMP_W - 44, 150];
         M.dot(ctx, ck[0], ck[1], 22, '#ffffff'); ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(ck[0], ck[1], 22, 0, M.TAU); ctx.stroke();
         const ha = -Math.PI / 2 + t * M.TAU * 0.85;
@@ -573,19 +595,24 @@
           const gx = x0 + 78, gy = 336, d = on ? seg(t, 0.02, 0.1) : 0;
           Y.gate(ctx, gx, gy, 0.6, on ? fade(t, 0.08, 0.12) : 0);
           if (on) { Y.medicine(ctx, lerp(gx + 30, gx + 18, ease(d)), lerp(250, gy - 14, ease(d)), 9, Math.min(1, d * 3)); A.gate = [gx, gy]; }
-        } else pancReceivers(rp, on, seg(t, 0.05, 0.18), fade(t, 0.2, 0.26), 0.55);
+        } else if (!tzd && !insulin) pancReceivers(rp, on, seg(t, 0.05, 0.18), fade(t, 0.2, 0.26), 0.55);
         if (on && !dpp4 && !su) A.med = [rp[0][0], rp[0][1] - 24];
         // muscle cell with two insulin receivers and two sugar doors
         const MX = x0 + 144, SOCK = [[MX + 20, 322], [MX + 166, 322]], DOORS = [[MX + 62, 322], [MX + 122, 322]];
         muscleBox(MX, 322, 184, 112, 26);
-        M.text(ctx, 'Muscle cell', MX + 92, 420, { size: 12, weight: 800, color: '#a3461f' });
+        if (cfg.response) M.pill(ctx, cfg.response === 'better' ? 'Muscle: better response' : 'Muscle: weak response', MX + 92, 419, { size: 12, weight: 800, bg: cfg.response === 'better' ? '#e9f7ef' : '#fdecea', border: cfg.response === 'better' ? '#2fa36b' : '#e0524a', color: cfg.response === 'better' ? '#1d7a4c' : '#a3261f' });
+        else M.text(ctx, 'Muscle cell', MX + 92, 420, { size: 12, weight: 800, color: '#a3461f' });
+        const nDoors = plan.doors == null ? plan.docked : plan.doors;
         const L = { plan, anchor: A, dock: [0.5, 0.04], sockets: SOCK };
-        SOCK.forEach((R, j) => socket(R[0], R[1], docked(L, j)));
-        DOORS.forEach((D, j) => door(D[0], D[1], j < plan.docked ? seg(t, 0.58 + j * 0.04, 0.64 + j * 0.04) : 0));
+        // insulin from the shot docks in the second receiver
+        const SL = { plan: { docked: 1 }, anchor: {}, dock: [0.5, 0], sockets: [SOCK[1]] };
+        SOCK.forEach((R, j) => socket(R[0], R[1], Math.max(docked(L, j), cfg.shot && j === 1 ? docked(SL, 0) : 0)));
+        DOORS.forEach((D, j) => door(D[0], D[1], j < nDoors ? seg(t, 0.58 + j * 0.04, 0.64 + j * 0.04) * (plan.open || 1) : 0));
         // insulin leaves once sugar is high; with a sulfonylurea it starts as soon as the gate
         // closes, whether or not sugar is high
         keys(Object.assign(L, { src: [x0 + 84, 340], exit: () => [x0 + 100, 284], release: [su && on ? 0.12 : 0.28, 0.035, 0.12], fx: x0 + 60, fw: CMP_W - 110, flanes: [236, 266], ks: 0.72 }), plan, plan.keys);
-        sugar({ n: cfg.meal ? 12 : 4, bx: x0 + 36, bw: CMP_W - 72, lanes: [226, 250, 274], enter: [0.02, 0.014], from: cfg.meal ? [x0 + 104, 166] : [x0 + 24, 248], take: [0.6, 0.035], doors: DOORS, spots: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [MX + 30 + (k % 4) * 40, 356 + Math.floor(k / 4) * 32]), anchor: A }, plan);
+        if (cfg.shot) { keys(Object.assign(SL, { src: [x0 + 170, 176], exit: (j) => [x0 + 190 + j * 20, 214], release: [0.08, 0.05, 0.12], fx: x0 + 90, fw: CMP_W - 130, flanes: [250, 222], ks: 0.72 }), SL.plan, cfg.shot); A.shotKey = SL.anchor.key; }
+        sugar({ n: cfg.meal ? 12 : 4, bx: x0 + 36, bw: CMP_W - 72, lanes: [226, 250, 274], enter: [0.02, 0.014], from: cfg.meal ? [x0 + 104, 166] : [x0 + 24, 248], take: [0.6, 0.035], doors: DOORS.slice(0, nDoors), spots: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [MX + 30 + (k % 4) * 40, 356 + Math.floor(k / 4) * 32]), anchor: A }, plan);
         A.door = DOORS[0]; A.status = [x0 + CMP_W / 2, 476];
         if (cfg.status) status(x0, cfg.status);
         else if (on) status(x0, [[0, 'meal', 'AFTER THE MEAL'], [0.18, 'high', 'BLOOD SUGAR IS HIGH'], [0.64, 'mid', 'BLOOD SUGAR COMING DOWN'], [0.84, 'low', 'BLOOD SUGAR COMES DOWN']]);
@@ -626,7 +653,7 @@
         });
         DOORS.forEach((D, j) => door(D[0], D[1], j < plan.docked ? seg(t, 0.28 + j * 0.06, 0.36 + j * 0.06) : 0));
         keys(Object.assign(L, { release: [0, 0, 0], fx: x0 + 50, fw: CMP_W - 100, flanes: [140, 200] , ks: 0.85 }), plan, plan.keys);
-        sugar({ n: 11, bx: x0 + 36, bw: CMP_W - 72, lanes: [146, 172, 198], take: [0.38, 0.055], doors: DOORS, spots: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [x0 + 74 + (k % 4) * 64, 312 + Math.floor(k / 4) * 42]), energy: true, anchor: A }, plan);
+        sugar({ n: 11, bx: x0 + 36, bw: CMP_W - 72, lanes: [146, 172, 198], take: [0.38, 0.055], doors: DOORS.slice(0, plan.docked), spots: [0, 1, 2, 3, 4, 5, 6, 7].map((k) => [x0 + 74 + (k % 4) * 64, 312 + Math.floor(k / 4) * 42]), energy: true, anchor: A }, plan);
         A.door = DOORS[0];
         if (on) status(x0, [[0, 'high', 'BLOOD SUGAR IS HIGH'], [0.42, 'low', 'MORE SUGAR MOVES IN']]);
         else status(x0, [[0, 'high', 'BLOOD SUGAR IS HIGH'], [0.42, 'mid', 'SOME SUGAR MOVES IN', 'Too much sugar stays in the blood']]);
@@ -634,6 +661,69 @@
     });
     ctx.restore();
     return anchors;
+  }
+
+  // ---- a muscle cell in any box (TZDs, insulin) --------------------------------------------
+  // The insulin key docks in its receiver, the signal brings sugar doors to the surface, and
+  // sugar moves in (insulin never carries it). st: dock (insulin reaching its receiver), resp
+  // (0 weak → 1 better), doors (0..1 opening), uptake (0..1 sugar moving in), energy (0..1,
+  // sugar being used), meter (show the weak / better response meter; default on). Weak: one
+  // sugar door half opens, two sugars get in. Better: three doors open, six sugars get in.
+  function muscleCellView(ctx, s, x0, y0, w, h, st) {
+    const Y = window.MedSym, RED = '#e0524a', GREEN = '#2fa36b';
+    const by = y0, bh = h * 0.27, cy = y0 + h * 0.37, ch = h * 0.63, R = [x0 + w * 0.16, cy];
+    const better = st.resp >= 0.5, nD = better ? 3 : 1, D = [0.42, 0.6, 0.78].map((f) => [x0 + w * f, cy]);
+    M.rr(ctx, x0, by, w, bh, Math.min(30, bh / 2)); ctx.fillStyle = '#fde3df'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#e8a39c'; ctx.stroke();
+    M.text(ctx, 'Blood', x0 + 16, by + 14, { size: 12, align: 'left', weight: 800, color: '#a3261f' });
+    const nIn = better ? 6 : 2, left = 8 - Math.round(nIn * st.uptake);
+    for (let i = 0; i < left; i++) Y.glucose(ctx, x0 + w * 0.3 + ((s * 18 + i * 61) % (w * 0.66)), by + bh * (0.4 + (i % 2) * 0.32) + Math.sin(s * 2 + i) * 2, 11);
+    M.rr(ctx, x0 + 6, cy, w - 12, ch, 30); ctx.fillStyle = '#fbe1dc'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = '#e2a59b'; ctx.stroke();
+    ctx.save(); M.rr(ctx, x0 + 6, cy, w - 12, ch, 30); ctx.clip(); ctx.strokeStyle = 'rgba(214,120,110,0.16)'; ctx.lineWidth = 8; for (let x = x0 + 22; x < x0 + w; x += 26) { ctx.beginPath(); ctx.moveTo(x, cy); ctx.lineTo(x, cy + ch); ctx.stroke(); } ctx.restore();
+    // the insulin receiver and the same key docking
+    if (st.dock >= 1) { const g = ctx.createRadialGradient(R[0], R[1] - 10, 0, R[0], R[1] - 10, 40); g.addColorStop(0, `rgba(255,214,90,${0.55 * (0.75 + 0.25 * Math.sin(s * 5))})`); g.addColorStop(1, 'rgba(255,214,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(R[0], R[1] - 10, 40, 0, M.TAU); ctx.fill(); }
+    ctx.save(); ctx.strokeStyle = '#0f6b60'; ctx.fillStyle = '#bfe8e1'; ctx.lineWidth = 3; M.rr(ctx, R[0] - 7, R[1], 14, 32, 5); ctx.fill(); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(R[0] - 18, R[1] - 28); ctx.lineTo(R[0] - 18, R[1]); ctx.lineTo(R[0] + 18, R[1]); ctx.lineTo(R[0] + 18, R[1] - 28); ctx.stroke(); ctx.restore();
+    Y.insulin(ctx, R[0], lerp(by + bh * 0.4, R[1] - 14, ease(st.dock)), 0.8, 1, lerp(0, Math.PI / 2, ease(seg(st.dock, 0.4, 1))));
+    // the signal inside the cell: faint and short when weak, bright and reaching every door when better
+    const sg = seg(st.dock, 0.8, 1);
+    if (sg > 0) D.forEach((d, j) => {
+      if (j >= nD) return;
+      ctx.save(); ctx.globalAlpha *= sg * (better ? 1 : 0.45); ctx.strokeStyle = '#f2c230'; ctx.lineWidth = better ? 4 : 2; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -s * 20;
+      ctx.beginPath(); ctx.moveTo(R[0] + 12, R[1] + 36); ctx.quadraticCurveTo((R[0] + d[0]) / 2, R[1] + 70, d[0], R[1] + 22); ctx.stroke(); ctx.restore();
+    });
+    D.forEach((d, j) => { const open = j < nD ? st.doors * (better ? 1 : 0.5) : 0, gap = 9 * open; ctx.save(); ctx.fillStyle = open > 0.3 ? '#6f8ddb' : '#9aa9cf'; ctx.strokeStyle = '#3f5592'; ctx.lineWidth = 2; M.rr(ctx, d[0] - 17 - gap, d[1] - 16, 15, 32, 4); ctx.fill(); ctx.stroke(); M.rr(ctx, d[0] + 2 + gap, d[1] - 16, 15, 32, 4); ctx.fill(); ctx.stroke(); ctx.restore(); });
+    for (let j = 0; j < nIn; j++) {
+      const u = seg(st.uptake, j * (better ? 0.1 : 0.3), j * (better ? 0.1 : 0.3) + 0.4), d = D[j % nD];
+      if (u <= 0) continue;
+      const ix = x0 + w * (0.36 + (j % 3) * 0.17), iy = cy + ch * (0.42 + Math.floor(j / 3) * 0.2);
+      Y.glucose(ctx, u < 0.5 ? d[0] : lerp(d[0], ix, (u - 0.5) * 2), u < 0.5 ? lerp(by + bh * 0.6, d[1], u * 2) : lerp(d[1], iy, (u - 0.5) * 2), 11);
+    }
+    // response meter
+    if (st.meter === false) { M.text(ctx, 'Muscle cell', x0 + w - 20, cy + ch - 18, { size: 13, align: 'right', weight: 800, color: '#a3461f' }); return; }
+    const mw = Math.min(150, w * 0.42), mx = x0 + 22, my = cy + ch - 34;
+    M.rr(ctx, mx, my, mw, 12, 6); ctx.fillStyle = '#eef0f4'; ctx.fill();
+    M.rr(ctx, mx, my, Math.max(12, mw * lerp(0.28, 1, st.resp)), 12, 6); ctx.fillStyle = mix(RED, GREEN, st.resp); ctx.fill();
+    M.text(ctx, better ? 'Better Response' : 'Weak Response', mx, my - 12, { size: 13, align: 'left', weight: 900, color: better ? '#1d7a4c' : '#a3261f' });
+    M.text(ctx, 'Muscle cell', x0 + w - 20, cy + ch - 18, { size: 12, align: 'right', weight: 800, color: '#a3461f' });
+  }
+
+  // ---- the liver, before and with treatment (TZDs, insulin) ----------------------------------
+  // Thick red stream: too much sugar sent out; thin green stream: less (never none). o: titles
+  // and pills for the two panels.
+  function liverPair(ctx, s, o = {}) {
+    const Y = window.MedSym, RED = '#e0524a', GREEN = '#2fa36b';
+    const titles = o.titles || ['Before medicine', 'After weeks of medicine'], pills = o.pills || ['Too much sugar sent out', 'Liver Sends Out Less Sugar'];
+    ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+    [[20, false], [370, true]].forEach(([x0, after]) => {
+      M.rr(ctx, x0, 70, 330, 380, 22); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = after ? GREEN : RED; ctx.stroke();
+      M.text(ctx, titles[after ? 1 : 0], x0 + 165, 102, { size: 18, weight: 900, color: after ? '#1d7a4c' : '#a3261f' });
+      M.rr(ctx, x0 + 258, 130, 44, 290, 20); ctx.fillStyle = '#fde3df'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#e8a39c'; ctx.stroke();
+      M.liver(ctx, x0 + 120, 250, 84);
+      const pts = [[x0 + 168, 240], [x0 + 236, 240], [x0 + 280, 256], [x0 + 280, 410]], col = after ? GREEN : RED;
+      ctx.save(); ctx.globalAlpha *= 0.42; ctx.strokeStyle = col; ctx.lineWidth = after ? 9 : 24; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.stroke(); ctx.restore();
+      flow(ctx, pts, after ? 3 : 8, s, 0.2, (x, y) => Y.glucose(ctx, x, y, 11));
+      M.pill(ctx, pills[after ? 1 : 0], x0 + 150, 420, { size: 15, bg: after ? '#e9f7ef' : '#fdecea', border: col, color: after ? '#1d7a4c' : '#a3261f' });
+    });
   }
 
   // ---- camera journeys ---------------------------------------------------------------------
@@ -1637,6 +1727,532 @@
     return scenesOut;
   });
 
+  // ======================================================================================= TZDs
+  // Eight-scene kid-friendly "same insulin, better response" story:
+  //   insulin is there but the muscle responds weakly → a pill travels to fat tissue → inside a
+  //   fat cell the medicine adjusts the cell's control center, and the fat tissue sends helpful
+  //   signals to muscle and liver (a teaching picture, not literal molecules) → the same insulin
+  //   key before vs after weeks of treatment (more sugar doors, more sugar in) and a liver that
+  //   sends out less sugar → the shared WITHOUT vs WITH comparison in its TZD mode (same insulin
+  //   in both panels; only the response differs) → better over days, weeks, months → watch for
+  //   extra fluid → recap.
+  // The medicine never touches the insulin receiver, the sugar doors, or the pancreas; the
+  // pancreas releases the same insulin with or without it. Effects build over weeks. Counts are
+  // qualitative, never measurements.
+  def('tzds', (cls) => {
+    const Y = window.MedSym;
+    const ST = at('stomach'), PA = at('pancreas'), MU = at('muscle'), GUT = at('gut'), HE = at('heart'), LIV = at('liver'), MOUTH = [274, 138];
+    const FAT = [318, 290];
+    const WHOLE = [270, 300, 1, 270, 300], MID = [480, 280], FZ = [FAT[0], FAT[1], 3, 480, 280];
+    const RED = '#e0524a', GREEN = '#2fa36b';
+    const med = (ctx, x, y, r = 9, a = 1) => Y.medicine(ctx, x, y, r, a);
+    const legend = (ctx, items, a) => Y.drawMoleculeLegend(ctx, items, { alpha: a });
+    const call = (ctx, o) => Y.drawCallout(ctx, o);
+    const win = (p, a, b) => fade(p, a, a + 0.05) * (1 - fade(p, b - 0.05, b));
+    const L_SUGAR = { key: 'glucose', title: 'Glucose (Sugar)', note: 'Yellow hexagon' }, L_INS = { key: 'insulin', title: 'Insulin', note: 'Helps cells use sugar' };
+    const L_MED = { key: 'tzd-medicine' };
+    const bigStatus = (ctx, text, tone, x, y, a) => M.pill(ctx, text, x, y, { size: 18, weight: 900, bg: CMP_TONE[tone][0], border: CMP_TONE[tone][1], color: CMP_TONE[tone][2], alpha: a });
+    // the same insulin in both panels (3 keys, 2 reach the muscle); only the response differs
+    const PANELS = [
+      { on: false, title: 'Without TZD Medicine', response: 'weak', plan: { keys: 3, docked: 2, inCell: 3, doors: 1, open: 0.55 }, status: [[0, 'meal', 'AFTER THE MEAL'], [0.18, 'high', 'BLOOD SUGAR IS HIGH'], [0.64, 'high', 'BLOOD SUGAR STAYS HIGH', 'Weak response to insulin']] },
+      { on: true, title: 'With TZD Medicine', response: 'better', plan: { keys: 3, docked: 2, inCell: 7, doors: 2 }, status: [[0, 'meal', 'AFTER THE MEAL'], [0.18, 'high', 'BLOOD SUGAR IS HIGH'], [0.64, 'mid', 'BLOOD SUGAR COMING DOWN', 'Better response to insulin'], [0.84, 'low', 'BLOOD SUGAR COMES DOWN', 'Better response to insulin']] },
+    ];
+    const cmp = (ctx, t, s, a = 1) => drawGlucoseTreatmentComparison(ctx, { view: 'body', t, s, alpha: a, variant: 'tzd', panels: PANELS });
+    const KEY_PATH = [PA, [280, 300], [292, 326], MU];
+
+    // The see-through patient with the stomach, pancreas, liver, a muscle, and belly fat.
+    const inside = (ctx, s, o = {}) => {
+      const k = o.k || 1, rk = Math.max(1, k * 0.55), lv = o.level == null ? 0.9 : o.level;
+      S.bodyWithBlood(ctx, 270, 300, 108, s, { density: lerp(0.25, 1.35, lv), sugarR: 6.5 / rk });
+      ctx.save(); ctx.globalAlpha *= 0.9; M.liver(ctx, LIV[0], LIV[1], 22); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= o.stomAlpha == null ? 0.95 : o.stomAlpha; M.stomach(ctx, ST[0], ST[1], 30); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= 0.9; M.pancreas(ctx, PA[0] - 4, PA[1] + 6, 24); ctx.restore();
+      if (o.muscle) { ctx.save(); ctx.globalAlpha *= o.muscle; MedAnim.organView(ctx, 'muscle', MU[0], MU[1], 16, { t: s }); ctx.restore(); }
+      if (o.fat) [[0, 0, 7], [11, -5, 6], [9, 8, 6.5], [-9, 9, 6], [20, 4, 5.5], [-2, -11, 5.5]].forEach(([dx, dy, r]) => Y.fatCell(ctx, FAT[0] + dx, FAT[1] + dy, r, o.fat));
+      if (o.food > 0) flow(ctx, gutPath(), 6, s, 0.22, (x, y, i) => Y.food(ctx, x, y, 4.5, o.food, i));
+      if (o.pill != null && o.pill >= 0) { const q = alongPath(gutPath(), Math.min(1, o.pill) * 0.92); tablet(ctx, q[0], q[1], 0.45, 1 - seg(o.pill, 0.9, 1)); }
+      if (o.meds > 0) [[GUT, [252, 250], HE], [HE, [300, 262], FAT]].forEach((pts, j) => flow(ctx, pts, 3, s + j * 0.4, 0.22, (x, y) => med(ctx, x, y, 5.5 / rk, o.meds)));
+      if (o.keys > 0) flow(ctx, KEY_PATH, Math.round(2 + 3 * o.keys), s, 0.22, (x, y) => Y.insulin(ctx, x, y, 0.42 / rk, 1, 0));
+      (o.glow || []).forEach(([pt, r, a, rgb]) => bodyGlow(ctx, pt[0], pt[1], r, a, s, rgb));
+    };
+
+    // ---- the fat cell, inside: a control center with switches ----------------------------------
+    // st: med (medicine arriving), tune (switches settle from uneven to even), sig (helpful
+    // signals travel from fat tissue to muscle and liver; a teaching picture).
+    const NUC = [168, 236], OFF = [-16, 14, -8, 18];
+    const fatInside = (ctx, s, st) => {
+      ctx.fillStyle = '#fff7e2'; ctx.fillRect(0, 0, 960, 540);
+      [[40, 70, 60], [80, 480, 70], [560, 70, 54], [560, 500, 60], [20, 300, 40]].forEach(([x, y, r]) => Y.fatCell(ctx, x, y, r, 0.5));
+      ctx.beginPath(); ctx.arc(300, 290, 196, 0, M.TAU); ctx.fillStyle = '#fff1c2'; ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = '#d9b44a'; ctx.stroke();
+      ctx.beginPath(); ctx.arc(340, 310, 140, 0, M.TAU); ctx.fillStyle = '#ffe28a'; ctx.fill();
+      M.dot(ctx, 300, 250, 26, 'rgba(255,255,255,0.6)');
+      M.text(ctx, 'Stored fat', 350, 330, { size: 14, weight: 800, color: '#a07a10' });
+      // the control center (the nucleus) with four switches
+      M.rr(ctx, NUC[0] - 62, NUC[1] - 44, 124, 88, 26); ctx.fillStyle = '#ebe3fa'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#8a74c9'; ctx.stroke();
+      M.text(ctx, 'Control center', NUC[0], NUC[1] - 58, { size: 13, weight: 800, color: '#5b45a0' });
+      OFF.forEach((o, i) => {
+        const x = NUC[0] - 39 + i * 26, y = NUC[1] + lerp(o, 0, ease(st.tune));
+        ctx.fillStyle = '#c9bde6'; ctx.fillRect(x - 2, NUC[1] - 26, 4, 52);
+        M.rr(ctx, x - 9, y - 6, 18, 12, 4); ctx.fillStyle = mix(RED, GREEN, st.tune); ctx.fill();
+      });
+      if (st.tune > 0.95) { ctx.save(); ctx.strokeStyle = GREEN; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(NUC[0] - 50, NUC[1]); ctx.lineTo(NUC[0] + 50, NUC[1]); ctx.stroke(); ctx.restore(); }
+      for (let i = 0; i < 3; i++) { const u = seg(st.med, i * 0.15, i * 0.15 + 0.6); if (u > 0) med(ctx, lerp(40 + i * 10, NUC[0] + 70 + i * 6, ease(u)), lerp(120 + i * 70, NUC[1] + 20 + i * 16, ease(u)), 13); }
+      // helpful signals from fat tissue to muscle and liver
+      const T = [[640, 230, 'Muscle'], [640, 400, 'Liver']];
+      T.forEach(([tx, ty, name], j) => {
+        const a = st.sig;
+        if (a > 0) {
+          ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = GREEN; ctx.lineWidth = 3; ctx.setLineDash([7, 6]); ctx.lineDashOffset = -s * 22;
+          ctx.beginPath(); ctx.moveTo(490, 290); ctx.quadraticCurveTo(560, ty - 40 * (j ? -1 : 1), tx - 50, ty); ctx.stroke(); ctx.restore();
+          flow(ctx, [[490, 290], [560, j ? 360 : 240], [tx - 50, ty]], 3, s + j * 0.5, 0.35, (x, y) => M.dot(ctx, x, y, 5, GREEN, a));
+        }
+        M.dot(ctx, tx, ty, 46, '#ffffff'); ctx.lineWidth = 3; ctx.strokeStyle = a >= 1 ? GREEN : '#d7e0ec'; ctx.beginPath(); ctx.arc(tx, ty, 46, 0, M.TAU); ctx.stroke();
+        if (name === 'Muscle') MedAnim.organView(ctx, 'muscle', tx, ty, 28, { t: s }); else M.liver(ctx, tx, ty + 2, 36);
+        M.text(ctx, name, tx, ty + 64, { size: 14, weight: 800, color: C.ink });
+      });
+    };
+
+    // ---- extra fluid: a gentle warning ---------------------------------------------------------
+    const fluid = (ctx, s, p) => {
+      ctx.fillStyle = '#f4f8fd'; ctx.fillRect(0, 0, 960, 540);
+      const sw = fade(p, 0.1, 0.35);
+      M.person(ctx, 250, 300, 108, { t: s, mood: 0.55 });
+      // puffy ankles and small water drops around the lower legs
+      [[220, 468], [282, 468]].forEach(([x, y]) => { ctx.save(); ctx.globalAlpha *= sw; ctx.beginPath(); ctx.ellipse(x, y, 26, 18, 0, 0, M.TAU); ctx.fillStyle = 'rgba(160,205,245,0.55)'; ctx.fill(); ctx.strokeStyle = '#5aa9e6'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); });
+      [[186, 430], [316, 424], [200, 396], [304, 392], [250, 440]].forEach(([x, y], i) => M.drop(ctx, x, y + Math.sin(s * 2 + i) * 3, 6, sw, '#5aa9e6'));
+      // the heart, briefly highlighted
+      const ha = fade(p, 0.4, 0.5);
+      if (ha > 0) { bodyGlow(ctx, 262, 200, 34, ha, s, '255,140,120'); ctx.save(); ctx.globalAlpha *= ha; MedAnim.organView(ctx, 'heart', 262, 200, 18, { t: s }); ctx.restore(); M.text(ctx, 'Extra fluid can strain the heart', 262, 252, { size: 13, weight: 800, color: '#a3261f', alpha: ha }); }
+      M.card(ctx, 480, 60, 450, 400, { r: 20, border: '#e8a10c', borderWidth: 3 });
+      M.text(ctx, '⚠ Watch for Extra Fluid', 705, 102, { size: 24, weight: 900, color: '#8a5a00' });
+      [['Swollen Feet or Ankles', (x, y) => M.drop(ctx, x, y, 10, 1, '#5aa9e6')],
+        ['Fast Weight Gain', (x, y) => { M.rr(ctx, x - 13, y - 10, 26, 20, 5); ctx.fillStyle = '#e9edf3'; ctx.fill(); ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 2; ctx.stroke(); ctx.strokeStyle = RED; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 6, y - 6); ctx.stroke(); }],
+        ['Trouble Breathing', (x, y) => MedAnim.organView(ctx, 'lungs', x, y, 13, { t: s })]]
+        .forEach(([t, icon], i) => { const a = fade(p, 0.2 + i * 0.12, 0.27 + i * 0.12); if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; icon(530, 168 + i * 62); M.text(ctx, t, 562, 169 + i * 62, { size: 20, align: 'left', weight: 800, color: C.ink }); ctx.restore(); });
+      M.text(ctx, 'Tell your healthcare team if you notice these.', 705, 380, { size: 15, weight: 800, color: '#4b3a8f', alpha: fade(p, 0.6, 0.7) });
+      M.text(ctx, 'Not everyone gets this.', 705, 410, { size: 14, weight: 700, color: C.muted, alpha: fade(p, 0.66, 0.76) });
+    };
+
+    const CHAIN = [['TZD pill', (c, x, y) => tablet(c, x, y, 0.9, 1, 0)], ['Better insulin response', (c, x, y) => Y.ITEMS['insulin-response'].icon(c, x, y)], ['Sugar enters cells', (c, x, y) => Y.glucose(c, x, y, 13)], ['Blood sugar comes down', (c, x, y) => { Y.glucose(c, x - 6, y, 10); M.text(c, '↓', x + 13, y, { size: 18, weight: 900, color: '#1d7a4c' }); }]];
+    const M_WEAK = { dock: 1, resp: 0, doors: 1, uptake: 1 }, M_BETTER = { dock: 1, resp: 1, doors: 1, uptake: 1 };
+
+    const scenesOut = [
+      // 1 ---------------------------------------------------------------- insulin is there, but…
+      { label: "Insulin is there, but it isn't enough", dur: 11, caption: "After we eat, sugar enters our blood. Insulin helps us use it. But sometimes cells don't respond well to insulin, so too much sugar stays in the blood.",
+        draw(ctx, p, s) {
+          const xr = fade(p, 0.16, 0.26), lens = fade(p, 0.46, 0.54);
+          const c = camAt([[0, ...WHOLE], [0.34, ...WHOLE], [0.48, MU[0], MU[1], 6, ...MID]], p);
+          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; meal(ctx, s, lerp(1, 0.4, fade(p, 0.04, 0.2)), true, 0.85); ctx.restore(); }
+          if (xr > 0 && lens < 1) { ctx.save(); ctx.globalAlpha *= xr; withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: 1, food: fade(p, 0.22, 0.3), keys: fade(p, 0.28, 0.34), muscle: 1, glow: [[PA, 26, fade(p, 0.26, 0.32) * (1 - fade(p, 0.4, 0.44))]] })); ctx.restore(); }
+          tag(ctx, 'After eating', 480, 60, fade(p, 0.04, 0.1) * (1 - fade(p, 0.16, 0.2)), 'key');
+          call(ctx, { text: 'Insulin is there', targetX: 292, targetY: 318, labelX: 560, labelY: 300, radius: 26, tone: 'insulin', progress: win(p, 0.3, 0.46) });
+          lensOpen(ctx, lens, () => muscleCellView(ctx, s, 30, 40, 680, 470, { dock: fade(p, 0.54, 0.66), resp: 0, doors: fade(p, 0.66, 0.72), uptake: seg(p, 0.7, 0.92) }));
+          if (lens >= 1) call(ctx, { text: 'Weak Response', targetX: 52, targetY: 40 + 470 - 30, labelX: 360, labelY: 300, radius: 24, tone: 'high', progress: win(p, 0.7, 0.86) });
+          bigStatus(ctx, 'BLOOD SUGAR STAYS HIGH', 'high', 360, 300, fade(p, 0.88, 0.94));
+          legend(ctx, [L_SUGAR, L_INS], fade(p, 0.28, 0.34));
+        } },
+      // 2 ---------------------------------------------------------------- taking the medicine
+      { label: 'A pill that helps the body respond', dur: 11, caption: 'This medicine is a pill. It helps your body respond better to the insulin you already make.',
+        draw(ctx, p, s) {
+          const back = fade(p, 0, 0.06), xr = fade(p, 0.38, 0.46);
+          const c = camAt([[0, ...WHOLE], [0.7, ...WHOLE], [1, ...FZ]], p);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; muscleCellView(ctx, s, 30, 40, 680, 470, M_WEAK); ctx.restore(); }
+          if (xr < 1) {
+            ctx.save(); ctx.globalAlpha *= back * (1 - xr);
+            M.person(ctx, 270, 300, 108, { t: s, mood: 0.8 });
+            const act = seg(p, 0.06, 0.38), hand = [354, 302], u = ease(seg(act, 0.05, 0.5));
+            const tx = lerp(hand[0], MOUTH[0] + 8, u), ty = lerp(hand[1], MOUTH[1] + 6, u) - Math.sin(u * Math.PI) * 50;
+            if (act < 0.55) tablet(ctx, tx, ty, 0.8, 1 - seg(act, 0.48, 0.55));
+            const g = seg(act, 0.55, 1); glass(ctx, lerp(hand[0], MOUTH[0] + 26, ease(seg(g, 0, 0.4))), lerp(hand[1], MOUTH[1] + 14, ease(seg(g, 0, 0.4))), -0.9 * seg(g, 0.35, 0.6) * (1 - seg(g, 0.85, 1)), fade(act, 0.5, 0.58));
+            ctx.restore();
+            call(ctx, { text: 'TZD Medicine — a pill', targetX: tx, targetY: ty, labelX: 580, labelY: 210, radius: 20, tone: 'key', icon: (c2, x, y) => tablet(c2, x, y, 0.55), progress: win(p, 0.08, 0.34) });
+          }
+          if (xr > 0) {
+            ctx.save(); ctx.globalAlpha *= xr;
+            withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: 1, fat: 1, pill: seg(p, 0.42, 0.56), meds: fade(p, 0.54, 0.62), glow: [[FAT, 30, fade(p, 0.66, 0.76)]] }));
+            ctx.restore();
+            tag(ctx, 'Into the blood', 700, 300, fade(p, 0.56, 0.6) * (1 - fade(p, 0.7, 0.74)), 'key');
+            tag(ctx, 'Fat Tissue', 480, 60, fade(p, 0.76, 0.82), 'key');
+            M.text(ctx, 'It does not work right away', 480, 92, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.8, 0.86) });
+          }
+          legend(ctx, [L_MED, 'fat-cell'], fade(p, 0.1, 0.18));
+        } },
+      // 3 ---------------------------------------------------------------- inside the fat cell
+      { label: 'Helping cells work better', dur: 13, caption: "Much of this medicine's work starts in fat tissue. It changes how cells work. Over time, that helps other parts of the body respond better to insulin.",
+        draw(ctx, p, s) {
+          const c = camAt([[0, ...FZ], [0.1, FAT[0], FAT[1], 7, ...MID]], p);
+          const tis = fade(p, 0.08, 0.16), cel = fade(p, 0.18, 0.26);
+          if (tis < 1) withCam(ctx, c, () => inside(ctx, s, { k: c.k, fat: 1, meds: 1, glow: [[FAT, 30, 1]] }));
+          lensOpen(ctx, tis, () => { ctx.fillStyle = '#fff7e2'; ctx.fillRect(0, 0, 960, 540); for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) Y.fatCell(ctx, 120 + q * 130 + (r % 2) * 65, 90 + r * 120, 58); });
+          tag(ctx, 'Fat Tissue', 480, 60, tis * (1 - cel), 'key');
+          const st = { med: seg(p, 0.28, 0.46), tune: fade(p, 0.46, 0.62), sig: fade(p, 0.68, 0.78) };
+          lensOpen(ctx, cel, () => fatInside(ctx, s, st));
+          if (cel >= 1) {
+            tag(ctx, 'Fat Cell', 300, 44, 1, 'key');
+            call(ctx, { text: 'Medicine Helps Here', targetX: NUC[0], targetY: NUC[1], labelX: 300, labelY: 512, radius: 66, tone: 'key', icon: (c2, x, y) => med(c2, x, y, 10), progress: win(p, 0.4, 0.66) });
+            tag(ctx, 'Better Insulin Response', 640, 505, fade(p, 0.82, 0.88), 'good');
+            M.text(ctx, 'A simple picture of signals from fat tissue', 300, 512, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.72, 0.8) });
+          }
+          legend(ctx, [L_MED, 'fat-cell'], 1);
+        } },
+      // 4 ---------------------------------------------------------------- muscle and liver respond better
+      { label: 'Now insulin works better', dur: 13, caption: 'Now your muscles can respond better to insulin. More sugar can move from the blood into body cells. The liver can also send out less extra sugar.',
+        draw(ctx, p, s) {
+          const mu = fade(p, 0, 0.08), lv = fade(p, 0.62, 0.7);
+          if (mu < 1) { ctx.save(); ctx.globalAlpha *= 1 - mu; fatInside(ctx, s, { med: 1, tune: 1, sig: 1 }); ctx.restore(); }
+          if (mu > 0 && lv < 1) {
+            ctx.save(); ctx.globalAlpha *= mu * (1 - lv); ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+            const q = seg(p, 0.08, 0.6);
+            [[20, 'Before medicine', 0], [370, 'After weeks of medicine', 1]].forEach(([x0, t, r]) => {
+              M.text(ctx, t, x0 + 165, 70, { size: 18, weight: 900, color: r ? '#1d7a4c' : '#a3261f' });
+              muscleCellView(ctx, s, x0, 92, 330, 380, { dock: fade(q, 0.05, 0.25), resp: r, doors: fade(q, 0.3, 0.42), uptake: seg(q, 0.4, 0.95) });
+            });
+            M.text(ctx, 'SAME INSULIN · BETTER RESPONSE', 360, 500, { size: 20, weight: 900, color: '#4b3a8f', alpha: fade(q, 0.25, 0.35) });
+            ctx.restore();
+            tag(ctx, 'More Sugar Enters Cells', 535, 528, fade(p, 0.48, 0.54) * (1 - lv), 'good');
+          }
+          if (lv > 0) { ctx.save(); ctx.globalAlpha *= lv; liverPair(ctx, s); ctx.restore(); }
+          M.text(ctx, 'The medicine does not open the sugar doors itself', 360, 528, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.2, 0.28) * (1 - fade(p, 0.46, 0.5)) });
+          legend(ctx, lv > 0 ? [L_SUGAR] : [L_INS, L_SUGAR], 1);
+        } },
+      // 5 ---------------------------------------------------------------- WITHOUT vs WITH
+      { label: 'Without vs with TZD medicine', dur: 16, caption: "Look at the difference. Before treatment, the cells don't respond very well to insulin. With this medicine, they gradually become more responsive. Insulin helps move more sugar into body cells. So blood sugar can come down.",
+        draw(ctx, p, s) {
+          const t = seg(p, 0.06, 0.88);
+          const A = cmp(ctx, t, s);
+          if (p < 0.06) { ctx.save(); ctx.globalAlpha *= 1 - fade(p, 0, 0.06); liverPair(ctx, s); ctx.restore(); }
+          if (A.key) call(ctx, { text: 'Same insulin in both', targetX: A.key[0], targetY: A.key[1], labelX: 560, labelY: 132, radius: 18, tone: 'insulin', progress: win(t, 0.3, 0.56) });
+          if (A.sugarIn) call(ctx, { text: 'More sugar moves in', targetX: A.sugarIn[0], targetY: A.sugarIn[1], labelX: 560, labelY: 132, radius: 18, tone: 'good', progress: win(t, 0.64, 0.86) });
+          M.text(ctx, 'A teaching example, not measurements', 364, 36, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.06, 0.14) });
+          M.text(ctx, 'SAME INSULIN SIGNAL. BETTER RESPONSE.', 364, 528, { size: 19, weight: 900, color: '#4b3a8f', alpha: fade(t, 0.66, 0.76) });
+          legend(ctx, [L_MED, L_INS, L_SUGAR], 1);
+        } },
+      // 6 ---------------------------------------------------------------- better over time
+      { label: 'Better over time', dur: 8, caption: 'This medicine works slowly. It can take several weeks to see its full effect.',
+        draw(ctx, p, s) {
+          const off = fade(p, 0, 0.1), q = seg(p, 0.14, 0.9);
+          ctx.fillStyle = '#f4f8fd'; ctx.fillRect(0, 0, 960, 540);
+          M.person(ctx, 250, 300, 108, { t: s, mood: lerp(0.6, 0.95, q) });
+          timeChip(ctx, ['Days', 'Weeks', 'Months'], q, 690, 120);
+          // insulin response grows; blood sugar moves from high toward better (no target promised)
+          M.text(ctx, 'Insulin response', 520, 220, { size: 15, align: 'left', weight: 800 });
+          M.rr(ctx, 520, 234, 300, 16, 8); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+          M.rr(ctx, 520, 234, 300 * lerp(0.28, 0.85, ease(q)), 16, 8); ctx.fillStyle = mix(RED, GREEN, ease(q)); ctx.fill();
+          M.text(ctx, 'Weak', 520, 266, { size: 12, align: 'left', color: C.muted, weight: 700 }); M.text(ctx, 'Better', 820, 266, { size: 12, align: 'right', color: C.muted, weight: 700 });
+          meter(ctx, 'Blood sugar', lerp(0.95, 0.45, ease(q)), 520, 310, 1);
+          M.text(ctx, 'Results differ from person to person', 670, 420, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.6, 0.7) });
+          if (off < 1) cmp(ctx, 1, s, 1 - off);
+        } },
+      // 7 ---------------------------------------------------------------- watch for extra fluid
+      { label: 'Watch for extra fluid', dur: 14, caption: 'Watch for extra fluid in your body, like swollen feet or sudden weight gain. It can strain the heart. Tell your healthcare team about swelling, fast weight gain, or trouble breathing.',
+        draw(ctx, p, s) {
+          fluid(ctx, s, p);
+          const off = fade(p, 0, 0.08);
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; ctx.fillStyle = '#f4f8fd'; ctx.fillRect(0, 0, 960, 540); M.person(ctx, 250, 300, 108, { t: s, mood: 0.95 }); ctx.restore(); }
+        } },
+      // 8 ---------------------------------------------------------------- recap
+      { label: 'Back to the whole person', dur: 7, caption: 'This medicine helps your body use its own insulin better. Watch for swelling.',
+        draw(ctx, p, s) {
+          ctx.fillStyle = '#f4f8fd'; ctx.fillRect(0, 0, 960, 540);
+          meal(ctx, s, 0.8, true, 1);
+          CHAIN.forEach(([t, icon], i) => {
+            const a = fade(p, 0.1 + i * 0.09, 0.16 + i * 0.09), y = 100 + i * 80, last = i === CHAIN.length - 1;
+            if (a <= 0) return;
+            ctx.save(); ctx.globalAlpha *= a;
+            M.rr(ctx, 540, y - 27, 390, 54, 27); ctx.fillStyle = last ? '#e9f7ef' : '#ffffff'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = last ? GREEN : '#d7e0ec'; ctx.stroke();
+            icon(ctx, 582, y); M.text(ctx, t, 616, y + 1, { size: 18, align: 'left', weight: 800, color: last ? '#1d7a4c' : C.ink });
+            if (!last) M.text(ctx, '↓', 582, y + 41, { size: 18, weight: 900, color: '#8a9bb4' });
+            ctx.restore();
+          });
+          bigStatus(ctx, '⚠ Watch for swelling', 'mid', 735, 450, fade(p, 0.52, 0.6));
+          const off = fade(p, 0, 0.12);
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; fluid(ctx, s, 1); ctx.restore(); }
+        } },
+    ];
+    return scenesOut;
+  });
+
+  // ==================================================================================== INSULIN
+  // Eight-scene kid-friendly "insulin key" story. Insulin medicine IS insulin, so it is drawn as
+  // the same teal key the pancreas makes (never a purple medicine diamond) and it comes from
+  // the injection, never from the pancreas:
+  //   too much sugar stays in the blood → a pen puts insulin keys in the fat under the skin and
+  //   they soak into the blood → at a muscle cell the key docks, the signal brings sugar doors
+  //   to the surface and sugar moves in → the shared WITHOUT vs WITH comparison (insulin mode:
+  //   same natural insulin in both panels, extra keys only from the shot) → the liver sends out
+  //   less sugar → mealtime vs background insulin over a day (a picture, not a time-action
+  //   graph) → when there is too much insulin action: low blood sugar, gentle symptoms, the
+  //   steps of a treatment plan, and severe lows as an emergency → recap.
+  // No doses or timing instructions; never "stop insulin". Counts are qualitative.
+  def('insulin', (cls) => {
+    const Y = window.MedSym;
+    const ST = at('stomach'), PA = at('pancreas'), MU = at('muscle'), HE = at('heart'), LIV = at('liver');
+    const INJ = [300, 286], WHOLE = [270, 300, 1, 270, 300], MID = [480, 280];
+    const legend = (ctx, items, a) => Y.drawMoleculeLegend(ctx, items, { alpha: a });
+    const call = (ctx, o) => Y.drawCallout(ctx, o);
+    const win = (p, a, b) => fade(p, a, a + 0.05) * (1 - fade(p, b - 0.05, b));
+    const key = (ctx, x, y, s = 0.8, a = 1, ang = 0) => Y.insulin(ctx, x, y, s, a, ang);
+    const bigStatus = (ctx, text, tone, x, y, a) => M.pill(ctx, text, x, y, { size: 18, weight: 900, bg: CMP_TONE[tone][0], border: CMP_TONE[tone][1], color: CMP_TONE[tone][2], alpha: a });
+    const L_SUGAR = { key: 'glucose', title: 'Glucose (Sugar)', note: 'Yellow hexagon' }, L_INS = { key: 'insulin', title: 'Insulin', note: 'From the body or a shot' };
+    const PANELS = [
+      { on: false, title: 'Without Enough Insulin', plan: { keys: 2, docked: 1, inCell: 3 } },
+      { on: true, title: 'With Insulin Treatment', shot: 3, plan: { keys: 2, docked: 1, inCell: 7, doors: 2 } },
+    ];
+    const cmp = (ctx, t, s, a = 1) => drawGlucoseTreatmentComparison(ctx, { view: 'body', t, s, alpha: a, variant: 'insulin', panels: PANELS, headIcon: (c, x, y) => key(c, x + 2, y, 0.75) });
+    const KEY_PATH = [PA, [280, 300], [292, 326], MU], SHOT_PATH = [INJ, [288, 262], HE, [246, 262], [284, 318], MU];
+    const LIVER_TXT = { titles: ['Without enough insulin', 'With insulin'], pills: ['More Sugar Released', 'Less Sugar Released'] };
+
+    // The see-through patient with the stomach, pancreas, liver and a muscle in place.
+    const inside = (ctx, s, o = {}) => {
+      const k = o.k || 1, rk = Math.max(1, k * 0.55), lv = o.level == null ? 0.9 : o.level;
+      S.bodyWithBlood(ctx, 270, 300, 108, s, { density: lerp(0.25, 1.35, lv), sugarR: 6.5 / rk });
+      ctx.save(); ctx.globalAlpha *= 0.9; M.liver(ctx, LIV[0], LIV[1], 22); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= 0.95; M.stomach(ctx, ST[0], ST[1], 30); ctx.restore();
+      ctx.save(); ctx.globalAlpha *= 0.9; M.pancreas(ctx, PA[0] - 4, PA[1] + 6, 24); ctx.restore();
+      if (o.muscle) { ctx.save(); ctx.globalAlpha *= o.muscle; MedAnim.organView(ctx, 'muscle', MU[0], MU[1], 16, { t: s }); ctx.restore(); }
+      if (o.food > 0) flow(ctx, gutPath(), 6, s, 0.22, (x, y, i) => Y.food(ctx, x, y, 4.5, o.food, i));
+      if (o.keys > 0) flow(ctx, KEY_PATH, Math.max(1, Math.round(3 * o.keys)), s, 0.22, (x, y) => key(ctx, x, y, 0.42 / rk, 1));
+      if (o.shot > 0) flow(ctx, SHOT_PATH, 6, s, 0.16, (x, y) => key(ctx, x, y, 0.42 / rk, o.shot));
+      (o.glow || []).forEach(([pt, r, a]) => bodyGlow(ctx, pt[0], pt[1], r, a, s));
+    };
+
+    // ---- 6. mealtime vs background insulin over one day --------------------------------------
+    const COLS = [[150, 'Morning', true], [310, 'Lunch', true], [470, 'Dinner', true], [630, 'Night', false]];
+    const meals = COLS.filter((c) => c[2]).map((c) => c[0]);
+    const quick = (x) => meals.reduce((a, m) => { const d = x - m + 6; return a + (d > 0 && d < 280 ? 92 * (d / 32) * Math.exp(1 - d / 32) : 0); }, 0);
+    const steady = (x) => 36 + 5 * Math.sin(x / 80);
+    const day = (ctx, s, p) => {
+      ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+      const x1 = lerp(70, 700, seg(p, 0.08, 0.92));
+      COLS.forEach(([x, name, meal]) => {
+        M.text(ctx, name, x, 92, { size: 16, weight: 900, color: '#3b4a5c' });
+        if (meal) { M.dot(ctx, x, 126, 17, '#ffffff'); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, 126, 17, 0, M.TAU); ctx.stroke(); for (let i = 0; i < 4; i++) M.dot(ctx, x - 6 + (i % 2) * 12, 121 + Math.floor(i / 2) * 10, 4.5, ['#e8a33c', '#7fbf5a', '#c96f4a', '#e8a33c'][i]); }
+        else M.text(ctx, '🌙', x, 126, { size: 24 });
+        ctx.save(); ctx.strokeStyle = '#e3e9f2'; ctx.lineWidth = 2; ctx.setLineDash([4, 6]); ctx.beginPath(); ctx.moveTo(x, 150); ctx.lineTo(x, 470); ctx.stroke(); ctx.restore();
+      });
+      const band = (base, f, label, sub, y0) => {
+        M.text(ctx, label, 60, y0, { size: 17, align: 'left', weight: 900, color: '#0f6b60' });
+        M.text(ctx, sub, 60, y0 + 20, { size: 13, align: 'left', weight: 800, color: C.muted });
+        ctx.fillStyle = '#e3e9f2'; ctx.fillRect(70, base, 630, 2);
+        ctx.save(); ctx.beginPath(); ctx.rect(70, base - 130, x1 - 70, 132); ctx.clip();
+        ctx.beginPath(); ctx.moveTo(70, base); for (let x = 70; x <= 700; x += 4) ctx.lineTo(x, base - f(x)); ctx.lineTo(700, base); ctx.closePath();
+        ctx.fillStyle = 'rgba(20,163,139,0.28)'; ctx.fill();
+        ctx.beginPath(); for (let x = 70; x <= 700; x += 4) (x === 70 ? ctx.moveTo(x, base - f(x)) : ctx.lineTo(x, base - f(x)));
+        ctx.strokeStyle = '#14a38b'; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
+        if (p > 0.08 && p < 0.95) key(ctx, x1, base - f(x1), 0.6, 1);
+      };
+      band(310, quick, 'Mealtime Insulin', 'Works quickly, for a shorter time', 180);
+      band(462, steady, 'Background Insulin', 'Works slowly, between meals and overnight', 368);
+      ctx.save(); ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x1, 150); ctx.lineTo(x1, 470); ctx.stroke(); ctx.restore();
+    };
+
+    // ---- 7. too much insulin action: low blood sugar --------------------------------------------
+    const lowSugar = (ctx, s, p) => {
+      ctx.fillStyle = '#fbf7ef'; ctx.fillRect(0, 0, 960, 540);
+      const sym = fade(p, 0.5, 0.62);
+      M.person(ctx, 230, 300, 108, { t: s, mood: lerp(0.8, 0.3, sym) });
+      if (sym > 0) {
+        const sh = Math.sin(s * 30) * 3;
+        ctx.save(); ctx.globalAlpha *= sym;
+        [[152, 304], [308, 304]].forEach(([hx, hy]) => { ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 3; ctx.lineCap = 'round'; [-1, 1].forEach((d) => { ctx.beginPath(); ctx.arc(hx + sh, hy, 22, d > 0 ? -0.6 : Math.PI - 0.6, d > 0 ? 0.6 : Math.PI + 0.6); ctx.stroke(); }); });
+        [[190, 120], [276, 112], [284, 150]].forEach(([dx, dy], i) => M.drop(ctx, dx, dy + ((s * 14 + i * 9) % 18), 7, 0.9, '#5aa9e6'));
+        ctx.strokeStyle = '#9b7fd6'; ctx.lineWidth = 3; ctx.translate(230, 46); ctx.rotate(s * 2); ctx.beginPath(); for (let a = 0; a < 12; a += 0.2) ctx.lineTo(Math.cos(a) * a * 2.2, Math.sin(a) * a * 1.1); ctx.stroke();
+        ctx.restore();
+        ['Shaky', 'Sweaty', 'Weak or dizzy', 'Confused'].forEach((t, i) => M.pill(ctx, t, 70 + i * 96 + (i > 1 ? 18 : 0), 512, { size: 13, weight: 800, bg: '#fff6dc', border: '#e8a10c', color: '#8a5a00', alpha: fade(p, 0.56 + i * 0.05, 0.6 + i * 0.05) }));
+      }
+      // what can tip the balance
+      [['More insulin than needed', (x, y) => key(ctx, x + 2, y, 0.7)], ['Too little food for a mealtime dose', (x, y) => { M.dot(ctx, x, y, 11, '#ffffff'); ctx.strokeStyle = '#c9d3e2'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 11, 0, M.TAU); ctx.stroke(); }], ['Unexpected physical activity', (x, y) => M.text(ctx, '🏃', x, y, { size: 18 })]]
+        .forEach(([t, icon], i) => { const a = fade(p, 0.04 + i * 0.06, 0.09 + i * 0.06); if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, 420, 72 + i * 50, 300, 40, 20); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.stroke(); icon(444, 92 + i * 50); M.text(ctx, t, 466, 93 + i * 50, { size: 14, align: 'left', weight: 800, color: C.ink }); ctx.restore(); });
+      // blood: insulin keeps working while sugar runs low
+      const lv = fade(p, 0.24, 0.48);
+      M.rr(ctx, 420, 236, 300, 120, 30); ctx.fillStyle = '#fde3df'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#e8a39c'; ctx.stroke();
+      M.text(ctx, 'Blood', 440, 254, { size: 12, align: 'left', weight: 800, color: '#a3261f' });
+      for (let i = 0; i < 5; i++) key(ctx, 450 + ((s * 26 + i * 57) % 250), 278 + (i % 3) * 26, 0.7, 1);
+      for (let i = 0; i < 6; i++) Y.glucose(ctx, 470 + ((s * 18 + i * 47) % 220), 290 + (i % 2) * 36, 11, i < 6 - Math.round(5 * lv) ? 1 : 0);
+      // a sugar gauge slipping below its healthy band
+      M.rr(ctx, 440, 380, 260, 18, 9); ctx.fillStyle = '#eef2f7'; ctx.fill(); M.rr(ctx, 530, 380, 100, 18, 9); ctx.fillStyle = '#bfe6cf'; ctx.fill();
+      M.text(ctx, 'Healthy range', 580, 412, { size: 12, weight: 800, color: '#1d7a4c' }); M.text(ctx, 'Too low', 470, 412, { size: 12, weight: 800, color: '#a3261f' });
+      const mx = lerp(590, 470, lv); ctx.fillStyle = '#a3261f'; ctx.beginPath(); ctx.moveTo(mx, 376); ctx.lineTo(mx - 9, 364); ctx.lineTo(mx + 9, 364); ctx.closePath(); ctx.fill();
+      bigStatus(ctx, '⚠ LOW BLOOD SUGAR!', 'high', 570, 456, fade(p, 0.44, 0.52));
+    };
+    const STEPS = [['1', 'Notice the signs'], ['2', 'Check your blood sugar, if you can'], ['3', 'If awake and able to swallow: fast-acting sugar, as your plan says'], ['4', 'Check again and follow your plan']];
+    const plan = (ctx, s, p) => {
+      ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+      M.card(ctx, 40, 50, 560, 440, { r: 20, border: '#e8a10c', borderWidth: 3 });
+      M.text(ctx, 'If blood sugar is low', 320, 90, { size: 24, weight: 900, color: '#8a5a00' });
+      const icons = [
+        (x, y) => { M.text(ctx, '!', x, y + 1, { size: 22, weight: 900, color: '#e8a10c' }); },
+        (x, y) => { M.rr(ctx, x - 10, y - 14, 20, 28, 5); ctx.fillStyle = '#5b6b85'; ctx.fill(); M.rr(ctx, x - 7, y - 10, 14, 9, 2); ctx.fillStyle = '#d8f2e6'; ctx.fill(); M.drop(ctx, x + 14, y - 12, 5, 1, '#e0524a'); },
+        (x, y) => { M.rr(ctx, x - 9, y - 12, 18, 24, 3); ctx.fillStyle = '#f2a531'; ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x + 4, y - 12); ctx.lineTo(x + 8, y - 20); ctx.stroke(); },
+        (x, y) => { M.text(ctx, '↻', x, y + 1, { size: 24, weight: 900, color: '#1f4fa8' }); },
+      ];
+      STEPS.forEach(([n, t], i) => {
+        const a = fade(p, 0.06 + i * 0.1, 0.12 + i * 0.1), y = 146 + i * 82;
+        if (a <= 0) return;
+        ctx.save(); ctx.globalAlpha *= a;
+        M.dot(ctx, 84, y, 18, '#e8a10c'); M.text(ctx, n, 84, y + 1, { size: 17, weight: 900, color: '#ffffff' });
+        M.dot(ctx, 132, y, 22, '#fff6dc'); icons[i](132, y);
+        M.wrap(ctx, t, 172, y - (t.length > 40 ? 11 : 0), 400, { size: 17, weight: 800, color: C.ink, align: 'left' });
+        ctx.restore();
+      });
+      // severe lows are an emergency
+      const e = fade(p, 0.5, 0.58);
+      if (e > 0) {
+        ctx.save(); ctx.globalAlpha *= e;
+        M.card(ctx, 630, 120, 300, 300, { r: 20, border: '#e0524a', borderWidth: 4 });
+        M.text(ctx, '🚑', 780, 170, { size: 36 });
+        M.text(ctx, 'Severe Low:', 780, 220, { size: 20, weight: 900, color: '#a3261f' });
+        M.text(ctx, 'Emergency Help', 780, 246, { size: 20, weight: 900, color: '#a3261f' });
+        M.wrap(ctx, 'Glucagon may be needed if the person cannot safely swallow.', 780, 290, 250, { size: 14, weight: 800, color: C.ink });
+        M.wrap(ctx, 'Never give food or drink to someone who cannot swallow safely.', 780, 360, 250, { size: 13, weight: 700, color: C.muted });
+        ctx.restore();
+      }
+      M.text(ctx, 'Follow your own low blood sugar plan from your care team.', 480, 515, { size: 14, weight: 800, color: '#4b3a8f', alpha: fade(p, 0.66, 0.74) });
+    };
+
+    const CHAIN = [['Insulin key', (c, x, y) => key(c, x + 2, y, 0.8)], ['Body cells respond', (c, x, y) => MedAnim.organView(c, 'muscle', x, y, 12, { t: 0 })], ['Sugar moves into cells', (c, x, y) => Y.glucose(c, x, y, 12)], ['Blood sugar improves', (c, x, y) => { Y.glucose(c, x - 6, y, 10); M.text(c, '↓', x + 13, y, { size: 18, weight: 900, color: '#1d7a4c' }); }]];
+    const M_END = { dock: 1, resp: 1, doors: 1, uptake: 1, energy: 1, meter: false };
+
+    const scenesOut = [
+      // 1 ---------------------------------------------------------------- sugar stays in the blood
+      { label: 'When sugar stays in the blood', dur: 12, caption: 'After we eat, sugar enters our blood. Insulin helps move that sugar into cells. But without enough insulin action, too much sugar stays in the blood.',
+        draw(ctx, p, s) {
+          const xr = fade(p, 0.2, 0.32), lv = lerp(0.4, 1, fade(p, 0.34, 0.8));
+          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; meal(ctx, s, lerp(1, 0.35, fade(p, 0.04, 0.26)), true, 0.85); ctx.restore(); }
+          if (xr > 0) { ctx.save(); ctx.globalAlpha *= xr; inside(ctx, s, { level: lv, food: fade(p, 0.3, 0.4), keys: fade(p, 0.5, 0.6) * 0.5, muscle: 0.9, glow: [[PA, 28, fade(p, 0.48, 0.56) * (1 - fade(p, 0.7, 0.76))]] }); ctx.restore(); }
+          tag(ctx, 'After eating', 480, 60, fade(p, 0.04, 0.12) * (1 - fade(p, 0.22, 0.28)), 'key');
+          const gx = 352, gy = 212 + Math.sin(s * 2) * 3, gk = fade(p, 0.36, 0.44) * (1 - fade(p, 0.54, 0.58));
+          if (gk > 0) Y.glucose(ctx, gx, gy, 14, gk, { letter: true });
+          call(ctx, { text: 'Glucose (Sugar)', targetX: gx, targetY: gy, labelX: 560, labelY: 200, radius: 20, tone: 'sugar', progress: win(p, 0.38, 0.58) });
+          call(ctx, { text: 'Some insulin from the pancreas', targetX: PA[0], targetY: PA[1] + 6, labelX: 600, labelY: 300, radius: 22, tone: 'insulin', progress: win(p, 0.56, 0.8) });
+          bigStatus(ctx, 'BLOOD SUGAR TOO HIGH', 'high', 640, 440, fade(p, 0.8, 0.88));
+          M.text(ctx, 'Some people make plenty of insulin, but it does not work well enough', 640, 484, { size: 12, weight: 700, color: C.muted, alpha: fade(p, 0.84, 0.92) });
+          legend(ctx, [L_SUGAR, L_INS], fade(p, 0.38, 0.46));
+        } },
+      // 2 ---------------------------------------------------------------- insulin medicine
+      { label: 'Insulin medicine', dur: 12, caption: 'Insulin medicine gives your body extra insulin. It is usually a small shot under the skin. Then it enters the blood and travels around the body.',
+        draw(ctx, p, s) {
+          const back = fade(p, 0, 0.06), card = fade(p, 0.48, 0.54) * (1 - fade(p, 0.68, 0.74)), xr = fade(p, 0.72, 0.8);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; inside(ctx, s, { level: 1 }); ctx.restore(); }
+          let first = null;
+          if (xr < 1) {
+            ctx.save(); ctx.globalAlpha *= back * (1 - xr);
+            M.person(ctx, 270, 300, 108, { t: s, mood: 0.85 });
+            const press = fade(p, 0.1, 0.18) * (1 - fade(p, 0.4, 0.46));
+            pen(ctx, 300, 300 - 0.15 * 108 - 14 * (1 - press), -0.35, fade(p, 0.05, 0.1) * (1 - fade(p, 0.4, 0.46)));
+            const la = fade(p, 0.08, 0.14) * (1 - fade(p, 0.44, 0.5));
+            if (la > 0) { ctx.save(); ctx.globalAlpha *= la; first = skin(ctx, s, fade(p, 0.12, 0.22), fade(p, 0.22, 0.44), (c, x, y, a) => key(c, x, y, 0.62, a)); ctx.restore(); }
+            ctx.restore();
+          }
+          if (card > 0) {
+            ctx.save(); ctx.globalAlpha *= card;
+            M.card(ctx, 500, 150, 440, 230, { r: 20, border: '#14a38b', borderWidth: 3 });
+            M.text(ctx, 'INSULIN MEDICINE = INSULIN', 720, 196, { size: 24, weight: 900, color: '#0f6b60' });
+            key(ctx, 650, 270, 1.6 + 0.05 * Math.sin(s * 3)); M.text(ctx, '=', 720, 272, { size: 34, weight: 900, color: '#8a9bb4' }); key(ctx, 800, 270, 1.6);
+            M.text(ctx, 'The same kind of key your body makes', 720, 340, { size: 15, weight: 800, color: C.muted });
+            ctx.restore();
+          }
+          if (xr > 0) {
+            ctx.save(); ctx.globalAlpha *= xr;
+            inside(ctx, s, { level: 1, shot: fade(p, 0.76, 0.84), glow: [[INJ, 24, fade(p, 0.78, 0.86)]] });
+            ctx.restore();
+            tag(ctx, 'Into the Blood', 700, 300, fade(p, 0.84, 0.9), 'good');
+          }
+          if (first) call(ctx, { text: 'Insulin', targetX: first[0], targetY: first[1], labelX: 470, labelY: 420, radius: 16, tone: 'insulin', icon: (c2, x, y) => key(c2, x + 2, y, 0.6), progress: win(p, 0.16, 0.44) });
+          tag(ctx, 'Under the Skin', 480, 60, fade(p, 0.08, 0.14) * (1 - fade(p, 0.44, 0.5)), 'key');
+          M.text(ctx, 'Into the fat under the skin, not into a vein', 480, 90, { size: 13, color: C.muted, weight: 700, alpha: fade(p, 0.18, 0.26) * (1 - fade(p, 0.44, 0.5)) });
+          legend(ctx, ['insulin-medicine'], fade(p, 0.14, 0.2));
+        } },
+      // 3 ---------------------------------------------------------------- the insulin key
+      { label: 'The insulin key', dur: 17, caption: 'Think of insulin like a key. It fits into a special receiver on a cell. That sends a signal to bring sugar doors to the surface. Now sugar can move into the cell, for energy.',
+        draw(ctx, p, s) {
+          const c = camAt([[0, ...WHOLE], [0.08, ...WHOLE], [0.2, MU[0], MU[1], 2.6, 400, 300], [0.28, MU[0], MU[1], 7, ...MID], [1, MU[0], MU[1], 7.4, ...MID]], p);
+          const lens = fade(p, 0.26, 0.34);
+          if (lens < 1) withCam(ctx, c, () => inside(ctx, s, { k: c.k, shot: 1, muscle: 1, glow: [[MU, 30, fade(p, 0.14, 0.22)]] }));
+          tag(ctx, 'Muscle', 480, 60, fade(p, 0.16, 0.22) * (1 - lens), 'key');
+          const st = { dock: fade(p, 0.36, 0.5), resp: 1, doors: fade(p, 0.56, 0.64), uptake: seg(p, 0.66, 0.92), energy: fade(p, 0.86, 0.96), meter: false };
+          lensOpen(ctx, lens, () => muscleCellView(ctx, s, 30, 40, 680, 470, st));
+          if (lens >= 1) {
+            const R = [30 + 680 * 0.16, 40 + 470 * 0.37], ky = lerp(40 + 470 * 0.27 * 0.4, R[1] - 14, ease(st.dock));
+            call(ctx, { text: 'Insulin', targetX: R[0], targetY: ky, labelX: 330, labelY: 110, radius: 22, tone: 'insulin', progress: win(p, 0.34, 0.46) });
+            call(ctx, { text: 'Insulin Sends a Signal', targetX: R[0], targetY: R[1], labelX: 360, labelY: 420, radius: 30, tone: 'insulin', progress: win(p, 0.46, 0.58) });
+            call(ctx, { text: 'Sugar Doors Open', targetX: 30 + 680 * 0.6, targetY: R[1], labelX: 360, labelY: 420, radius: 28, tone: 'glp1', progress: win(p, 0.58, 0.68) });
+            call(ctx, { text: 'Sugar Enters the Cell', targetX: 30 + 680 * 0.53, targetY: R[1] + 296 * 0.42, labelX: 360, labelY: 460, radius: 24, tone: 'sugar', progress: win(p, 0.7, 0.86) });
+            tag(ctx, 'Used for energy', 360, 460, fade(p, 0.88, 0.94), 'good');
+            M.text(ctx, 'Insulin does not carry the sugar; it sends the signal', 370, 528, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.72, 0.8) });
+          }
+          legend(ctx, [L_INS, L_SUGAR], 1);
+        } },
+      // 4 ---------------------------------------------------------------- WITHOUT vs WITH
+      { label: 'Without vs with insulin', dur: 18, caption: 'Look at the difference. Without enough insulin action, too much sugar can stay in the blood. With insulin treatment, more sugar can move into body cells. That helps bring blood sugar down.',
+        draw(ctx, p, s) {
+          const t = seg(p, 0.06, 0.88);
+          const A = cmp(ctx, t, s);
+          if (p < 0.06) { ctx.save(); ctx.globalAlpha *= 1 - fade(p, 0, 0.06); ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); muscleCellView(ctx, s, 30, 40, 680, 470, M_END); ctx.restore(); }
+          if (A.shotKey) call(ctx, { text: 'Extra insulin from the shot', targetX: A.shotKey[0], targetY: A.shotKey[1], labelX: 560, labelY: 132, radius: 18, tone: 'insulin', progress: win(t, 0.1, 0.34) });
+          if (A.sugarIn) call(ctx, { text: 'More sugar moves in', targetX: A.sugarIn[0], targetY: A.sugarIn[1], labelX: 560, labelY: 132, radius: 18, tone: 'good', progress: win(t, 0.64, 0.86) });
+          M.text(ctx, 'An example for one person. Not real measurements; insulin needs differ.', 364, 527, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.88, 0.94) });
+          legend(ctx, [L_INS, L_SUGAR], 1);
+        } },
+      // 5 ---------------------------------------------------------------- the liver
+      { label: 'Insulin helps the liver, too', dur: 9, caption: 'Insulin also tells the liver to release less extra sugar. That helps control blood sugar between meals, too.',
+        draw(ctx, p, s) {
+          const off = fade(p, 0, 0.08), pair = fade(p, 0.3, 0.38);
+          if (pair < 1) {
+            const c = camAt([[0, ...WHOLE], [0.12, ...WHOLE], [0.3, LIV[0], LIV[1], 2.4, 400, 280]], p);
+            withCam(ctx, c, () => inside(ctx, s, { k: c.k, shot: 0.6, glow: [[LIV, 34, fade(p, 0.1, 0.2)]] }));
+            tag(ctx, 'Liver', 480, 60, fade(p, 0.12, 0.18) * (1 - pair), 'key');
+          }
+          if (off < 1) cmp(ctx, 1, s, 1 - off);
+          if (pair > 0) {
+            ctx.save(); ctx.globalAlpha *= pair; liverPair(ctx, s, LIVER_TXT);
+            [[430, 180], [460, 330], [520, 380]].forEach(([x, y], i) => key(ctx, x + Math.sin(s * 2 + i) * 4, y, 0.8, 1));
+            ctx.restore();
+            M.text(ctx, 'The liver still sends out some sugar', 360, 490, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.7, 0.8) });
+          }
+          legend(ctx, [L_SUGAR, L_INS], 1);
+        } },
+      // 6 ---------------------------------------------------------------- mealtime vs background
+      { label: 'Different insulins work differently', dur: 16, caption: 'Some insulin works quickly to help with meals. Other insulin works slowly in the background. Your healthcare team chooses the type, or mix, that works best for you.',
+        draw(ctx, p, s) {
+          day(ctx, s, p);
+          if (p < 0.06) { ctx.save(); ctx.globalAlpha *= 1 - fade(p, 0, 0.06); ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); liverPair(ctx, s, LIVER_TXT); ctx.restore(); }
+          tag(ctx, 'MEALTIME = Covers Meals', 470, 180, fade(p, 0.3, 0.38), 'good');
+          tag(ctx, 'BACKGROUND = Works Between Meals', 530, 368, fade(p, 0.56, 0.64), 'good');
+          M.text(ctx, 'A simple picture, not an exact time graph. Not everyone needs both types.', 380, 512, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.7, 0.78) });
+        } },
+      // 7 ---------------------------------------------------------------- low blood sugar
+      { label: 'When there is too much insulin action', dur: 17, caption: 'Insulin is very helpful, but blood sugar can sometimes drop too low. You might feel shaky, sweaty, or dizzy. If this happens, check your blood sugar and follow your low blood sugar plan.',
+        draw(ctx, p, s) {
+          const pl = fade(p, 0.5, 0.58);
+          if (pl < 1) { ctx.save(); ctx.globalAlpha *= 1 - pl; lowSugar(ctx, s, seg(p, 0, 0.5)); ctx.restore(); }
+          if (pl > 0) { ctx.save(); ctx.globalAlpha *= pl; plan(ctx, s, seg(p, 0.5, 1)); ctx.restore(); }
+          if (p < 0.04) { ctx.save(); ctx.globalAlpha *= 1 - fade(p, 0, 0.04); day(ctx, s, 1); ctx.restore(); }
+          legend(ctx, [L_INS, L_SUGAR], 1 - pl);
+        } },
+      // 8 ---------------------------------------------------------------- recap
+      { label: 'Back to the whole person', dur: 7, caption: 'Insulin helps the body use sugar. Different types work at different speeds, so follow your own treatment plan.',
+        draw(ctx, p, s) {
+          ctx.fillStyle = '#f4f8fd'; ctx.fillRect(0, 0, 960, 540);
+          meal(ctx, s, 0.8, true, 1);
+          bigStatus(ctx, 'Insulin Helps Your Body Use Sugar', 'low', 735, 62, fade(p, 0.08, 0.16));
+          CHAIN.forEach(([t, icon], i) => {
+            const a = fade(p, 0.14 + i * 0.08, 0.2 + i * 0.08), y = 130 + i * 78, last = i === CHAIN.length - 1;
+            if (a <= 0) return;
+            ctx.save(); ctx.globalAlpha *= a;
+            M.rr(ctx, 540, y - 27, 390, 54, 27); ctx.fillStyle = last ? '#e9f7ef' : '#ffffff'; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = last ? '#2fa36b' : '#d7e0ec'; ctx.stroke();
+            icon(ctx, 582, y); M.text(ctx, t, 616, y + 1, { size: 18, align: 'left', weight: 800, color: last ? '#1d7a4c' : C.ink });
+            if (!last) M.text(ctx, '↓', 582, y + 40, { size: 18, weight: 900, color: '#8a9bb4' });
+            ctx.restore();
+          });
+          bigStatus(ctx, '⚠ Know the Signs of Low Blood Sugar', 'mid', 735, 470, fade(p, 0.5, 0.58));
+          const off = fade(p, 0, 0.12);
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; plan(ctx, s, 1); ctx.restore(); }
+        } },
+    ];
+    return scenesOut;
+  });
+
   // ============================================================================ SGLT2 INHIBITORS
   def('sglt2-inhibitors', (cls) => {
     const th = B().themeOf(cls, { organ: 'kidney' }), K = [330, 280];
@@ -1695,74 +2311,346 @@
     ];
   });
 
-  // ============================================================================== ACE INHIBITORS
-  def('ace-inhibitors', (cls) => {
-    const th = B().themeOf(cls, { organ: 'vessel' }), V = [480, 280];
-    // A segment of artery wall: lumen with blood, endothelium with ACE, smooth muscle beneath.
-    const wall = (ctx, s, ang2, drug) => {
-      const tone = lerp(0.25, 1, ang2), half = lerp(95, 70, tone);
-      M.rr(ctx, 60, 280 - half - 50, 840, 2 * half + 100, 30); ctx.fillStyle = mix('#f2b8ae', '#d9837a', tone); ctx.fill();
-      ctx.fillStyle = C.lumen; ctx.fillRect(60, 280 - half, 840, 2 * half);
-      for (let x = 70; x < 900; x += 26) { M.rr(ctx, x, 280 - half - 12, 22, 12, 6); ctx.fillStyle = '#f7d3cc'; ctx.fill(); }
-      M.text(ctx, 'Smooth muscle', 80, 280 - half - 30, { size: 12, align: 'left', color: '#8a3b33', weight: 800 });
-      M.text(ctx, 'Endothelium', 900, 280 - half - 24, { size: 12, align: 'right', color: C.muted, weight: 700 });
-      for (let i = 0; i < 8; i++) { const ph = (s * 0.2 + rnd(i)) % 1; M.rbc(ctx, 60 + ph * 840, 280 + (rnd(i + 4) - 0.5) * half, 9); }
-      [260, 520, 760].forEach((x) => { ctx.save(); ctx.beginPath(); ctx.moveTo(x, 280 - half + 4); ctx.arc(x, 280 - half + 4, 16, 0.4, Math.PI - 0.4); ctx.closePath(); ctx.fillStyle = drug > 0.5 ? '#9fb0c6' : '#e8a33c'; ctx.fill(); ctx.restore(); if (drug > 0) hex(ctx, x, 280 - half + 14, 7, drug); });
-      M.text(ctx, 'ACE', 520, 280 - half + 40, { size: 12, weight: 800, color: '#b06d00' });
-      // angiotensin I (dots) is converted to angiotensin II (squares) as it passes ACE
-      for (let i = 0; i < 6; i++) {
-        const ph = (s * 0.3 + i / 6) % 1, x = 60 + ph * 840, conv = x > 520 && rnd(i + Math.floor(s * 0.3 + i / 6)) < ang2;
-        if (conv) { M.rr(ctx, x - 6, 280 - half + 30, 12, 12, 3); ctx.fillStyle = '#e0524a'; ctx.fill(); } else M.dot(ctx, x, 280 - half + 36, 6, '#f2c27a');
-      }
-      if (ang2 > 0.3) for (let i = 0; i < 4; i++) M.arrow(ctx, 150 + i * 200, 280 - half - 60, 150 + i * 200, 280 - half - 30, { color: '#a3261f', width: 3, head: 7, alpha: ang2 });
+  // ---- shared blood-pressure pieces (ACE inhibitors, ARBs) ----------------------------------
+  // One coordinated series: the same see-through patient (beating heart, arteries, two kidneys),
+  // the same artery close-up, kidney view, pressure gauge, and before/after panels. Only the
+  // mechanism differs: ACE inhibitors slow the orange signal-making machine (fewer red
+  // tightening signals, never none); ARBs leave the signals in the blood but sit in their blue
+  // receivers. Vessels tighten or relax but never close. Counts and gauges are qualitative.
+  const BP_HE = [270 + 0.15 * 108, 300 - 0.78 * 108], BP_VES = [259, 311];
+  const BP_KID = [[298, 291], [242, 291]];
+  // The see-through patient. o: k (camera zoom), press (0..1 how high the pressure is: redder
+  // arteries), kid (kidney glow), meds (purple diamonds travelling), pill (tablet along the gut).
+  function bpBody(ctx, s, o = {}) {
+    const Y = window.MedSym, k = o.k || 1, rk = Math.max(1, k * 0.55);
+    S.bodyWithBlood(ctx, 270, 300, 108, s, { density: 0.9, item: (c, x, y, on) => M.rbc(c, x, y, (on ? 4.2 : 3) / Math.max(1, rk * 0.8), on ? 0.9 : 0.5) });
+    if (o.press > 0) bodyGlow(ctx, BP_VES[0], BP_VES[1], 34, o.press * 0.8, s, '240,90,80');
+    BP_KID.forEach(([x, y], i) => { if (o.kid > 0) bodyGlow(ctx, x, y, 26, o.kid, s); M.kidney(ctx, x, y, 13, { flip: i === 1 }); });
+    if (o.pill != null && o.pill >= 0) { const q = alongPath(gutPath(), Math.min(1, o.pill) * 0.92); tablet(ctx, q[0], q[1], 0.45, 1 - seg(o.pill, 0.9, 1)); }
+    if (o.meds > 0) [[at('gut'), [252, 250], BP_HE], [BP_HE, [262, 270], BP_VES], [BP_HE, [290, 262], BP_KID[0]]].forEach((pts, j) => flow(ctx, pts, 3, s + j * 0.4, 0.22, (x, y) => Y.medicine(ctx, x, y, 5.5 / rk, o.meds)));
+    (o.glow || []).forEach(([pt, r, a]) => bodyGlow(ctx, pt[0], pt[1], r, a, s));
+  }
+  // A blood-pressure gauge: green → amber → red arc with a needle (level 0..1). No numbers.
+  function pressureGauge(ctx, x, y, r, level, a = 1, label = 'Blood pressure') {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a; ctx.lineCap = 'butt';
+    [['#2fa36b', 0, 0.42], ['#e8a10c', 0.42, 0.7], ['#e0524a', 0.7, 1]].forEach(([c, a0, a1]) => { ctx.strokeStyle = c; ctx.lineWidth = r * 0.24; ctx.beginPath(); ctx.arc(x, y, r, Math.PI + a0 * Math.PI, Math.PI + a1 * Math.PI); ctx.stroke(); });
+    const ang = Math.PI + level * Math.PI;
+    ctx.strokeStyle = '#2b3445'; ctx.lineWidth = Math.max(2, r * 0.08); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(ang) * r * 0.86, y + Math.sin(ang) * r * 0.86); ctx.stroke();
+    M.dot(ctx, x, y, r * 0.1, '#2b3445');
+    ctx.restore();
+    if (label) M.text(ctx, label, x, y + r * 0.42 + 8, { size: Math.max(11, Math.round(r * 0.22)), weight: 800, color: C.muted, alpha: a });
+  }
+  // The artery close-up in box b: a lumen with flowing blood cells, the lining, and the ring of
+  // muscle cells that tightens (tight 0 relaxed → 1 tight; the lumen narrows but stays open).
+  // The mechanism sits on it. o: mode 'ace' | 'arb' | 'none', recs (receiver x positions on the
+  // lower wall), occ (0..1 share of receivers switched on by a signal), rate (ACE: how fast the
+  // machine works), machine (ACE machine x), blocked (ARB: 0..1 per receiver, a diamond in the
+  // cup), freeSignals (signals drifting in the blood), k (size scale), medsAt (diamonds placed on
+  // the machine). Returns anchor points.
+  function drawArtery(ctx, s, b, o = {}) {
+    const Y = window.MedSym, k = o.k || 1, tight = o.tight || 0, cy = b.y + b.h / 2, R = b.h / 2, L = R * lerp(0.6, 0.33, tight);
+    const out = {};
+    ctx.save(); M.rr(ctx, b.x, b.y, b.w, b.h, 24 * k); ctx.clip();
+    ctx.fillStyle = '#f8e4de'; ctx.fillRect(b.x, b.y, b.w, b.h);
+    const mc = mix('#eaa79e', '#cf5a52', tight);
+    ctx.fillStyle = mc; ctx.fillRect(b.x, cy - R, b.w, R - L); ctx.fillRect(b.x, cy + L, b.w, R - L);
+    for (let x = b.x + 16 * k; x < b.x + b.w; x += 30 * k) [-1, 1].forEach((d) => {
+      ctx.beginPath(); ctx.ellipse(x, cy + d * (L + R) / 2, 12 * k, Math.max(3, (R - L) * 0.3), 0, 0, M.TAU);
+      ctx.fillStyle = mix('#f3c3bb', '#e2867e', tight); ctx.fill(); ctx.strokeStyle = mix('#c98a82', '#a8433d', tight); ctx.lineWidth = 1.2; ctx.stroke();
+    });
+    ctx.fillStyle = '#fbefe9'; ctx.fillRect(b.x, cy - L - 4 * k, b.w, 4 * k); ctx.fillRect(b.x, cy + L, b.w, 4 * k);
+    ctx.fillStyle = '#fde3df'; ctx.fillRect(b.x, cy - L, b.w, 2 * L);
+    for (let i = 0; i < 7; i++) M.rbc(ctx, b.x + ((s * 0.09 + i / 7) % 1) * b.w, cy + (M.rnd(i + 3) - 0.5) * L * 1.1, 8 * k, 0.75);
+    const sq = seg(tight, 0.45, 0.85);
+    if (sq > 0) for (let x = b.x + 60 * k; x < b.x + b.w - 30; x += 110 * k) [-1, 1].forEach((d) => M.arrow(ctx, x, cy + d * (R - 2), x, cy + d * (R - 18 * k), { color: '#a3261f', width: 3 * k, head: 7 * k, alpha: sq }));
+    ctx.restore();
+    // the receivers on the muscle of the lower wall, cups opening into the blood
+    const recs = o.recs || [];
+    const nOn = Math.round(recs.length * (o.occ || 0));
+    recs.forEach((x, j) => {
+      const blk = (o.blocked || [])[j] || 0, on = blk >= 1 ? 0 : (j < nOn ? 1 : 0);
+      Y.sigReceiver(ctx, x, cy + L, -1, { scale: k, signal: on, blocked: blk });
+      if (blk >= 1 && o.mode === 'arb') { const by = cy + L - 44 * k - 10 * k * Math.abs(Math.sin(s * 3 + j)); Y.tightSignal(ctx, x + 14 * k, by, 8 * k, 0.9); }
+      if (j === 0) out.rec = [x, cy + L - 17 * k];
+    });
+    out.cy = cy; out.L = L;
+    // ACE on the upper lining: raw material in, tightening signals out
+    if (o.mode === 'ace') {
+      const mx = o.machine, my = cy - L + 24 * k, rate = o.rate == null ? 1 : o.rate;
+      flow(ctx, [[b.x + 6, my], [mx - 46 * k, my]], 4, s, 0.22, (x, y) => M.dot(ctx, x, y, 4.5 * k, '#f2c27a'));
+      Y.aceMachine(ctx, mx, my, k, rate, s);
+      (o.medsAt || []).forEach(([dx, dy, a]) => Y.medicine(ctx, mx + dx * k, my + dy * k, 11 * k, a));
+      flow(ctx, [[mx + 46 * k, my], [mx + 110 * k, cy], [b.x + b.w - 4, cy + L * 0.4]], Math.max(1, Math.round(1 + 5 * rate)), s, 0.2, (x, y) => Y.tightSignal(ctx, x, y, 8 * k));
+      out.machine = [mx, my];
+      out.star = [mx + 80 * k, lerp(my, cy, 0.5)];
+    }
+    if (o.freeSignals) for (let i = 0; i < o.freeSignals; i++) { const x = b.x + ((s * 0.07 + i / o.freeSignals + 0.05) % 1) * b.w, y = cy - L * 0.45 + (i % 3) * L * 0.35 + Math.sin(s * 2 + i) * 3; Y.tightSignal(ctx, x, y, 8 * k); if (!out.star && x > b.x + 80 && x < b.x + b.w * 0.6) out.star = [x, y]; }
+    return out;
+  }
+  // The kidney close-up: a filter (pressure inside it eases with treatment) and salt and water
+  // balance (a little less is kept; these are not water pills). treat 0..1.
+  function kidneyView(ctx, s, treat) {
+    const Y = window.MedSym;
+    ctx.fillStyle = '#fbf3ef'; ctx.fillRect(0, 0, 960, 540);
+    M.card(ctx, 24, 70, 330, 400, { r: 20 }); M.card(ctx, 370, 70, 340, 400, { r: 20 });
+    M.text(ctx, 'Kidney filter', 189, 102, { size: 18, weight: 900, color: '#6b4a8a' });
+    M.glomerulus(ctx, 170, 250, 58, { t: s, dilate: lerp(0, -0.4, treat), labels: false });
+    const lv = lerp(0.85, 0.5, treat);
+    M.text(ctx, 'Pressure inside the filter', 189, 378, { size: 13, weight: 800, color: C.muted });
+    M.rr(ctx, 69, 392, 240, 14, 7); ctx.fillStyle = '#eef2f7'; ctx.fill(); M.rr(ctx, 69, 392, 240 * lv, 14, 7); ctx.fillStyle = mix('#2fa36b', '#e0524a', lv); ctx.fill();
+    M.text(ctx, 'Salt and Water Balance', 540, 102, { size: 18, weight: 900, color: '#1f4fa8' });
+    M.rr(ctx, 390, 140, 300, 50, 25); ctx.fillStyle = '#fde3df'; ctx.fill(); M.text(ctx, 'Blood', 410, 165, { size: 12, align: 'left', weight: 800, color: '#a3261f' });
+    M.rr(ctx, 390, 330, 300, 50, 25); ctx.fillStyle = '#efe6ff'; ctx.fill(); M.text(ctx, 'Kidney tube', 410, 355, { size: 12, align: 'left', weight: 800, color: '#6b4a8a' });
+    M.text(ctx, '→ urine', 690, 400, { size: 12, align: 'right', weight: 800, color: C.muted });
+    const kept = Math.round(lerp(5, 4, treat));
+    for (let i = 0; i < 6; i++) {
+      const u = (s * 0.12 + i / 6) % 1, x = 410 + u * 270, back = i < kept && x > 470 && x < 640;
+      const y = back ? lerp(355, 165, seg(x, 470, 640)) : 355;
+      if (i % 2) Y.salt(ctx, x, y, 6); else M.drop(ctx, x, y, 7, 1, '#5aa9e6');
+    }
+    M.text(ctx, '↑ kept by the body', 540, 260, { size: 13, weight: 800, color: C.muted });
+  }
+  // Before / with panels for both classes: the same artery, gauge and status in each.
+  function drawBPComparison(ctx, o) {
+    const Y = window.MedSym, t = o.t, s = o.s, a = o.alpha == null ? 1 : o.alpha, ace = o.mode === 'ace', anchors = {};
+    if (a <= 0) return anchors;
+    ctx.save(); ctx.globalAlpha *= a;
+    ctx.fillStyle = '#f4f7fb'; ctx.fillRect(0, 0, 960, 540);
+    CMP_PX.forEach((x0, side) => {
+      const on = side === 1;
+      M.rr(ctx, x0, 60, CMP_W, 452, 22); ctx.fillStyle = '#ffffff'; ctx.fill();
+      ctx.save(); M.rr(ctx, x0, 60, CMP_W, 452, 22); ctx.clip(); ctx.fillStyle = on ? '#f1ecff' : '#eef2f7'; ctx.fillRect(x0, 60, CMP_W, 46); ctx.restore();
+      M.rr(ctx, x0, 60, CMP_W, 452, 22); ctx.lineWidth = 3; ctx.strokeStyle = on ? '#b9a6ee' : '#cfd9e6'; ctx.stroke();
+      if (on) Y.medicine(ctx, x0 + 30, 83, 11);
+      M.text(ctx, on ? (ace ? 'With ACE Inhibitor' : 'With ARB Medicine') : 'Without Medicine', x0 + CMP_W / 2 + (on ? 10 : 0), 84, { size: 20, weight: 900, color: on ? '#4b3a8f' : '#3b4a5c' });
+      const recs = [x0 + 120, x0 + 200, x0 + 280];
+      let st;
+      if (!on) st = { tight: 0.9, occ: 1, rate: 1, blocked: [] };
+      else if (ace) { const r = lerp(1, 0.3, fade(t, 0.15, 0.45)); st = { rate: r, occ: lerp(1, 0.34, fade(t, 0.2, 0.6)), tight: lerp(0.9, 0.28, ease(seg(t, 0.3, 0.82))), blocked: [] }; }
+      else st = { rate: 1, occ: 1, tight: lerp(0.9, 0.28, ease(seg(t, 0.3, 0.82))), blocked: [fade(t, 0.06, 0.2), fade(t, 0.14, 0.28), 0] };
+      const medsAt = on && ace ? [[-12, -30, fade(t, 0.04, 0.14)], [10, -30, fade(t, 0.1, 0.2)]] : [];
+      // ARB diamonds arrive from the blood before they settle in the cups
+      const A = drawArtery(ctx, s, { x: x0 + 14, y: 118, w: CMP_W - 28, h: 200 }, { mode: ace ? 'ace' : 'arb', k: 0.62, tight: st.tight, recs, occ: on && !ace ? 1 : st.occ, rate: st.rate, machine: x0 + 96, medsAt, blocked: st.blocked, freeSignals: ace ? 0 : 5 });
+      if (on && !ace) [0, 1].forEach((j) => { const u = fade(t, 0.02 + j * 0.08, 0.06 + j * 0.08 + 0.1); if (u > 0 && u < 1) Y.medicine(ctx, recs[j], lerp(140, A.cy + A.L - 11, ease(u)), 7, 1); });
+      if (on) Object.assign(anchors, A);
+      const lv = lerp(0.3, 0.9, seg(st.tight, 0.28, 0.9));
+      pressureGauge(ctx, x0 + 72, 392, 34, lv, 1);
+      const note = on ? (ace ? 'Less signal made' : 'Receivers blocked') : 'Vessel tight, flow squeezed';
+      M.text(ctx, note, x0 + 222, 380, { size: 14, weight: 800, color: on ? '#4b3a8f' : '#a3261f', alpha: on ? fade(t, 0.2, 0.3) : 1 });
+      M.text(ctx, on ? 'Vessel relaxes, wider inside' : 'Narrower inside', x0 + 222, 402, { size: 13, weight: 700, color: C.muted, alpha: on ? fade(t, 0.55, 0.65) : 1 });
+      statusBar(ctx, x0 + 12, CMP_W - 24, t, on ? [[0, 'high', 'BLOOD PRESSURE HIGH'], [0.5, 'mid', 'BLOOD PRESSURE EASING'], [0.78, 'low', 'BLOOD PRESSURE COMES DOWN']] : [[0, 'high', 'BLOOD PRESSURE HIGH']]);
+    });
+    ctx.restore();
+    return anchors;
+  }
+
+  // ======================================================================= ACE INHIBITORS / ARBs
+  // Two coordinated eight-scene stories built from the pieces above, kid-friendly:
+  //   whole body with high pressure → a tight artery → the class's own mechanism (ACE: the
+  //   signal-making machine; ARB: the signal and its receiver) → the pill acts (ACE: fewer
+  //   signals made; ARB: receivers blocked, signals still there) → kidneys (filter pressure,
+  //   a little less salt and water kept) → WITHOUT vs WITH → the whole body with a lower gauge
+  //   → short safety reminders → a quick ACE vs ARB recap (not meant to be taken together).
+  // Narration says A. C. E. and A. R. B. letter by letter (each scene's `say`).
+  function bpStory(mode) {
+    const ace = mode === 'ace', Y = window.MedSym;
+    const WHOLE = [270, 300, 1, 270, 300], MID = [480, 280], MOUTH = [274, 138];
+    const legend = (ctx, items, a) => Y.drawMoleculeLegend(ctx, items, { alpha: a });
+    const call = (ctx, o) => Y.drawCallout(ctx, o);
+    const win = (p, a, b) => fade(p, a, a + 0.05) * (1 - fade(p, b - 0.05, b));
+    const bigStatus = (ctx, text, tone, x, y, a) => M.pill(ctx, text, x, y, { size: 18, weight: 900, bg: CMP_TONE[tone][0], border: CMP_TONE[tone][1], color: CMP_TONE[tone][2], alpha: a });
+    const MED = ace ? 'ace-medicine' : 'arb-medicine';
+    const BOX = { x: 20, y: 120, w: 690, h: 300 }, RECS = [180, 330, 480, 630], MACH = 300;
+    const artery = (ctx, s, st) => { ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); return drawArtery(ctx, s, BOX, Object.assign({ mode: ace ? 'ace' : 'arb', recs: RECS, machine: MACH }, st)); };
+    // the patient takes a tablet with water (scene 3)
+    const takePill = (ctx, s, act, a) => {
+      if (a <= 0) return null;
+      ctx.save(); ctx.globalAlpha *= a;
+      M.person(ctx, 270, 300, 108, { t: s, mood: 0.8 });
+      const hand = [354, 302], u = ease(seg(act, 0.05, 0.5));
+      const tx = lerp(hand[0], MOUTH[0] + 8, u), ty = lerp(hand[1], MOUTH[1] + 6, u) - Math.sin(u * Math.PI) * 50;
+      if (act < 0.55) tablet(ctx, tx, ty, 0.8, 1 - seg(act, 0.48, 0.55));
+      const g = seg(act, 0.55, 1); glass(ctx, lerp(hand[0], MOUTH[0] + 26, ease(seg(g, 0, 0.4))), lerp(hand[1], MOUTH[1] + 14, ease(seg(g, 0, 0.4))), -0.9 * seg(g, 0.35, 0.6) * (1 - seg(g, 0.85, 1)), fade(act, 0.5, 0.58));
+      ctx.restore();
+      return [tx, ty];
     };
-    const raasMap = (ctx, s, a) => {
-      const liver = at('liver'), kid = at('kidney'), lung = at('lungs'), ves = at('vessel');
-      const path = [liver, [kid[0] - 10, kid[1] - 10], [lung[0], lung[1] + 20], [ves[0] + 40, ves[1]]];
-      ctx.save(); ctx.globalAlpha *= a; ctx.setLineDash([6, 5]); ctx.strokeStyle = '#c99a3a'; ctx.lineWidth = 2.5; ctx.beginPath(); path.forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y))); ctx.stroke(); ctx.restore();
-      flow(ctx, path, 6, s, 0.3, (x, y, i) => M.dot(ctx, x, y, 5, y < lung[1] + 25 && x < lung[0] + 5 ? '#e0524a' : '#f2c27a', a));
-    };
-    return [
-      { label: 'Whole-body problem', dur: 8, caption: 'With high blood pressure, the heart and blood vessels experience extra pressure over time.',
+    const TIGHT_END = ace ? { tight: 0.9, occ: 1, rate: 1 } : { tight: 0.9, occ: 1, freeSignals: 6 };
+    const RELAX_END = ace ? { tight: 0.28, occ: 0.25, rate: 0.3, medsAt: [[-14, -30, 1], [12, -30, 1]] } : { tight: 0.28, occ: 1, freeSignals: 6, blocked: [1, 1, 1, 0] };
+
+    const scenesOut = [
+      // 1 ------------------------------------------------------------ high blood pressure
+      { label: 'When blood pressure is high', dur: 10.5, caption: 'Your heart pumps blood through tubes called blood vessels. Sometimes these vessels become too tight. That can make blood pressure go up.',
         draw(ctx, p, s) {
-          const lv = lerp(0.6, 1, fade(p, 0, 0.5));
-          B().body(ctx, th, lv, s);
-          xray(ctx, ['heart'], 'heart', s, fade(p, 0.3, 0.5));
-          meter(ctx, 'Blood pressure', lv, 600, 110, fade(p, 0.1, 0.3));
-          tag(ctx, 'Arteries resist blood flow', 740, 230, fade(p, 0.4, 0.6), 'key');
+          const xr = fade(p, 0.12, 0.22), lens = fade(p, 0.52, 0.6);
+          const c = camAt([[0, ...WHOLE], [0.36, ...WHOLE], [0.54, BP_VES[0], BP_VES[1], 6, ...MID]], p);
+          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; M.person(ctx, 270, 300, 108, { t: s, mood: 0.7 }); ctx.restore(); }
+          if (xr > 0 && lens < 1) { ctx.save(); ctx.globalAlpha *= xr; withCam(ctx, c, () => bpBody(ctx, s, { k: c.k, press: fade(p, 0.3, 0.42), glow: [[BP_HE, 24, fade(p, 0.2, 0.28) * (1 - fade(p, 0.36, 0.4))]] })); ctx.restore(); }
+          if (lens < 1) {
+            pressureGauge(ctx, 720, 260, 70, lerp(0.35, 0.9, fade(p, 0.24, 0.46)), fade(p, 0.2, 0.28) * (1 - lens));
+            tag(ctx, 'Heart', 400, 190, fade(p, 0.2, 0.26) * (1 - fade(p, 0.36, 0.42)), 'note');
+            tag(ctx, 'Kidneys', 400, 300, fade(p, 0.24, 0.3) * (1 - fade(p, 0.36, 0.42)), 'note');
+          }
+          lensOpen(ctx, lens, () => artery(ctx, s, { mode: 'none', recs: [], tight: lerp(0.35, 0.9, fade(p, 0.64, 0.84)) }));
+          if (lens >= 1) {
+            tag(ctx, 'Vessel Tightens', 365, 100, fade(p, 0.66, 0.72), 'warn');
+            tag(ctx, 'Pressure Goes Up', 365, 460, fade(p, 0.76, 0.82), 'warn');
+            bigStatus(ctx, 'BLOOD PRESSURE HIGH', 'high', 365, 510, fade(p, 0.84, 0.9));
+          }
         } },
-      { label: 'The RAAS system', dur: 10, caption: 'One system that helps regulate blood pressure is the renin-angiotensin-aldosterone system, which affects blood vessels and the kidneys.',
+      // 2 ------------------------------------------------------------ the class's own mechanism
+      ace
+        ? { label: 'How the tightening signal is made', dur: 13, caption: 'Your body makes a signal that can tighten blood vessels. An enzyme called ACE helps make that signal. When the signal reaches the blood vessels, they can tighten.',
+          draw(ctx, p, s) {
+            const occ = fade(p, 0.5, 0.75);
+            const A = artery(ctx, s, { tight: lerp(0.5, 0.9, occ), occ, rate: fade(p, 0.12, 0.3) });
+            call(ctx, { text: 'ACE', targetX: A.machine[0], targetY: A.machine[1], labelX: 480, labelY: 80, radius: 50, tone: 'note', icon: (c2, x, y) => Y.aceMachine(c2, x + 2, y, 0.28), progress: win(p, 0.14, 0.4) });
+            tag(ctx, 'ACE Helps Make a Tightening Signal', 365, 460, fade(p, 0.3, 0.36) * (1 - fade(p, 0.6, 0.64)), 'key');
+            if (A.star) call(ctx, { text: 'Tightening signal', targetX: A.star[0], targetY: A.star[1], labelX: 560, labelY: 80, radius: 18, tone: 'high', progress: win(p, 0.4, 0.58) });
+            call(ctx, { text: 'Signal reaches the vessel muscle', targetX: A.rec[0], targetY: A.rec[1], labelX: 365, labelY: 470, radius: 26, tone: 'high', progress: win(p, 0.62, 0.82) });
+            tag(ctx, 'Vessel Tightens', 365, 470, fade(p, 0.84, 0.9), 'warn');
+            legend(ctx, ['ace-enzyme', 'angiotensin-signal', 'angiotensin-receiver'], 1);
+          } }
+        : { label: 'The tightening signal reaches a receiver', dur: 12, caption: 'Your body has a signal that tells blood vessels to tighten. The signal connects to a special receiver on the vessel. That tells the vessel muscle to squeeze.',
+          draw(ctx, p, s) {
+            const occ = fade(p, 0.4, 0.62);
+            const A = artery(ctx, s, { tight: lerp(0.5, 0.9, fade(p, 0.6, 0.8)), occ, freeSignals: Math.round(lerp(2, 6, fade(p, 0.06, 0.2))) });
+            if (A.star) call(ctx, { text: 'Tightening Signal', targetX: A.star[0], targetY: A.star[1], labelX: 480, labelY: 80, radius: 18, tone: 'high', progress: win(p, 0.12, 0.36) });
+            call(ctx, { text: 'Receiver', targetX: A.rec[0], targetY: A.rec[1], labelX: 365, labelY: 470, radius: 26, tone: 'glp1', progress: win(p, 0.36, 0.6) });
+            tag(ctx, 'Signal switches the receiver on', 365, 470, fade(p, 0.6, 0.66) * (1 - fade(p, 0.78, 0.82)), 'note');
+            tag(ctx, 'Vessel Tightens', 365, 470, fade(p, 0.82, 0.88), 'warn');
+            legend(ctx, ['angiotensin-signal', 'angiotensin-receiver'], 1);
+          } },
+      // 3 ------------------------------------------------------------ the medicine
+      ace
+        ? { label: 'Medicine slows signal-making', dur: 13, caption: 'ACE inhibitor medicine is a pill. It blocks this signal-making enzyme, so less of the tightening signal is made. The blood vessel can relax.',
+          draw(ctx, p, s) {
+            const back = fade(p, 0, 0.06), xr = fade(p, 0.28, 0.36), ves = fade(p, 0.46, 0.52);
+            let q = null;
+            if (ves < 1) {
+              if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; artery(ctx, s, TIGHT_END); ctx.restore(); }
+              q = takePill(ctx, s, seg(p, 0.04, 0.28), back * (1 - xr));
+              if (xr > 0) { ctx.save(); ctx.globalAlpha *= xr * (1 - ves); bpBody(ctx, s, { press: 0.8, pill: seg(p, 0.3, 0.4), meds: fade(p, 0.38, 0.44) }); ctx.restore(); }
+            }
+            if (q && xr < 1) call(ctx, { text: 'ACE inhibitor — a pill', targetX: q[0], targetY: q[1], labelX: 580, labelY: 210, radius: 20, tone: 'key', icon: (c2, x, y) => tablet(c2, x, y, 0.55), progress: win(p, 0.06, 0.28) });
+            if (ves > 0) {
+              const m = fade(p, 0.52, 0.64), rate = lerp(1, 0.3, fade(p, 0.62, 0.76)), occ = lerp(1, 0.25, fade(p, 0.66, 0.84));
+              ctx.save(); ctx.globalAlpha *= ves;
+              const A = artery(ctx, s, { tight: lerp(0.9, 0.28, ease(seg(p, 0.7, 0.94))), occ, rate, medsAt: [[lerp(-120, -14, ease(m)), lerp(-70, -30, ease(m)), Math.min(1, m * 3)], [lerp(140, 12, ease(m)), lerp(-80, -30, ease(m)), Math.min(1, m * 3)]] });
+              ctx.restore();
+              call(ctx, { text: 'Medicine blocks ACE', targetX: A.machine[0], targetY: A.machine[1] - 20, labelX: 480, labelY: 80, radius: 50, tone: 'key', icon: (c2, x, y) => Y.medicine(c2, x, y, 10), progress: win(p, 0.58, 0.76) });
+              tag(ctx, 'Less Tightening Signal', 365, 470, fade(p, 0.74, 0.8), 'good');
+              tag(ctx, 'Vessel Relaxes', 365, 510, fade(p, 0.88, 0.94), 'good');
+            }
+            legend(ctx, [MED, 'ace-enzyme', 'angiotensin-signal'], fade(p, 0.08, 0.14));
+          } }
+        : { label: 'Medicine blocks the receiver', dur: 15, caption: 'ARB medicine is a pill, and it works differently. It blocks the receiver. The tightening signal is still around, but it cannot use that blocked receiver. So the vessel can relax.',
+          draw(ctx, p, s) {
+            const back = fade(p, 0, 0.06), xr = fade(p, 0.26, 0.34), ves = fade(p, 0.44, 0.5);
+            let q = null;
+            if (ves < 1) {
+              if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; artery(ctx, s, TIGHT_END); ctx.restore(); }
+              q = takePill(ctx, s, seg(p, 0.04, 0.26), back * (1 - xr));
+              if (xr > 0) { ctx.save(); ctx.globalAlpha *= xr * (1 - ves); bpBody(ctx, s, { press: 0.8, pill: seg(p, 0.28, 0.38), meds: fade(p, 0.36, 0.42) }); ctx.restore(); }
+            }
+            if (q && xr < 1) call(ctx, { text: 'ARB medicine — a pill', targetX: q[0], targetY: q[1], labelX: 580, labelY: 210, radius: 20, tone: 'key', icon: (c2, x, y) => tablet(c2, x, y, 0.55), progress: win(p, 0.06, 0.26) });
+            if (ves > 0) {
+              const blocked = [0, 1, 2, 3].map((j) => (j < 3 ? fade(p, 0.52 + j * 0.05, 0.58 + j * 0.05) : 0));
+              ctx.save(); ctx.globalAlpha *= ves;
+              const A = artery(ctx, s, { tight: lerp(0.9, 0.28, ease(seg(p, 0.7, 0.94))), occ: 1, freeSignals: 6, blocked });
+              [0, 1, 2].forEach((j) => { const u = blocked[j]; if (u > 0 && u < 1) Y.medicine(ctx, RECS[j], lerp(170, A.cy + A.L - 17, ease(u)), 10, 1); });
+              ctx.restore();
+              call(ctx, { text: 'Signal Blocked', targetX: RECS[0], targetY: A.cy + A.L - 17, labelX: 365, labelY: 470, radius: 26, tone: 'key', icon: (c2, x, y) => Y.medicine(c2, x, y, 10), progress: win(p, 0.62, 0.8) });
+              if (A.star) call(ctx, { text: 'Signal still there', targetX: A.star[0], targetY: A.star[1], labelX: 480, labelY: 80, radius: 18, tone: 'high', progress: win(p, 0.7, 0.88) });
+              tag(ctx, 'Vessel Relaxes', 365, 470, fade(p, 0.86, 0.92), 'good');
+            }
+            legend(ctx, [MED, 'angiotensin-signal', 'angiotensin-receiver'], fade(p, 0.08, 0.14));
+          } },
+      // 4 ------------------------------------------------------------ the kidneys
+      { label: 'The kidneys help control pressure', dur: 10, caption: 'Your kidneys also help control blood pressure. These medicines change the same signals there, which can help protect kidney filters in certain patients.',
         draw(ctx, p, s) {
-          const z = fade(p, 0, 0.25);
-          cam(ctx, 270, 230, lerp(1, 1.6, z), lerp(270, 330, z), lerp(230, 260, z), () => { ctx.save(); ctx.globalAlpha *= 0.55; B().body(ctx, th, 1, s); ctx.restore(); xray(ctx, ['liver', 'kidney', 'lungs'], 'kidney', s); raasMap(ctx, s, fade(p, 0.25, 0.45)); });
-          [['Angiotensinogen (liver)', 0.3], ['Renin (kidney)', 0.45], ['ACE (lung vessels)', 0.6], ['Angiotensin II → vessels, adrenal', 0.72]].forEach(([t, at2], i) => tag(ctx, t, 760, 150 + i * 60, fade(p, at2, at2 + 0.12), i === 2 ? 'key' : 'note'));
+          const back = fade(p, 0, 0.08), lens = fade(p, 0.3, 0.38);
+          const c = camAt([[0, ...WHOLE], [0.08, ...WHOLE], [0.3, BP_KID[0][0] - 28, BP_KID[0][1], 4.5, ...MID]], p);
+          if (lens < 1) withCam(ctx, c, () => bpBody(ctx, s, { k: c.k, kid: fade(p, 0.12, 0.22), meds: 0.6 }));
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; artery(ctx, s, RELAX_END); ctx.restore(); }
+          tag(ctx, 'Kidneys', 480, 60, fade(p, 0.14, 0.2) * (1 - lens), 'key');
+          lensOpen(ctx, lens, () => kidneyView(ctx, s, fade(p, 0.5, 0.8)));
+          if (lens >= 1) {
+            tag(ctx, 'Less Pressure on Kidney Filters', 189, 440, fade(p, 0.76, 0.82), 'good');
+            tag(ctx, 'A little less salt and water kept', 540, 440, fade(p, 0.8, 0.86), 'note');
+            M.text(ctx, 'Not a water pill: no big rush of urine', 540, 500, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.84, 0.9) });
+          }
+          legend(ctx, ['salt', 'water'], lens);
         } },
-      { label: 'ACE in the vessel wall', dur: 9, caption: 'An enzyme called ACE helps produce angiotensin II, a hormone that tightens blood vessels.',
+      // 5 ------------------------------------------------------------ WITHOUT vs WITH
+      { label: 'Without vs with medicine', dur: 15,
+        caption: ace ? 'Without medicine, the tightening signal can make blood vessels narrow. With ACE inhibitor medicine, less of that signal is made. The vessels relax, and blood pressure can come down.'
+          : 'Without medicine, the tightening signal switches on the vessel. With ARB medicine, its receiver is blocked. The vessels relax, and blood pressure can come down.',
         draw(ctx, p, s) {
-          zoom(ctx, fade(p, 0, 0.4), at('vessel'), V, () => { B().body(ctx, th, 1, s); }, () => wall(ctx, s, 1, 0));
-          tag(ctx, 'Angiotensin I → angiotensin II', 480, 490, fade(p, 0.45, 0.6), 'key');
-          legend(ctx, [[(x, y) => M.dot(ctx, x, y, 6, '#f2c27a'), 'Angiotensin I'], [(x, y) => { M.rr(ctx, x - 6, y - 6, 12, 12, 3); ctx.fillStyle = '#e0524a'; ctx.fill(); }, 'Angiotensin II']], 70, 30, fade(p, 0.45, 0.6));
+          const t = seg(p, 0.06, 0.88);
+          const A = drawBPComparison(ctx, { mode, t, s });
+          if (p < 0.06) { ctx.save(); ctx.globalAlpha *= 1 - fade(p, 0, 0.06); kidneyView(ctx, s, 1); ctx.restore(); }
+          if (ace && A.machine) call(ctx, { text: 'Medicine slows ACE', targetX: A.machine[0], targetY: A.machine[1], labelX: 560, labelY: 132, radius: 28, tone: 'key', progress: win(t, 0.06, 0.3) });
+          if (!ace && A.rec) call(ctx, { text: 'Receivers blocked', targetX: A.rec[0], targetY: A.rec[1], labelX: 560, labelY: 132, radius: 18, tone: 'key', progress: win(t, 0.12, 0.34) });
+          M.text(ctx, 'A teaching picture. No blood pressure numbers; results vary.', 364, 527, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.88, 0.94) });
+          legend(ctx, ace ? [MED, 'ace-enzyme', 'angiotensin-signal', 'angiotensin-receiver'] : [MED, 'angiotensin-signal', 'angiotensin-receiver'], 1);
         } },
-      { label: 'Mechanism', dur: 13, caption: 'ACE inhibitors reduce angiotensin II formation. Blood vessels can relax, and the kidneys may retain less sodium.',
+      // 6 ------------------------------------------------------------ the whole body
+      { label: 'Better blood pressure control', dur: 10, caption: 'With relaxed vessels, blood pressure can come down. That can ease strain on the heart and help protect the kidneys in some conditions.',
         draw(ctx, p, s) {
-          const k = fade(p, 0.1, 0.5);
-          wall(ctx, s, 1 - 0.8 * k, k);
-          tag(ctx, 'Less angiotensin II: the vessel relaxes', 480, 470, fade(p, 0.45, 0.6), 'good');
-          const a = fade(p, 0.62, 0.78);
-          if (a > 0) { M.card(ctx, 640, 60, 270, 92, { r: 14, alpha: a }); M.kidney(ctx, 680, 106, 28, { alpha: a }); M.text(ctx, 'Aldosterone ↓', 720, 92, { size: 14, align: 'left', weight: 800, alpha: a, color: '#1d7a4c' }); M.text(ctx, 'Less sodium retention', 720, 118, { size: 13, align: 'left', weight: 700, alpha: a, color: C.muted }); }
+          const off = fade(p, 0, 0.1), lv = lerp(0.88, 0.32, ease(seg(p, 0.2, 0.75)));
+          const c = camAt([[0, BP_VES[0], BP_VES[1], 6, ...MID], [0.12, BP_VES[0], BP_VES[1], 5, ...MID], [0.36, ...WHOLE], [1, ...WHOLE]], p);
+          withCam(ctx, c, () => bpBody(ctx, s, { k: c.k, press: lv - 0.3, glow: [[BP_HE, 26, fade(p, 0.5, 0.58)], ...BP_KID.map((q) => [q, 22, fade(p, 0.56, 0.64)])] }));
+          if (off < 1) cmp(ctx, s, 1 - off);
+          pressureGauge(ctx, 720, 230, 80, lv, fade(p, 0.14, 0.22));
+          tag(ctx, 'Better Blood Pressure Control', 720, 330, fade(p, 0.74, 0.8), 'good');
+          tag(ctx, 'Heart', 420, 200, fade(p, 0.5, 0.56), 'note'); tag(ctx, 'Kidneys', 420, 300, fade(p, 0.56, 0.62), 'note');
+          if (p > 0.2) timeChip(ctx, ['Days', 'Weeks'], seg(p, 0.2, 0.75), 720, 420);
+          M.text(ctx, 'It helps control blood pressure; it is not a cure', 720, 470, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.82, 0.88) });
         } },
-      { label: 'Whole-body result', dur: 11, caption: 'Together, these effects lower blood pressure. Providers also monitor kidney function and potassium during treatment.',
+      // 7 ------------------------------------------------------------ safety
+      { label: 'Safety reminders', dur: 11,
+        caption: ace ? 'Your healthcare team may check your kidneys and potassium with blood tests. Some people get a dry cough. This medicine is not safe during pregnancy.'
+          : 'Your healthcare team may check your kidneys and potassium with blood tests. A dry cough is less likely with this medicine. It is not safe during pregnancy.',
         draw(ctx, p, s) {
-          const z = 1 - fade(p, 0, 0.3), lv = lerp(1, 0.5, fade(p, 0.3, 0.8));
-          zoom(ctx, z, at('vessel'), V, () => { B().body(ctx, th, lv, s); xray(ctx, ['heart', 'kidney'], null, s, 0.9); }, () => wall(ctx, s, 0.2, 1));
-          meter(ctx, 'Blood pressure', lv, 600, 110, 1 - z);
-          tag(ctx, 'Possible long-term heart and kidney protection', 740, 240, fade(p, 0.55, 0.7), 'good');
-          M.text(ctx, 'in appropriate indications', 740, 266, { size: 12, color: C.muted, weight: 700, alpha: fade(p, 0.6, 0.75) });
-          tag(ctx, 'Monitor kidney function and potassium', 740, 400, fade(p, 0.75, 0.9), 'warn');
+          ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+          const row = (y, a, icon, title, sub, col = C.ink) => { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, 70, y - 34, 820, 68, 22); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.stroke(); icon(124, y); M.text(ctx, title, 176, y - (sub ? 10 : 0), { size: 20, align: 'left', weight: 900, color: col }); if (sub) M.text(ctx, sub, 176, y + 15, { size: 14, align: 'left', weight: 700, color: C.muted }); ctx.restore(); };
+          row(110, fade(p, 0.04, 0.12), (x, y) => { M.kidney(ctx, x - 22, y, 15); M.rr(ctx, x + 2, y - 20, 12, 40, 6); ctx.fillStyle = '#e9edf3'; ctx.fill(); ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 2; ctx.stroke(); M.rr(ctx, x + 2, y + 4, 12, 16, 6); ctx.fillStyle = '#e0524a'; ctx.fill(); M.dot(ctx, x + 32, y, 12, '#6f8fd0'); M.text(ctx, 'K', x + 32, y + 1, { size: 13, weight: 900, color: '#ffffff' }); }, 'Check Kidneys and Potassium', 'Your care team may do blood tests');
+          if (ace) row(196, fade(p, 0.2, 0.28), (x, y) => { M.dot(ctx, x, y, 16, '#f1c7a5'); M.dot(ctx, x + 6, y + 3, 4, '#a3461f'); ctx.strokeStyle = '#8a9bb4'; ctx.lineWidth = 2.5; [10, 18].forEach((r) => { ctx.beginPath(); ctx.arc(x + 12, y + 3, r, -0.6, 0.6); ctx.stroke(); }); }, 'Dry Cough Can Happen', 'A tickly, ongoing cough in some people');
+          else row(196, fade(p, 0.2, 0.28), (x, y) => { M.dot(ctx, x, y, 16, '#f1c7a5'); M.dot(ctx, x + 6, y + 3, 4, '#a3461f'); M.text(ctx, '✓', x + 24, y - 12, { size: 16, weight: 900, color: '#1d7a4c' }); }, 'Less Likely to Cause a Dry Cough', 'It can still happen, but less often');
+          row(282, fade(p, 0.36, 0.44), (x, y) => { M.text(ctx, '⚠', x, y, { size: 28, color: '#e0524a' }); }, 'Rare: Swelling of Lips, Tongue, or Face', 'Get emergency help right away', '#a3261f');
+          row(368, fade(p, 0.52, 0.6), (x, y) => { M.text(ctx, '🤰', x, y, { size: 30 }); }, 'Unsafe During Pregnancy', 'Talk with your care team if you are or may become pregnant', '#a3261f');
+          M.text(ctx, 'ACE inhibitors and ARBs generally should not be taken together.', 480, 450, { size: 16, weight: 800, color: '#4b3a8f', alpha: fade(p, 0.7, 0.78) });
+        } },
+      // 8 ------------------------------------------------------------ ACE vs ARB in one look
+      { label: 'ACE inhibitor vs ARB', dur: 7, caption: 'ACE makes less signal. ARB stops the signal from acting. Both help vessels relax.',
+        draw(ctx, p, s) {
+          ctx.fillStyle = '#f4f7fb'; ctx.fillRect(0, 0, 960, 540);
+          [[40, 'ACE INHIBITOR', 'LESS SIGNAL MADE', true], [490, 'ARB', 'SIGNAL CANNOT ACT', false]].forEach(([x0, title, cap, isAce], i) => {
+            const a = fade(p, 0.06 + i * 0.12, 0.14 + i * 0.12), mine = isAce === ace;
+            if (a <= 0) return;
+            ctx.save(); ctx.globalAlpha *= a;
+            M.card(ctx, x0, 70, 430, 330, { r: 22, border: mine ? '#b9a6ee' : '#d7e0ec', borderWidth: mine ? 4 : 2 });
+            M.text(ctx, title, x0 + 215, 108, { size: 22, weight: 900, color: '#4b3a8f' });
+            if (mine) M.pill(ctx, 'This video', x0 + 215, 140, { size: 12, bg: '#f1ecff', border: '#b9a6ee', color: '#4b3a8f' });
+            Y.medicine(ctx, x0 + 70, 240, 16); M.text(ctx, '→', x0 + 120, 240, { size: 26, weight: 900, color: '#8a9bb4' });
+            if (isAce) { Y.aceMachine(ctx, x0 + 215, 240, 0.9, 0.3, s); Y.medicine(ctx, x0 + 205, 214, 9); M.text(ctx, '→', x0 + 300, 240, { size: 26, weight: 900, color: '#8a9bb4' }); Y.tightSignal(ctx, x0 + 350, 240, 11); }
+            else { Y.sigReceiver(ctx, x0 + 215, 270, -1, { scale: 1.3, blocked: 1 }); Y.tightSignal(ctx, x0 + 300, 214, 11); M.text(ctx, '✕', x0 + 262, 230, { size: 22, weight: 900, color: '#e0524a' }); Y.tightSignal(ctx, x0 + 350, 250, 11); }
+            M.text(ctx, cap, x0 + 215, 350, { size: 22, weight: 900, color: '#1f4fa8' });
+            ctx.restore();
+          });
+          bigStatus(ctx, 'BOTH HELP VESSELS RELAX', 'low', 480, 446, fade(p, 0.4, 0.48));
+          M.text(ctx, 'They are generally not taken together.', 480, 494, { size: 14, weight: 700, color: C.muted, alpha: fade(p, 0.5, 0.58) });
         } },
     ];
-  });
-  function legend(ctx, items, x, y, a) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; let cx = x; items.forEach(([d, t]) => { d(cx, y); M.text(ctx, t, cx + 14, y, { size: 13, align: 'left', color: C.muted, weight: 700 }); ctx.font = `700 13px ${M.FONT}`; cx += 40 + ctx.measureText(t).width; }); ctx.restore(); }
+    // the before/after panels at their final state (for the fade into scene 6)
+    function cmp(ctx, s, a) { drawBPComparison(ctx, { mode, t: 1, s, alpha: a }); }
+    const spoken = (t) => t.replace(/\bACE\b/g, 'A. C. E.').replace(/\bARBs\b/g, 'A. R. B. s').replace(/\bARB\b/g, 'A. R. B.');
+    return scenesOut.map((sc) => Object.assign({ say: spoken(sc.caption) }, sc));
+  }
+  def('ace-inhibitors', () => bpStory('ace'));
+  def('arbs', () => bpStory('arb'));
+
 
   // ===================================================================================== STATINS
   // ---- shared lipid pieces (statins, PCSK9 antibodies) ------------------------------------
