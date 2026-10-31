@@ -156,8 +156,12 @@
     const c = W / 2;
     try {
       if (kind === 'adults') M.person(ctx, c, 42, 15, { mood: 1 });
-      else if (kind === 'pediatrics') { M.person(ctx, c - 12, 40, 15, { mood: 1 }); M.person(ctx, c + 16, 52, 9, { mood: 1, look: { shirt: '#ffd36b', shirtShade: '#e8b84a' } }); }
-      else if (kind === 'pregnancy') { M.person(ctx, c, 42, 15, { mood: 1, look: { shirt: '#f4a7c0', shirtShade: '#d98aa4' } }); ctx.fillStyle = '#f4a7c0'; ctx.beginPath(); ctx.ellipse(c + 7, 38, 9, 11, 0, 0, M.TAU); ctx.fill(); }
+      else if (kind === 'pediatrics') {
+        // two children (no adult), so the card never looks like the Adults card
+        M.person(ctx, c - 11, 46, 11, { mood: 1, look: { shirt: '#ffd36b', shirtShade: '#e8b84a', pants: '#5b8def' } });
+        M.person(ctx, c + 14, 54, 7.5, { mood: 1, look: { shirt: '#7fd1a8', shirtShade: '#5fb88c', pants: '#e0794a' } });
+        M.dot(ctx, c + 26, 64, 4.5, '#e0524a'); M.dot(ctx, c + 25, 62.5, 1.4, '#ffffff', 0.8);
+      } else if (kind === 'pregnancy') womanSide(ctx, 1, false);
       else if (kind === 'heart') M.heart(ctx, c, c + 2, 14, {});
       else if (kind === 'glucose') { M.glucose(ctx, c - 10, c - 6, 11); M.glucose(ctx, c + 12, c + 4, 9); M.glucose(ctx, c - 4, c + 14, 8); }
       else if (kind === 'lungs') M.lungs(ctx, c, c + 2, 26, {});
@@ -179,13 +183,46 @@
         for (let i = 0; i < 6; i++) { const a = i / 6 * M.TAU; ctx.beginPath(); ctx.moveTo(c, c); ctx.lineTo(c + Math.cos(a) * 18, c + Math.sin(a) * 18); ctx.stroke(); }
         ctx.strokeStyle = '#8fb3e8'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(c, c); ctx.quadraticCurveTo(c + 18, c + 26, c + 4, 66); ctx.stroke();
       } else if (kind === 'postpartum') {
-        M.person(ctx, c - 6, 42, 15, { mood: 1, look: { shirt: '#f4a7c0', shirtShade: '#d98aa4' } });
-        M.dot(ctx, c + 12, 30, 9, '#fff6e5'); M.dot(ctx, c + 12, 26, 5, '#f1c7a5');
+        womanSide(ctx, 0, true);
       } else if (kind === 'warning') {
         ctx.fillStyle = '#ffd36b'; ctx.strokeStyle = '#d18b00'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(c, 12); ctx.lineTo(c + 26, 58); ctx.lineTo(c - 26, 58); ctx.closePath(); ctx.fill(); ctx.stroke();
         M.text(ctx, '!', c, 44, { size: 26, weight: 900, color: '#8a5a00' });
       }
     } catch (e) { /* a missing drawing never blocks navigation */ }
+  }
+  // A woman seen from the side, facing right: belly (0..1) for pregnancy, baby for a newborn
+  // held in her arms (postpartum). Drawn in the 72 × 72 icon box.
+  function womanSide(ctx, belly, baby) {
+    const skin = '#f1c7a5', hair = '#5b3a29', dress = '#f4a7c0';
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.fillStyle = skin; M.rr(ctx, 31, 52, 5, 13, 2); ctx.fill(); M.rr(ctx, 36, 52, 5, 13, 2); ctx.fill();
+    ctx.fillStyle = '#4f6690'; M.rr(ctx, 30, 63, 9, 4, 2); ctx.fill(); M.rr(ctx, 35, 63, 9, 4, 2); ctx.fill();
+    // dress: straight back, front following the belly
+    ctx.fillStyle = dress; ctx.beginPath();
+    ctx.moveTo(31, 22); ctx.lineTo(39, 22); ctx.quadraticCurveTo(41.5, 26, 40.5, 31);
+    ctx.bezierCurveTo(40.5 + 17 * belly, 32, 40.5 + 17 * belly, 50, 41 + 2 * belly, 52);
+    ctx.lineTo(44, 56); ctx.lineTo(27, 56); ctx.lineTo(29.5, 40); ctx.quadraticCurveTo(28.5, 28, 31, 22); ctx.closePath(); ctx.fill();
+    // neck, head in profile (nose to the right), hair with a bun at the back
+    ctx.fillStyle = skin; M.rr(ctx, 33, 16, 5, 7, 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(36, 12, 7, 0, M.TAU); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(42.6, 10.5); ctx.lineTo(45.2, 13.6); ctx.lineTo(42.2, 14.6); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = hair; ctx.beginPath(); ctx.moveTo(36, 12); ctx.arc(36, 12, 7.8, Math.PI * 0.82, Math.PI * 1.88); ctx.closePath(); ctx.fill();
+    M.dot(ctx, 28.2, 8.6, 3.8, hair);
+    M.dot(ctx, 40.2, 11.4, 0.95, '#3b2a20');
+    ctx.strokeStyle = skin; ctx.lineWidth = 3.6;
+    if (baby) {
+      // a newborn wrapped in a blanket, cradled at the chest
+      ctx.save(); ctx.translate(44, 31); ctx.rotate(-0.35); ctx.fillStyle = '#cfe3f7'; ctx.strokeStyle = '#9fb6d6'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(0, 0, 9, 5.5, 0, 0, M.TAU); ctx.fill(); ctx.stroke(); ctx.restore();
+      M.dot(ctx, 50.5, 26.5, 3.8, skin); M.dot(ctx, 51.2, 25, 2.4, '#7a5a40', 0.0);
+      ctx.strokeStyle = skin; ctx.lineWidth = 3.6;
+      ctx.beginPath(); ctx.moveTo(35, 24); ctx.quadraticCurveTo(33, 36, 42, 36.5); ctx.lineTo(50, 33); ctx.stroke();
+    } else {
+      // a hand resting on the belly
+      ctx.beginPath(); ctx.moveTo(35, 24); ctx.quadraticCurveTo(33.5, 34, 45 + 6 * belly, 38); ctx.stroke();
+    }
+    ctx.fillStyle = '#d98aa4'; M.rr(ctx, 32.5, 22, 5.5, 6, 2.5); ctx.fill();
+    ctx.restore();
   }
   const icon = (kind) => `<canvas class="card-icon" data-icon="${kind}" width="72" height="72" aria-hidden="true"></canvas>`;
   const drawIcons = (root) => root.querySelectorAll('canvas[data-icon]').forEach(drawIcon);
@@ -207,10 +244,6 @@
     }).join('');
     $('pop-cards').querySelectorAll('.pop-card').forEach((b) => { b.onclick = () => go(`#browse/${b.dataset.pop}`); });
     drawIcons($('pop-cards'));
-    // quick picks: the adult animations that exist today
-    const ready = Cat.topics.filter((t) => t.population === 'adults' && t.contentId && t.id === t.contentId);
-    $('chips').innerHTML = `<span class="muted">${tr('Adult animations available now:')}</span>` + ready.map((t) => `<button type="button" class="chip" data-id="${t.id}">${esc(tr(t.name))}</button>`).join('');
-    $('chips').querySelectorAll('.chip').forEach((b) => { b.onclick = () => openTopic(Cat.get(b.dataset.id)); });
   }
   // Results for a search: one clear match opens it; several matches are shown as choices.
   function showResults(root, q, list, showPop, onClear) {
