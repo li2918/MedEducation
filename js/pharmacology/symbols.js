@@ -4,9 +4,9 @@
 //   glucose (sugar)   yellow hexagon, with a "G" when drawn large
 //   insulin           teal key
 //   medicine          purple rounded diamond with a white rim (the MedMotion drug symbol)
-//   GLP-1 receiver    blue ROUND receiver on a cell membrane
-//   GIP receiver      orange SQUARE receiver on a cell membrane
-//   natural messages  small blue circle (GLP-1) and small orange square (GIP) from the gut
+//   GLP-1 receptor    blue ROUND receptor on a cell membrane
+//   GIP receptor      orange SQUARE receptor on a cell membrane
+//   natural hormones  small blue circle (GLP-1) and small orange square (GIP) from the gut
 //   food              brown rounded chunks
 // Plus two annotation helpers:
 //   drawMoleculeLegend  a compact side legend, kept on screen whenever the particles it names
@@ -73,11 +73,11 @@
     receptor: { title: 'GLP-1 receiver', note: 'Turns on when GLP-1 arrives', icon: (ctx, x, y) => receptor(ctx, x, y + 6, 0, 0, { scale: 0.62 }) },
     food: { title: 'Food', note: 'Moving out of the stomach', icon: (ctx, x, y) => food(ctx, x, y, 10, 1, 0) },
     // dual GIP/GLP-1 story
-    'glp1-receptor': { title: 'GLP-1 Receiver', note: 'Responds to the GLP-1 signal', icon: (ctx, x, y) => receptor(ctx, x, y + 6, 0, 0, { scale: 0.62 }) },
-    'gip-receptor': { title: 'GIP Receiver', note: 'Responds to the GIP signal', icon: (ctx, x, y) => receptor(ctx, x, y + 7, 0, 0, { scale: 0.58, kind: 'gip' }) },
-    'glp1-message': { title: 'GLP-1 message', note: 'A natural signal from the gut', icon: (ctx, x, y) => message(ctx, 'glp1', x, y, 7) },
-    'gip-message': { title: 'GIP message', note: 'A natural signal from the gut', icon: (ctx, x, y) => message(ctx, 'gip', x, y, 7) },
-    'dual-medicine': { title: 'GIP/GLP-1 Medicine', note: 'Can activate both receiver types', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    'glp1-receptor': { title: 'GLP-1 Receptor', note: 'Responds to GLP-1', icon: (ctx, x, y) => receptor(ctx, x, y + 6, 0, 0, { scale: 0.62 }) },
+    'gip-receptor': { title: 'GIP Receptor', note: 'Responds to GIP', icon: (ctx, x, y) => receptor(ctx, x, y + 7, 0, 0, { scale: 0.58, kind: 'gip' }) },
+    'glp1-message': { title: 'GLP-1 Hormone', note: 'A natural gut hormone', icon: (ctx, x, y) => message(ctx, 'glp1', x, y, 7) },
+    'gip-message': { title: 'GIP Hormone', note: 'A natural gut hormone', icon: (ctx, x, y) => message(ctx, 'gip', x, y, 7) },
+    'dual-medicine': { title: 'Dual Medicine', note: 'Activates both receptor types', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     // biguanides (metformin) story; red and green mark how much sugar leaves the liver, the
     // sugar itself always stays yellow
     'metformin-medicine': { title: 'Metformin (Medicine)', note: 'Helps the liver release less sugar', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },

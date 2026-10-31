@@ -1,5 +1,7 @@
 // Timeline player: turns a scene script into a scrubbable, narrated canvas animation.
-// Script shape: { title, length?, audio?, scenes: [{ label, caption, dur?, draw(ctx, p, s) }] }
+// Script shape: { title, length?, audio?, scenes: [{ label, caption, say?, dur?, draw(ctx, p, s) }] }
+// say (optional, English only): what the browser voice reads instead of the caption, e.g.
+// "G. I. P." so an abbreviation is spelled out rather than read as a word.
 //   length: optional target running time in seconds; scenes stretch evenly to reach it.
 //   timing: 'audio' fits each scene to its recorded English clip instead (clip length plus a
 //     short visual finish, or the scene's own dur if longer); length is then only a fallback
@@ -17,7 +19,7 @@
 
   // Scene length is at least long enough for the narration to finish.
   function sceneLength(sc) {
-    const words = (sc.caption || '').split(/\s+/).filter(Boolean).length;
+    const words = (sc.say || sc.caption || '').split(/\s+/).filter(Boolean).length;
     return Math.max(sc.dur || 0, words / WORDS_PER_SEC + 1.4);
   }
 
@@ -173,7 +175,7 @@
       const en = script.audio && DUR[script.audio + n], other = folder && DUR[folder + n];
       const rs = LANG !== 'en' && en && other ? en / other : 1, dur = (base[i] * stretch) / rs;
       const audio = folder ? `${folder}${n}?v=${textTag(caption)}` : null;
-      const o = Object.assign({}, sc, { caption, label: tr(sc.label), start, dur, audio, rs }); start += dur; return o;
+      const o = Object.assign({}, sc, { caption, say: LANG === 'en' ? sc.say : undefined, label: tr(sc.label), start, dur, audio, rs }); start += dur; return o;
     });
     this.total = start;
     this.t = 0;
@@ -386,7 +388,7 @@
         this._waiting = 0;
         this._audioFailed = true; // files missing (not generated yet): fall back to the browser voice
         this._fillVoices();
-        this._speakText(sc.caption);
+        this._speakText(sc.say || sc.caption);
       };
       a.src = sc.audio;
       this._clipScene = i;
@@ -399,7 +401,7 @@
       if (next && next.audio) { this._preload = new Audio(); this._preload.preload = 'auto'; this._preload.src = next.audio; }
       return;
     }
-    this._speakText(sc.caption);
+    this._speakText(sc.say || sc.caption);
   };
 
   Player.prototype._speakText = function (textStr) {

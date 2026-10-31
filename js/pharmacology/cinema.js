@@ -737,17 +737,17 @@
   });
 
   // ============================================================ DUAL GIP / GLP-1 RECEPTOR AGONISTS
-  // "One medicine, two different receivers." Unlike the GLP-1 story (one medicine's journey
-  // through the organs), this story is built around the two receptor types:
-  //   two natural gut messages → one weekly shot and a split-screen of the two receivers →
-  //   both receivers on one insulin-making cell (signals meet, insulin released when sugar is
-  //   high) → insulin helps a muscle fibre take in sugar → a stomach–brain "conversation" about
-  //   fullness → food leaving the stomach more slowly → back to the whole person.
-  // Symbols (MedSym): GLP-1 receiver = blue ROUND, GIP receiver = orange SQUARE, natural
-  // messages = small blue circles / orange squares, the medicine = ONE purple diamond (each
-  // piece turns on one receiver at a time; it never splits or bridges two receivers), glucose =
-  // yellow hexagon, insulin = teal key. Blue and orange signal trails inside the cell are a
-  // teaching picture, not a wiring diagram.
+  // "One medicine, two different receptors", built to show what is different from GLP-1 alone:
+  //   two natural gut hormones (GIP's full name shown once) → one weekly shot and a split screen
+  //   of the two receptor types → GLP-1 ONLY vs DUAL on the same insulin-making cell (the extra
+  //   orange GIP signal; the same insulin in both panels) → what GIP adds (both receptors on one
+  //   cell, insulin released when sugar is high) → a brief insulin-and-glucose recap → other
+  //   body effects (hunger, slower stomach emptying) → the result and a one-vs-two pathway recap.
+  // Symbols (MedSym): GLP-1 receptor = blue ROUND, GIP receptor = orange SQUARE, natural
+  // hormones = small blue circles / orange squares, medicine = ONE purple diamond (each piece
+  // turns on one receptor at a time; it never splits or bridges two receptors), glucose =
+  // yellow hexagon, insulin = teal key. Blue and orange signal trails are a teaching picture.
+  // Narration says the abbreviations letter by letter (each scene's `say`).
   def('gip-glp1-ra', (cls) => {
     const Y = window.MedSym;
     const BR = at('brain'), ST = at('stomach'), PA = at('pancreas'), MU = at('muscle'), GUT = at('gut'), HE = at('heart');
@@ -818,8 +818,8 @@
       });
       LEFT.forEach((x, i) => Y.receptor(ctx, x, MEMB, dockAt(ORDER.findIndex((o) => o[0] === 'glp1' && o[1] === i), p) >= 1 ? 1 : 0, s));
       RIGHT.forEach((x, i) => Y.receptor(ctx, x, MEMB, dockAt(ORDER.findIndex((o) => o[0] === 'gip' && o[1] === i), p) >= 1 ? 1 : 0, s, { kind: 'gip' }));
-      M.text(ctx, 'GLP-1 Receivers', 190, 400, { size: 16, weight: 800, color: '#1f4fa8' });
-      M.text(ctx, 'GIP Receivers', 530, 400, { size: 16, weight: 800, color: '#a3520f' });
+      M.text(ctx, 'GLP-1 Receptors', 190, 400, { size: 16, weight: 800, color: '#1f4fa8' });
+      M.text(ctx, 'GIP Receptors', 530, 400, { size: 16, weight: 800, color: '#a3520f' });
       // identical medicine pieces, each heading to one receiver
       ORDER.forEach(([kind, i], n) => {
         const tx = (kind === 'glp1' ? LEFT : RIGHT)[i], d = dockAt(n, p);
@@ -937,34 +937,110 @@
       flow(ctx, TUBE, Math.round(lerp(5, 3, slow)), s, 0.16 * rate + 0.03, (x, y, i) => Y.food(ctx, x, y, 12, 1, i));
     };
 
+    // ---- GLP-1 only vs dual: the same insulin-making cell, side by side ----------------------
+    // Both panels: two blue GLP-1 receivers and two orange GIP receivers. The GLP-1-only
+    // medicine turns on the blue ones only; the dual medicine turns on blue and orange. Both
+    // panels release the SAME amount of insulin (different targets, not "twice the effect").
+    const CMP_X = [30, 370], CMP_R = [55, 125, 195, 265], CMP_K = ['glp1', 'gip', 'glp1', 'gip'];
+    const cmpCell = (ctx, s, x0, dual, st) => {
+      const hi = dual && st.glowR > 0;
+      M.rr(ctx, x0, 70, 320, 380, 22); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.lineWidth = hi ? 5 : 3; ctx.strokeStyle = hi ? mix('#c6b6f2', Y.COL.gip, st.glowR) : '#c6b6f2'; ctx.stroke();
+      M.text(ctx, dual ? 'Dual GIP/GLP-1' : 'GLP-1 Only', x0 + 160, 100, { size: 20, weight: 900, color: dual ? '#4b3a8f' : '#1f4fa8' });
+      M.text(ctx, dual ? 'Activates BOTH receptor types' : 'Activates GLP-1 receptors', x0 + 160, 124, { size: 14, weight: 800, color: C.muted });
+      M.rr(ctx, x0 + 14, 140, 292, 58, 18); ctx.fillStyle = '#fde3df'; ctx.fill();
+      for (let i = 0; i < 4; i++) Y.glucose(ctx, x0 + 40 + ((s * 20 + i * 70) % 250), 162 + (i % 2) * 18, 9);
+      M.rr(ctx, x0 + 14, 238, 292, 200, 30); ctx.fillStyle = '#e9f6ef'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#8fcfb0'; ctx.stroke();
+      M.text(ctx, 'Insulin-making cell', x0 + 160, 428, { size: 12, weight: 800, color: '#1d7a4c' });
+      const C0 = [x0 + 150, 360];
+      CMP_R.forEach((rx, i) => {
+        const kind = CMP_K[i], x = x0 + rx, on = kind === 'glp1' ? st.blue : dual ? st.orange : 0;
+        if (on > 0) {
+          ctx.save(); ctx.globalAlpha *= on; ctx.strokeStyle = kind === 'gip' ? Y.COL.gip : Y.COL.glp1; ctx.lineWidth = 3.5; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -s * 20;
+          ctx.beginPath(); ctx.moveTo(x, 270); ctx.quadraticCurveTo((x + C0[0]) / 2, 340, C0[0], C0[1]); ctx.stroke(); ctx.restore();
+        }
+        ctx.save(); if (kind === 'gip' && !dual) ctx.globalAlpha *= 0.55;
+        Y.receptor(ctx, x, 238, on >= 1 ? 1 : 0, s, { kind, scale: 0.8 });
+        ctx.restore();
+        if (on > 0) med(ctx, x, lerp(150, 227, ease(Math.min(1, on * 1.6))), 10);
+      });
+      if (!dual) M.pill(ctx, 'GIP receptors: not turned on', x0 + 160, 404, { size: 12, bg: '#ffffff', border: '#e6c3a3', color: '#a3520f', alpha: fade(st.blue, 0.6, 1) });
+      // one shared response, then the same insulin release in both panels
+      if (st.resp > 0) { const g = ctx.createRadialGradient(C0[0], C0[1], 2, C0[0], C0[1], 40); g.addColorStop(0, `rgba(255,214,90,${0.6 * st.resp})`); g.addColorStop(1, 'rgba(255,214,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(C0[0], C0[1], 40, 0, M.TAU); ctx.fill(); }
+      for (let i = 0; i < 3; i++) {
+        const u = seg(st.out, i * 0.15, i * 0.15 + 0.6);
+        if (u <= 0) { M.dot(ctx, x0 + 230 + i * 22, 380, 11, '#ffffff', 0.9); ins(ctx, x0 + 230 + i * 22, 381, 0.5, 1, -Math.PI / 2); continue; }
+        const x = x0 + 230 + i * 22, y = u < 0.6 ? lerp(380, 240, u / 0.6) : lerp(240, 172, (u - 0.6) / 0.4);
+        ins(ctx, x - (u > 0.6 ? (u - 0.6) * 120 : 0), y, 0.6, 1, u > 0.6 ? 0 : -Math.PI / 2);
+      }
+      med(ctx, x0 + 40, 466, 10);
+      M.text(ctx, dual ? 'Dual GIP/GLP-1 medicine' : 'GLP-1 medicine', x0 + 56, 467, { size: 13, align: 'left', weight: 800, color: '#4b3a8f' });
+    };
+    const CMP_END = { blue: 1, orange: 1, resp: 1, out: 1, glowR: 1 };
+    // Closing recap: one receptor pathway versus two.
+    const recap = (ctx, s, a, p) => {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+      [[30, false], [370, true]].forEach(([x0, dual]) => {
+        M.rr(ctx, x0, 70, 320, 300, 22); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = dual ? '#c6b6f2' : '#9cc0f2'; ctx.stroke();
+        M.text(ctx, dual ? 'Dual GIP/GLP-1 RA' : 'GLP-1 RA', x0 + 160, 102, { size: 20, weight: 900, color: dual ? '#4b3a8f' : '#1f4fa8' });
+        ctx.fillStyle = '#f3dccb'; ctx.fillRect(x0 + 20, 250, 280, 12);
+        const rec = dual ? [[x0 + 110, 'glp1'], [x0 + 210, 'gip']] : [[x0 + 160, 'glp1']];
+        rec.forEach(([x, kind]) => {
+          const g = ctx.createRadialGradient(x, 210, 4, x, 210, 60); g.addColorStop(0, kind === 'gip' ? 'rgba(240,140,58,0.45)' : 'rgba(47,111,222,0.4)'); g.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, 210, 60, 0, M.TAU); ctx.fill();
+          Y.receptor(ctx, x, 250, 1, s, { kind, scale: 1.2 }); med(ctx, x, 233, 13);
+        });
+        M.text(ctx, dual ? 'TWO RECEPTOR PATHWAYS' : 'ONE RECEPTOR PATHWAY', x0 + 160, 320, { size: 19, weight: 900, color: dual ? '#4b3a8f' : '#1f4fa8' });
+        M.text(ctx, dual ? 'GLP-1 + GIP receptors activated' : 'GLP-1 receptor activated', x0 + 160, 346, { size: 13, weight: 700, color: C.muted });
+      });
+      tag(ctx, 'Both can help control blood sugar.', 360, 410, fade(p, 0.55, 0.62), 'good');
+      tag(ctx, 'Dual therapy adds GIP signaling.', 360, 452, fade(p, 0.62, 0.69), 'key');
+      M.text(ctx, 'Results depend on the medicine, dose, and person.', 360, 492, { size: 14, weight: 700, color: C.muted, alpha: fade(p, 0.72, 0.8) });
+      ctx.restore();
+    };
+
     const B3 = { m1: 1, m2: 1, m3: 1, m4: 1, t1: 1, t2: 1, t3: 1, t4: 1, conv: 1, out: 1, drift: 1 };
     const F4 = { dock: 1, signal: 1, doors: 1, uptake: 1, energy: 1 };
     const LEG3 = [SUGAR, 'insulin', 'dual-medicine', 'glp1-receptor', 'gip-receptor'];
     const LEG4 = [{ key: 'insulin', title: 'Insulin', note: 'Sends the signal' }, { key: 'glucose', title: 'Glucose (Sugar)', note: 'Enters the cell' }];
-    return [
-      // 1 ------------------------------------------------------------ two natural messages
-      { label: 'After eating: two messages', dur: 11, caption: 'After we eat, our gut sends out different messages. Two of them are called GLP-1 and GIP.',
+    const HORMONES = ['glp1-message', 'gip-message'];
+    const LEG_CMP = [{ key: 'dual-medicine', title: 'Medicine', note: 'Purple in both panels' }, 'glp1-receptor', 'gip-receptor', 'insulin'];
+    // Narration is written with the abbreviations; the voice spells them out letter by letter
+    // ("G. L. P. one", "G. I. P.") instead of reading GIP as one word.
+    const spoken = (t) => t.replace(/GIP\/GLP-1/g, 'G. I. P. and G. L. P. one').replace(/GLP-1/g, 'G. L. P. one').replace(/\bGIP\b\.?/g, 'G. I. P.');
+    const scenesOut = [
+      // 1 ------------------------------------------------------------ two natural gut hormones
+      { label: 'Two natural gut hormones', dur: 12, caption: 'After we eat, our gut sends out natural messages called hormones. Two of them are GLP-1 and GIP.',
         draw(ctx, p, s) {
-          const xr = fade(p, 0.3, 0.42), lens = fade(p, 0.5, 0.58);
-          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; meal(ctx, s, lerp(1, 0.4, fade(p, 0.05, 0.3)), true, 0.9); ctx.restore(); }
+          const xr = fade(p, 0.24, 0.34), lens = fade(p, 0.42, 0.5);
+          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; meal(ctx, s, lerp(1, 0.4, fade(p, 0.05, 0.25)), true, 0.9); ctx.restore(); }
           if (xr > 0 && lens < 1) {
-            const c = camAt([[0, ...WHOLE], [0.36, ...WHOLE], [0.52, GUT[0], GUT[1], 4.5, ...MID]], p);
-            withCam(ctx, c, () => inside(ctx, s, { k: c.k, food: 1, glow: [[GUT, 30, fade(p, 0.4, 0.48)]] }));
+            const c = camAt([[0, ...WHOLE], [0.28, ...WHOLE], [0.44, GUT[0], GUT[1], 4.5, ...MID]], p);
+            withCam(ctx, c, () => inside(ctx, s, { k: c.k, food: 1, glow: [[GUT, 30, fade(p, 0.32, 0.4)]] }));
           }
-          const rel = seg(p, 0.6, 0.98);
+          const rel = seg(p, 0.5, 0.92);
           lensOpen(ctx, lens, () => gutWall(ctx, s, rel));
-          tag(ctx, 'After eating', 480, 60, fade(p, 0.04, 0.12) * (1 - fade(p, 0.3, 0.36)), 'key');
-          tag(ctx, 'Small intestine', 480, 60, fade(p, 0.42, 0.48) * (1 - lens), 'key');
+          tag(ctx, 'After eating', 480, 60, fade(p, 0.04, 0.12) * (1 - fade(p, 0.24, 0.3)), 'key');
+          tag(ctx, 'Small intestine', 480, 60, fade(p, 0.34, 0.4) * (1 - lens), 'key');
           if (lens >= 1) {
             const b = msgAt(0, 0, rel, s), o = msgAt(1, 0, rel, s);
-            if (b) call(ctx, { text: 'GLP-1 message', targetX: b[0], targetY: b[1], labelX: 200, labelY: 495, radius: 14, tone: 'glp1', icon: (c2, x, y) => Y.message(c2, 'glp1', x, y, 7), progress: win(p, 0.64, 0.8) });
-            if (o) call(ctx, { text: 'GIP message', targetX: o[0], targetY: o[1], labelX: 520, labelY: 495, radius: 14, tone: 'gip', icon: (c2, x, y) => Y.message(c2, 'gip', x, y, 7), progress: win(p, 0.76, 0.93) });
-            tag(ctx, 'Two natural messages enter the blood', 360, 495, fade(p, 0.93, 0.98), 'note');
+            if (b) call(ctx, { text: 'GLP-1 hormone', targetX: b[0], targetY: b[1], labelX: 200, labelY: 495, radius: 14, tone: 'glp1', icon: (c2, x, y) => Y.message(c2, 'glp1', x, y, 7), progress: win(p, 0.54, 0.68) });
+            if (o) call(ctx, { text: 'GIP hormone', targetX: o[0], targetY: o[1], labelX: 520, labelY: 495, radius: 14, tone: 'gip', icon: (c2, x, y) => Y.message(c2, 'gip', x, y, 7), progress: win(p, 0.64, 0.78) });
+            // the full name of GIP, shown once
+            const na = fade(p, 0.78, 0.84);
+            if (na > 0) {
+              ctx.save(); ctx.globalAlpha *= na;
+              M.card(ctx, 70, 410, 600, 118, { r: 18, border: Y.COL.gip, borderWidth: 3 });
+              Y.message(ctx, 'gip', 108, 446, 11);
+              M.text(ctx, 'GIP', 132, 446, { size: 26, align: 'left', weight: 900, color: '#a3520f' });
+              M.text(ctx, 'Glucose-dependent insulinotropic polypeptide', 200, 446, { size: 16, align: 'left', weight: 800, color: C.ink });
+              M.text(ctx, 'A natural gut hormone that helps the pancreas respond to food.', 370, 494, { size: 15, weight: 700, color: C.muted });
+              ctx.restore();
+            }
           }
-          legend(ctx, ['glp1-message', 'gip-message'], fade(p, 0.56, 0.64));
+          legend(ctx, HORMONES, fade(p, 0.48, 0.56));
         } },
-      // 2 ------------------------------------------------------------ one medicine, two receivers
-      { label: 'One medicine, two receivers', dur: 15, caption: 'This medicine is one small shot, once a week. It works on two kinds of message receivers. One is called GLP-1, and the other is called GIP.',
+      // 2 ------------------------------------------------------------ one dual-acting injection
+      { label: 'One dual-acting shot', dur: 13, caption: 'This medicine is one small shot, once a week. It turns on two kinds of message receivers, GLP-1 and GIP.',
         draw(ctx, p, s) {
           const back = fade(p, 0, 0.06), one = fade(p, 0.36, 0.42) * (1 - fade(p, 0.46, 0.5)), spl = fade(p, 0.46, 0.5);
           if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; gutWall(ctx, s, 1); ctx.restore(); }
@@ -989,122 +1065,118 @@
             ctx.save(); ctx.globalAlpha *= spl; ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); split(ctx, s, p);
             M.text(ctx, 'ONE MEDICINE', 360, 48, { size: 26, weight: 900, color: C.purple });
             ctx.restore();
-            call(ctx, { text: 'GLP-1 Receiver', targetX: LEFT[0], targetY: MEMB - 14, labelX: 190, labelY: 470, radius: 24, tone: 'glp1', progress: win(p, 0.56, 0.7) });
-            call(ctx, { text: 'GIP Receiver', targetX: RIGHT[0], targetY: MEMB - 14, labelX: 530, labelY: 470, radius: 24, tone: 'gip', progress: win(p, 0.62, 0.76) });
-            tag(ctx, 'Two different receivers', 190, 470, fade(p, 0.84, 0.9), 'note');
+            call(ctx, { text: 'GLP-1 Receptor', targetX: LEFT[0], targetY: MEMB - 14, labelX: 190, labelY: 470, radius: 24, tone: 'glp1', progress: win(p, 0.56, 0.7) });
+            call(ctx, { text: 'GIP Receptor', targetX: RIGHT[0], targetY: MEMB - 14, labelX: 530, labelY: 470, radius: 24, tone: 'gip', progress: win(p, 0.62, 0.76) });
+            tag(ctx, 'Two different receptors', 190, 470, fade(p, 0.84, 0.9), 'note');
             tag(ctx, 'One medicine activates both', 530, 470, fade(p, 0.88, 0.94), 'key');
-            M.text(ctx, 'Each medicine piece turns on one receiver at a time', 360, 515, { size: 14, weight: 700, color: C.muted, alpha: fade(p, 0.9, 0.96) });
+            M.text(ctx, 'Each medicine piece turns on one receptor at a time', 360, 515, { size: 14, weight: 700, color: C.muted, alpha: fade(p, 0.9, 0.96) });
           }
-          if (first && p < 0.4) call(ctx, { text: 'GIP/GLP-1 medicine', targetX: first[0], targetY: first[1], labelX: 470, labelY: 420, radius: 16, tone: 'key', icon: (c2, x, y) => med(c2, x, y, 10), progress: win(p, 0.16, 0.36) });
+          if (first && p < 0.4) call(ctx, { text: 'Dual medicine', targetX: first[0], targetY: first[1], labelX: 470, labelY: 420, radius: 16, tone: 'key', icon: (c2, x, y) => med(c2, x, y, 10), progress: win(p, 0.16, 0.36) });
           tag(ctx, 'One small shot each week', 480, 60, fade(p, 0.06, 0.12) * (1 - fade(p, 0.34, 0.4)), 'key');
           legend(ctx, spl > 0 ? ['dual-medicine', 'glp1-receptor', 'gip-receptor'] : ['dual-medicine'], spl > 0 ? spl : fade(p, 0.14, 0.2) * (1 - fade(p, 0.42, 0.46)));
         } },
-      // 3 ------------------------------------------------------------ pancreas: both receivers
-      { label: 'Pancreas: two signals together', dur: 18, caption: 'Now we zoom into the pancreas. Here, both receivers can help insulin-making cells respond. When blood sugar is high, the cells release more insulin.',
+      // 3 ------------------------------------------------------------ GLP-1 only vs dual
+      { label: "What's different from GLP-1 alone?", dur: 18, caption: "Here's what makes this medicine different. Regular GLP-1 medicine works on one kind of message receiver. But this medicine works on two! It activates both GLP-1 and GIP receivers.",
         draw(ctx, p, s) {
           const back = fade(p, 0, 0.08);
-          const c = camAt([[0, ...WHOLE], [0.08, ...WHOLE], [0.2, PA[0], PA[1] + 6, 2.6, 480, 280], [0.28, PA[0], PA[1] + 6, 7, ...MID], [1, PA[0], PA[1] + 6, 7.5, ...MID]], p);
-          withCam(ctx, c, () => inside(ctx, s, { k: c.k, meds: 1, stomAlpha: lerp(0.95, 0.3, fade(p, 0.12, 0.22)), glow: [[PA, 30, fade(p, 0.12, 0.2) * (1 - fade(p, 0.26, 0.3))]] }));
+          const st = { blue: fade(p, 0.12, 0.3), orange: fade(p, 0.42, 0.56), resp: fade(p, 0.62, 0.7), out: seg(p, 0.72, 0.9), glowR: fade(p, 0.4, 0.46) * (1 - fade(p, 0.76, 0.82)) };
+          ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+          cmpCell(ctx, s, CMP_X[0], false, st); cmpCell(ctx, s, CMP_X[1], true, st);
           if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); split(ctx, s, 1); ctx.restore(); }
-          tag(ctx, 'Pancreas (behind the stomach)', 480, 60, fade(p, 0.14, 0.2) * (1 - fade(p, 0.28, 0.32)), 'key');
-          const isl = fade(p, 0.28, 0.36), cel = fade(p, 0.36, 0.44);
-          lensOpen(ctx, isl, () => cam(ctx, 330, 280, lerp(0.4, 1.1, isl), 480, 280, () => window.MedAssets.islet(ctx, s, { insulin: 0.5, glucagon: 0.5, betaLoss: 0.15 })));
-          tag(ctx, 'A tiny cell cluster (islet)', 480, 505, isl * (1 - cel), 'note');
-          const st = { m1: fade(p, 0.52, 0.58), m2: fade(p, 0.62, 0.68), m3: fade(p, 0.7, 0.75), m4: fade(p, 0.72, 0.77), t1: fade(p, 0.58, 0.64), t2: fade(p, 0.68, 0.72), t3: fade(p, 0.75, 0.78), t4: fade(p, 0.77, 0.8), conv: fade(p, 0.76, 0.82), out: seg(p, 0.8, 0.96), drift: seg(p, 0.9, 1) };
+          M.text(ctx, "What's different from GLP-1 alone?", 360, 40, { size: 22, weight: 900, color: C.ink, alpha: back });
+          call(ctx, { text: 'ADDITIONAL GIP SIGNAL', targetX: CMP_X[1] + CMP_R[1], targetY: 224, labelX: 530, labelY: 512, radius: 22, tone: 'gip', progress: win(p, 0.44, 0.62) });
+          tag(ctx, 'TWO RECEPTOR PATHWAYS', 530, 512, fade(p, 0.62, 0.68) * (1 - fade(p, 0.84, 0.88)), 'key');
+          tag(ctx, 'ONE RECEPTOR PATHWAY', 190, 512, fade(p, 0.62, 0.68) * (1 - fade(p, 0.84, 0.88)), 'note');
+          M.text(ctx, 'Different targets, not "twice the effect"', 360, 512, { size: 14, weight: 700, color: C.muted, alpha: fade(p, 0.88, 0.94) });
+          legend(ctx, LEG_CMP, back);
+        } },
+      // 4 ------------------------------------------------------------ what does GIP add?
+      { label: 'What does GIP add?', dur: 25,
+        caption: 'GIP stands for glucose-dependent insulinotropic polypeptide. That is a natural gut message that helps your body respond after eating. Both kinds of receivers can help the pancreas release insulin when blood sugar is high. So instead of working through only the GLP-1 receptor, this medicine uses two different hormone signaling pathways.',
+        say: 'G. I. P. stands for glucose-dependent, insulinotropic, polypeptide. That is a natural gut message that helps your body respond after eating. Both kinds of receivers can help the pancreas release insulin when blood sugar is high. So instead of working through only the G. L. P. one receptor, this medicine uses two different hormone signaling pathways.',
+        draw(ctx, p, s) {
+          const back = fade(p, 0, 0.08), cel = fade(p, 0.04, 0.12);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); cmpCell(ctx, s, CMP_X[0], false, CMP_END); cmpCell(ctx, s, CMP_X[1], true, CMP_END); ctx.restore(); }
+          const st = { m1: fade(p, 0.3, 0.36), m2: fade(p, 0.38, 0.44), m3: fade(p, 0.44, 0.48), m4: fade(p, 0.46, 0.5), t1: fade(p, 0.36, 0.4), t2: fade(p, 0.44, 0.48), t3: fade(p, 0.48, 0.5), t4: fade(p, 0.5, 0.52), conv: fade(p, 0.5, 0.56), out: seg(p, 0.56, 0.74), drift: seg(p, 0.68, 0.8) };
           lensOpen(ctx, cel, () => dualCell(ctx, s, st));
           if (cel >= 1) {
-            call(ctx, { text: 'Glucose = blood sugar', targetX: 130, targetY: 118, labelX: 330, labelY: 462, radius: 22, tone: 'sugar', progress: win(p, 0.44, 0.55) });
-            call(ctx, { text: 'GLP-1 Receiver', targetX: RECS[0][0], targetY: 236, labelX: 330, labelY: 462, radius: 24, tone: 'glp1', progress: win(p, 0.54, 0.65) });
-            call(ctx, { text: 'GIP Receiver', targetX: RECS[1][0], targetY: 236, labelX: 330, labelY: 462, radius: 24, tone: 'gip', progress: win(p, 0.64, 0.75) });
-            tag(ctx, 'Both signals help the same cell', 330, 462, fade(p, 0.75, 0.78) * (1 - fade(p, 0.82, 0.85)), 'key');
-            M.text(ctx, '(a simple picture of the cell’s signals)', 330, 492, { size: 12, weight: 700, color: C.muted, alpha: fade(p, 0.75, 0.78) * (1 - fade(p, 0.82, 0.85)) });
+            // the full name again, small, while it is being read out
+            const nm = fade(p, 0.1, 0.14) * (1 - fade(p, 0.26, 0.3));
+            if (nm > 0) { ctx.save(); ctx.globalAlpha *= nm; M.card(ctx, 80, 380, 560, 70, { r: 16, border: Y.COL.gip, borderWidth: 3 }); M.text(ctx, 'GIP = Glucose-dependent insulinotropic polypeptide', 360, 415, { size: 17, weight: 800, color: '#a3520f' }); ctx.restore(); }
+            call(ctx, { text: 'GLP-1 Receptor', targetX: RECS[0][0], targetY: 236, labelX: 330, labelY: 462, radius: 24, tone: 'glp1', progress: win(p, 0.3, 0.4) });
+            call(ctx, { text: 'GIP Receptor', targetX: RECS[1][0], targetY: 236, labelX: 330, labelY: 462, radius: 24, tone: 'gip', progress: win(p, 0.38, 0.5) });
+            tag(ctx, 'Two receptors → one insulin response', 330, 462, fade(p, 0.5, 0.54) * (1 - fade(p, 0.58, 0.62)), 'key');
+            M.text(ctx, '(a simple picture of the cell’s signals)', 330, 492, { size: 12, weight: 700, color: C.muted, alpha: fade(p, 0.5, 0.54) * (1 - fade(p, 0.58, 0.62)) });
             const k0 = keyAt(0, st, s);
-            if (k0) call(ctx, { text: 'Insulin released', targetX: k0[0], targetY: k0[1], labelX: 330, labelY: 462, radius: 22, tone: 'insulin', progress: win(p, 0.84, 0.97) });
+            if (k0) call(ctx, { text: 'Insulin released (when sugar is high)', targetX: k0[0], targetY: k0[1], labelX: 330, labelY: 462, radius: 22, tone: 'insulin', progress: win(p, 0.6, 0.76) });
+            // what GIP adds, in two short points
+            const pa = fade(p, 0.78, 0.84);
+            if (pa > 0) {
+              ctx.save(); ctx.globalAlpha *= pa; M.card(ctx, 70, 300, 580, 200, { r: 18 });
+              M.text(ctx, 'What does GIP add?', 360, 332, { size: 20, weight: 900, color: '#a3520f' });
+              [['1', 'A second receptor type: GLP-1 AND GIP', 0.8], ['2', 'Both can help the pancreas release insulin when sugar is high', 0.86]].forEach(([n, t, a0], i) => {
+                const aa = fade(p, a0, a0 + 0.04), y = 380 + i * 50;
+                ctx.save(); ctx.globalAlpha *= aa; M.dot(ctx, 104, y, 14, i ? '#1d7a4c' : Y.COL.gip); M.text(ctx, n, 104, y + 1, { size: 15, weight: 900, color: '#ffffff' });
+                M.text(ctx, t, 130, y, { size: 15, align: 'left', weight: 800, color: C.ink }); ctx.restore();
+              });
+              M.text(ctx, 'The two pathways overlap; neither does the job alone.', 360, 474, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.92, 0.96) });
+              ctx.restore();
+            }
           }
-          legend(ctx, cel > 0 ? LEG3 : [SUGAR, 'dual-medicine'], cel > 0 && cel < 1 ? Math.abs(cel - 0.5) * 2 : 1);
+          legend(ctx, LEG3, cel);
         } },
-      // 4 ------------------------------------------------------------ insulin and a muscle cell
-      { label: 'Insulin helps cells use sugar', dur: 13, caption: 'Insulin helps body cells take sugar out of the blood. The cells can then use that sugar for energy.',
+      // 5 ------------------------------------------------------------ insulin and glucose (brief)
+      { label: 'Insulin and glucose', dur: 10, caption: 'Insulin then helps body cells take sugar out of the blood and use it for energy.',
         draw(ctx, p, s) {
-          const off = fade(p, 0, 0.1), cel = fade(p, 0.38, 0.46);
-          const c = camAt([[0, PA[0], PA[1] + 6, 7.5, ...MID], [0.1, PA[0], PA[1] + 6, 6, ...MID], [0.2, PA[0], PA[1] + 10, 2.6, 400, 250], [0.3, MU[0], MU[1], 2.6, 400, 300], [0.4, MU[0], MU[1], 7, ...MID], [1, MU[0], MU[1], 7.4, ...MID]], p);
-          withCam(ctx, c, () => inside(ctx, s, { k: c.k, keys: fade(p, 0.08, 0.14), muscle: fade(p, 0.2, 0.28), glow: [[MU, 30, fade(p, 0.26, 0.34) * (1 - fade(p, 0.38, 0.42))]] }));
-          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; dualCell(ctx, s, B3); ctx.restore(); }
-          tag(ctx, 'Insulin travels in the blood', 480, 60, fade(p, 0.1, 0.15) * (1 - fade(p, 0.28, 0.32)), 'good');
-          tag(ctx, 'Muscle', 480, 60, fade(p, 0.32, 0.36) * (1 - fade(p, 0.42, 0.46)), 'key');
-          const st = { dock: fade(p, 0.48, 0.58), signal: fade(p, 0.58, 0.64), doors: seg(p, 0.62, 0.74), uptake: seg(p, 0.74, 0.95), energy: fade(p, 0.88, 1) };
+          const back = fade(p, 0, 0.1), cel = fade(p, 0.04, 0.14);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; dualCell(ctx, s, B3); ctx.restore(); }
+          const st = { dock: fade(p, 0.16, 0.3), signal: fade(p, 0.3, 0.38), doors: seg(p, 0.36, 0.52), uptake: seg(p, 0.52, 0.86), energy: fade(p, 0.8, 0.95) };
           lensOpen(ctx, cel, () => fibre(ctx, s, st));
           if (cel >= 1) {
-            call(ctx, { text: 'Insulin sends the signal', targetX: IR[0], targetY: lerp(104, 206, ease(st.dock)), labelX: 330, labelY: 500, radius: 24, tone: 'insulin', progress: win(p, 0.46, 0.62) });
-            call(ctx, { text: 'Sugar doors open', targetX: DOORS[0], targetY: 230, labelX: 330, labelY: 500, radius: 26, tone: 'good', progress: win(p, 0.66, 0.77) });
-            call(ctx, { text: 'Glucose enters the cell', targetX: DOORS[1], targetY: 280, labelX: 330, labelY: 500, radius: 22, tone: 'sugar', progress: win(p, 0.78, 0.94) });
-            tag(ctx, 'Used for energy', 330, 500, fade(p, 0.94, 0.99), 'good');
+            call(ctx, { text: 'Insulin sends the signal', targetX: IR[0], targetY: lerp(104, 206, ease(st.dock)), labelX: 330, labelY: 500, radius: 24, tone: 'insulin', progress: win(p, 0.14, 0.36) });
+            call(ctx, { text: 'Glucose enters the cell', targetX: DOORS[1], targetY: 280, labelX: 330, labelY: 500, radius: 22, tone: 'sugar', progress: win(p, 0.56, 0.86) });
+            tag(ctx, 'Used for energy', 330, 500, fade(p, 0.88, 0.94), 'good');
           }
           legend(ctx, LEG4, 1);
         } },
-      // 5 ------------------------------------------------------------ brain: hunger and fullness
-      { label: 'Brain: hunger and fullness', dur: 11, caption: 'The medicine can also change hunger signals, helping some people feel full sooner.',
+      // 6 ------------------------------------------------------------ other body effects
+      { label: 'Other body effects', dur: 13, caption: 'Together, these signals can also change hunger, help some people feel full sooner, and slow food leaving the stomach.',
         draw(ctx, p, s) {
-          const off = fade(p, 0, 0.08), conv = fade(p, 0.36, 0.44);
-          const mid = [(BR[0] + ST[0]) / 2 + 6, (BR[1] + ST[1]) / 2];
-          const c = camAt([[0, MU[0], MU[1], 7.4, ...MID], [0.08, MU[0], MU[1], 6, ...MID], [0.24, ...WHOLE], [0.38, mid[0], mid[1], 2.3, 420, 270], [1, mid[0], mid[1], 2.3, 420, 270]], p);
-          if (conv < 1) withCam(ctx, c, () => inside(ctx, s, { k: c.k, meds: 1, signal: fade(p, 0.26, 0.34), glow: [[BR, 30, fade(p, 0.26, 0.32)], [ST, 30, fade(p, 0.26, 0.32)]] }));
+          const off = fade(p, 0, 0.08), big = fade(p, 0.5, 0.58);
+          if (big < 1) { ctx.save(); ctx.globalAlpha *= 1 - big; talk(ctx, s, seg(p, 0.04, 0.5)); ctx.restore(); }
           if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; fibre(ctx, s, F4); ctx.restore(); }
-          if (conv > 0) { ctx.save(); ctx.globalAlpha *= conv; talk(ctx, s, seg(p, 0.4, 1)); ctx.restore(); }
-          tag(ctx, 'Gut and brain talk to each other', 480, 60, fade(p, 0.26, 0.32) * (1 - conv), 'key');
-          tag(ctx, 'Feeling full sooner (for some people)', 400, 505, fade(p, 0.82, 0.9), 'good');
-          legend(ctx, ['dual-medicine'], 1);
-        } },
-      // 6 ------------------------------------------------------------ stomach: slower emptying
-      { label: 'Stomach: food leaves slower', dur: 11, caption: 'The medicine can also slow food leaving your stomach. That can help you feel full longer.',
-        draw(ctx, p, s) {
-          const off = fade(p, 0, 0.08), big = fade(p, 0.24, 0.32);
-          const mid = [(BR[0] + ST[0]) / 2 + 6, (BR[1] + ST[1]) / 2];
-          const c = camAt([[0, mid[0], mid[1], 2.3, 420, 270], [0.08, mid[0], mid[1], 2.3, 420, 270], [0.26, ST[0] - 6, ST[1] + 8, 5, ...MID]], p);
-          if (big < 1) withCam(ctx, c, () => inside(ctx, s, { k: c.k, meds: 1, glow: [[ST, 34, fade(p, 0.1, 0.2)]] }));
-          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; talk(ctx, s, 1); ctx.restore(); }
-          const slow = fade(p, 0.6, 0.7);
+          const slow = fade(p, 0.7, 0.8);
           if (big > 0) {
             ctx.save(); ctx.globalAlpha *= big; bigStomach(ctx, s, slow); ctx.restore();
-            S.phasePill(ctx, 380, 40, p, [[0.3, 'Usual food movement', '#4d6a90'], [0.62, 'With the medicine: food may leave more slowly', C.purple]]);
-            if (slow > 0) med(ctx, 380 - 230, 40, 11, slow);
-            tag(ctx, 'Food still moves: never blocked', 560, 330, fade(p, 0.78, 0.86), 'note');
-            M.text(ctx, 'This effect varies and can lessen over time', 560, 370, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.86, 0.94) });
-          } else tag(ctx, 'Stomach', 480, 60, fade(p, 0.14, 0.2), 'key');
-          legend(ctx, ['dual-medicine', 'food'], 1);
+            S.phasePill(ctx, 380, 40, p, [[0.55, 'Usual food movement', '#4d6a90'], [0.72, 'Food may leave more slowly', C.purple]]);
+            tag(ctx, 'Food still moves: never blocked', 560, 330, fade(p, 0.82, 0.88), 'note');
+            M.text(ctx, 'This effect varies and can lessen over time', 560, 370, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.88, 0.94) });
+          }
+          tag(ctx, 'Other body effects', 120, 40, fade(p, 0.06, 0.12), 'key');
+          M.text(ctx, 'Both receptor pathways may play a part', 200, 515, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.1, 0.18) * (1 - big) });
+          legend(ctx, big > 0 ? ['dual-medicine', 'food'] : ['dual-medicine'], 1);
         } },
-      // 7 ------------------------------------------------------------ the whole person
-      { label: 'The whole-body result', dur: 14, caption: 'Together, these changes can lower blood sugar and help control hunger. Some people lose weight over time. Nausea and stomach upset can happen.',
+      // 7 ------------------------------------------------------------ result and the key difference
+      { label: 'Result and key difference', dur: 18, caption: 'In some studies, dual GIP and GLP-1 treatment has lowered blood sugar and body weight more than certain GLP-1 medicines. Both can help control blood sugar. Nausea and stomach upset can happen.',
         draw(ctx, p, s) {
-          const off = fade(p, 0, 0.1), person = fade(p, 0.7, 0.8);
-          const c = camAt([[0, ST[0] - 6, ST[1] + 8, 5, ...MID], [0.1, ST[0] - 6, ST[1] + 8, 4, ...MID], [0.28, ...WHOLE], [1, ...WHOLE]], p);
-          const lv = lerp(0.85, 0.4, fade(p, 0.5, 0.72));
-          if (person < 1) { ctx.save(); ctx.globalAlpha *= 1 - person; withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: lv, meds: 0.6, keys: 0.6, muscle: 0.8, glow: [[PA, 26, fade(p, 0.28, 0.34)], [BR, 26, fade(p, 0.32, 0.38)], [ST, 26, fade(p, 0.36, 0.42)]] })); ctx.restore(); }
-          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; bigStomach(ctx, s, 1); ctx.restore(); }
-          const la = fade(p, 0.28, 0.34) * (1 - fade(p, 0.56, 0.62));
-          [[PA, 'Pancreas: more insulin when sugar is high', 0.28, false], [BR, 'Brain: hunger and fullness signals', 0.32, false], [ST, 'Stomach: food may leave more slowly', 0.36, false], [MU, 'Muscle: takes in sugar (via insulin)', 0.4, true]].forEach(([pt, t, a0, dash], i) => {
-            const a = fade(p, a0, a0 + 0.05) * la, ly = 190 + i * 64;
-            if (a <= 0) return;
-            ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = dash ? '#8a9bb4' : C.purple; ctx.lineWidth = 2; ctx.setLineDash(dash ? [5, 5] : []); ctx.beginPath(); ctx.moveTo(pt[0] + 14, pt[1]); ctx.lineTo(450, ly); ctx.stroke(); ctx.restore();
-            tag(ctx, t, 600, ly, a, dash ? 'note' : 'key');
-          });
-          legend(ctx, [SUGAR, 'insulin', 'dual-medicine'], fade(p, 0.1, 0.2) * (1 - person));
-          meter(ctx, 'Blood sugar', lv, 600, 220, fade(p, 0.6, 0.68));
-          if (p > 0.6) timeChip(ctx, ['Days', 'Weeks', 'Months'], seg(p, 0.6, 0.92), 740, 320);
-          // the same patient, out walking in the park
-          if (person > 0) {
-            ctx.save(); ctx.globalAlpha *= person;
-            ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, GROUND, 520, 10);
-            ctx.fillStyle = '#8a6a4a'; ctx.fillRect(470, GROUND - 120, 12, 120); M.dot(ctx, 476, GROUND - 150, 50, '#7fbf5a'); M.dot(ctx, 446, GROUND - 120, 30, '#8fcc68'); M.dot(ctx, 506, GROUND - 124, 32, '#75b552');
-            M.dot(ctx, 110, 90, 26, '#ffd36b');
-            mover(ctx, 180 + 140 * seg(p, 0.76, 1), s * 3, 0.45, 0.08, 1, s);
+          const off = fade(p, 0, 0.08), rc = fade(p, 0.42, 0.5);
+          // the same patient after a meal: sugar rises, then the insulin response brings it back
+          const rise = fade(p, 0.08, 0.2) * (1 - fade(p, 0.24, 0.38)), lv = lerp(0.55, 0.95, rise);
+          if (rc < 1) {
+            ctx.save(); ctx.globalAlpha *= 1 - rc;
+            inside(ctx, s, { level: lv, meds: 0.6, keys: fade(p, 0.22, 0.3), glow: [[PA, 26, fade(p, 0.2, 0.28)]] });
+            meter(ctx, 'Blood sugar after a meal', lv, 600, 160, fade(p, 0.08, 0.14));
+            tag(ctx, 'Pancreas releases insulin', 740, 280, fade(p, 0.24, 0.3), 'good');
+            tag(ctx, 'Sugar comes back down', 740, 330, fade(p, 0.32, 0.38), 'good');
             ctx.restore();
           }
-          ['Better blood sugar control', 'Less hunger for some people', 'Weight may change over time'].forEach((t, i) => M.text(ctx, '✓ ' + t, 600, 380 + i * 28, { size: 16, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, 0.74 + i * 0.05, 0.79 + i * 0.05) }));
-          tag(ctx, 'Nausea or stomach upset can happen', 740, 480, fade(p, 0.88, 0.95), 'warn');
-          M.text(ctx, 'Results differ from person to person', 740, 512, { size: 12, weight: 700, color: C.muted, alpha: fade(p, 0.9, 0.97) });
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; bigStomach(ctx, s, 1); ctx.restore(); }
+          recap(ctx, s, rc, p);
+          tag(ctx, 'Nausea or stomach upset can happen', 740, 520, fade(p, 0.84, 0.9), 'warn');
+          legend(ctx, [SUGAR, 'insulin', 'dual-medicine'], fade(p, 0.08, 0.14) * (1 - rc));
         } },
     ];
+    return scenesOut.map((sc) => Object.assign({ say: spoken(sc.caption) }, sc));
   });
 
   // ============================================================================ SGLT2 INHIBITORS
