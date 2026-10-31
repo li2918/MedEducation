@@ -18,22 +18,13 @@
 // Narration avoids drug names and doses. Draft, pending clinical review.
 (function () {
   const sb = MedLib.storyboard;
-  const T2D = 'In type 2 diabetes, too much sugar stays in the blood.';
 
   // ---------------------------------------------------------------------------- diabetes
   // the metformin story has its own opening (the problem, then swallowing the pill) and its
   // own six-scene narration in cinema.js
   sb('biguanides', { route: 'pill', dest: 'blood', target: 'liver', opening: false });
-  sb('sulfonylureas', {
-    route: 'pill', dest: 'blood', caution: 'Blood sugar can drop too low',
-    lines: {
-      take: `${T2D} This medicine is a pill. It soaks into the blood and travels to the pancreas.`,
-      travel: 'The camera zooms into the pancreas. Tiny cells here make insulin, the key that lets sugar leave the blood.',
-      target: 'Each insulin cell has little gates that let potassium out. When the gates close, the cell gets ready to release insulin.',
-      moa: 'The medicine shuts these gates. The cell sends out insulin, even when blood sugar is not high.',
-      result: 'Blood sugar comes down. But insulin can come out even when sugar is already normal, so blood sugar can drop too low.',
-    },
-  });
+  // the sulfonylurea "insulin switch" story has its own pill scene, narration and low-sugar warning
+  sb('sulfonylureas', { route: 'pill', dest: 'blood', target: 'pancreas', caution: 'Blood sugar can drop too low', opening: false });
   sb('meglitinides', {
     route: 'pill', routeLabel: 'A pill just before meals', dest: 'blood', caution: 'Skipping a meal can drop sugar too low',
     lines: {

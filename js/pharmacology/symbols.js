@@ -100,6 +100,17 @@
       medicine(ctx, x, y, r * 0.38, a * blocked);
     }
   }
+  // The "tiny cell gate" (sulfonylureas): a blue channel standing in a membrane at y, drawn as
+  // two halves with a gap. closed: 0 open (gap, small potassium dots can leave) → 1 shut (halves
+  // together under a blue lid). Insulin never passes through it; it leaves the cell separately.
+  function gate(ctx, x, y, k = 1, closed = 0, a = 1) {
+    if (a <= 0) return;
+    const gap = lerp(9, 0, closed) * k, col = '#3d7be0', dark = '#1f4fa8';
+    ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = col; ctx.strokeStyle = dark; ctx.lineWidth = 2.5;
+    [-1, 1].forEach((side) => { M.rr(ctx, x + side * gap - (side < 0 ? 15 * k : 0), y - 22 * k, 15 * k, 44 * k, 6 * k); ctx.fill(); ctx.stroke(); });
+    if (closed > 0) { ctx.globalAlpha *= closed; M.rr(ctx, x - 18 * k, y - 30 * k, 36 * k, 10 * k, 5 * k); ctx.fill(); ctx.stroke(); }
+    ctx.restore();
+  }
   function food(ctx, x, y, r = 8, a = 1, i = 0) {
     if (a <= 0) return;
     const c = ['#c98b4a', '#7fbf5a', '#e0a33c', '#b46a4a'][i % 4];
@@ -125,6 +136,8 @@
     // sugar itself always stays yellow
     'dpp4-medicine': { title: 'DPP-4 medicine', note: 'Blocks the scissors', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     'dpp4-enzyme': { title: 'DPP-4 (scissors)', note: 'Breaks down messages', icon: (ctx, x, y) => scissors(ctx, x + 4, y, 14, { open: 0.6 }) },
+    'sulfonylurea-medicine': { title: 'Sulfonylurea medicine', note: 'Purple diamond', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    'potassium-gate': { title: 'Tiny cell gate', note: 'On the insulin-making cell', icon: (ctx, x, y) => gate(ctx, x, y, 0.5, 0) },
     'metformin-medicine': { title: 'Metformin (Medicine)', note: 'Helps the liver release less sugar', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     liver: { title: 'Liver', note: 'Helps control blood sugar', icon: (ctx, x, y) => M.liver(ctx, x + 1, y + 2, 15) },
     'high-output': { title: 'More sugar released', note: 'Too much leaves the liver', icon: (ctx, x, y) => flowArrow(ctx, x - 13, y, x + 13, y, 9, '#e0524a') },
@@ -197,5 +210,5 @@
     ctx.restore();
   }
 
-  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, fragment, scissors, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
+  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, fragment, scissors, gate, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
 })();
