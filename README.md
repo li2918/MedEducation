@@ -9,7 +9,7 @@ This is a static prototype for the US market (English). It uses no build step an
 Open `index.html` in Chrome or Edge. That's it.
 
 - On the home page, choose **patient** or **healthcare provider**. There is no sign-in.
-- Deep links: `patient.html#t2d`, `clinician.html#htn/pharm/raas`, `clinician.html#t2d/patho/kidney`.
+- Deep links: `patient.html#t2d`, `clinician.html#htn/pharm/ace-inhibitors`, `clinician.html#t2d/patho/kidney`, `share.html#statins`. Older drug links such as `clinician.html#htn/pharm/raas` still open the matching class.
 
 Narration uses the browser's built-in text-to-speech (Web Speech API). On Windows, Edge offers the most natural voices.
 
@@ -17,9 +17,9 @@ Narration uses the browser's built-in text-to-speech (Web Speech API). On Window
 
 | | Patient portal | Clinician portal |
 |---|---|---|
-| Animation | One ~60 s, 7-chapter story per condition | 1–3 scenes per organ and per drug class |
-| Extras | Key points, questions for your doctor, 3-question teach-back quiz | Body map with stage slider, findings by stage, PD/PK/AE/contraindications/monitoring, references |
-| Conditions | Type 2 diabetes, hypertension, high cholesterol, COPD, asthma, GERD, osteoarthritis, tendon pain, back pain, muscle pain, nerve pain (Parts 1-3) | T2D (8 organs + 4 drug classes), HTN (5 organs + 3 drug classes); the others are coming soon |
+| Animation | One ~60 s, 7-chapter story per condition | 1–3 scenes per organ; a 30–60 s, 5-scene mechanism animation per medication class |
+| Extras | Key points, questions for your doctor, 3-question teach-back quiz | Body map with stage slider, findings by stage; per class: mechanism, site of action, PD/PK, adverse effects, cautions, monitoring, indications by condition, references, review status, and a patient share link |
+| Conditions | Type 2 diabetes, hypertension, high cholesterol, COPD, asthma, GERD, osteoarthritis, tendon pain, back pain, muscle pain, nerve pain (Parts 1-3) | Pathophysiology: T2D (8 organs), HTN (5 organs). Pharmacology: all 11 conditions, 53 medication classes from a shared library |
 
 Search handles lay terms, abbreviations, ICD-10 codes, and typos (`diabetis`, `HTN`, `E11`, `high bp`). Roadmap conditions show up as "coming soon" with a request button.
 
@@ -37,9 +37,19 @@ js/lungs.js        Shared cartoon pieces for breathing conditions (airways, mucu
 js/bodymap.js      Clickable SVG body map
 js/patient.js      Patient portal page logic
 js/clinician.js    Clinician portal page logic
+js/pharmacology/   Medication Mechanism Library (provider portal)
+  library.js         Class / mechanism registry and condition mapping (MedLib)
+  animations.js      Mechanism animation kit: 5 scenes per class from a config (MedAnim)
+  stages.js          Custom stages: LDL receptors, triglyceride lipoproteins, parietal cell, synapse, RAAS…
+  classes-*.js       Content: diabetes, hypertension, lipids, respiratory, GERD, MSK / neuropathic pain
+share.html         Patient-friendly view of one medication class (share.html#<class id>)
 ```
 
 A scene is `{ label, caption, draw(ctx, p, s) }`. `p` is progress (0–1) through the scene and `s` is seconds elapsed. Scene length stretches automatically so the narration can finish. Randomness is seeded, so scrubbing always shows the same frame.
+
+### Medication Mechanism Library
+
+Provider pharmacology is organized by medication class, not individual drug. A mechanism (one animation) is defined once and shared by every class that works that way (for example, short- and long-acting beta-2 agonists); combination inhalers reuse their components' mechanism scenes and then show the combined effect. `MedLib.map(conditionId, …)` lists the classes for each condition with a role (common / foundational, selected or add-on, specialist) and condition-specific notes, so a class used in several conditions keeps one shared description. Conditions without an organ-level module open in a pharmacology-only view. The patient share page shows only the plain-language captions and summary; it is a convenience view, not access control.
 
 ### Narration
 
@@ -50,7 +60,7 @@ pip install edge-tts
 python tools/make-narration.py
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031g`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031h`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
 
 **Languages:** the patient portal has English and Chinese (language picker in the top bar, or `?lang=zh`). Text is translated by its English source string in `js/i18n-zh.js`; Chinese narration lives in `audio/<id>-a-zh/` and so on. After changing captions or labels, add their translations to `js/i18n-zh.js`, then run `python tools/make-narration.py --lang zh` (this also refreshes `js/audio-durations.js`, which keeps translated narration in step with the animation).
 

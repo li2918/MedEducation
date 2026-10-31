@@ -33,8 +33,10 @@
 
   function entries() {
     // A condition is available in a portal only if it has that portal's content (MedData.portal).
+    // In the provider portal, medication classes mapped in the shared library also count.
     const portal = window.MedData.portal;
-    return Object.values(diseases).map((d) => ({ id: d.id, name: d.name, icd10: d.icd10, aliases: d.aliases || [], available: !portal || !!d[portal] }))
+    const has = (d) => !portal || !!d[portal] || (portal === 'clinician' && !!window.MedLib && MedLib.forCondition(d.id).length > 0);
+    return Object.values(diseases).map((d) => ({ id: d.id, name: d.name, icd10: d.icd10, aliases: d.aliases || [], available: has(d) }))
       .concat(comingSoon.map((d) => Object.assign({ available: false }, d)));
   }
 

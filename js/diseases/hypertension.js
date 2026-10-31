@@ -815,6 +815,10 @@
     },
   ];
 
+  // Shared with the provider Medication Mechanism Library (js/pharmacology), so ACE inhibitors,
+  // ARBs, CCBs, and thiazides reuse these drawings instead of copying them.
+  window.MedAssets = Object.assign(window.MedAssets || {}, { raas, smoothMuscle, artery });
+
   MedData.register({
     id: 'htn',
     name: 'High blood pressure',

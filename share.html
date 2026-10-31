@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MedMotion — How your medicine works</title>
+  <link rel="stylesheet" href="css/styles.css?v=20261031h">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="patient.html"><span class="logo">◐</span> MedMotion</a>
+    <span class="portal-tag">How your medicine works</span>
+    <nav class="user"><a href="patient.html">Patient portal</a></nav>
+  </header>
+
+  <main class="container">
+    <section id="share" hidden>
+      <div class="result-head">
+        <div>
+          <h2 id="s-name"></h2>
+          <p class="tagline" id="s-summary"></p>
+        </div>
+        <div class="meta"><span class="badge draft">Draft · pending clinical review</span></div>
+      </div>
+      <div id="player"></div>
+      <p class="share-note">This page explains how a type of medicine works in the body. It is not advice about your own treatment. Talk with your care team about which medicines are right for you, how to take them, and what side effects to watch for.</p>
+    </section>
+    <section id="missing" class="panel" hidden>
+      <h2>This explanation is not available</h2>
+      <p>Ask your care team to share the link again.</p>
+    </section>
+  </main>
+  <script src="js/primitives.js?v=20261031h"></script>
+  <script src="js/food.js?v=20261031h"></script>
+  <script src="js/lungs.js?v=20261031h"></script>
+  <script src="js/engine.js?v=20261031h"></script>
+  <script src="js/scenes.js?v=20261031h"></script>
+  <script src="js/registry.js?v=20261031h"></script>
+  <script src="js/diseases/diabetes.js?v=20261031h"></script>
+  <script src="js/diseases/hypertension.js?v=20261031h"></script>
+  <script src="js/pharmacology/library.js?v=20261031h"></script>
+  <script src="js/pharmacology/animations.js?v=20261031h"></script>
+  <script src="js/pharmacology/stages.js?v=20261031h"></script>
+  <script src="js/pharmacology/classes-diabetes.js?v=20261031h"></script>
+  <script src="js/pharmacology/classes-hypertension.js?v=20261031h"></script>
+  <script src="js/pharmacology/classes-lipids.js?v=20261031h"></script>
+  <script src="js/pharmacology/classes-respiratory.js?v=20261031h"></script>
+  <script src="js/pharmacology/classes-gerd.js?v=20261031h"></script>
+  <script src="js/pharmacology/classes-msk.js?v=20261031h"></script>
+  <script>
+    // Patient-friendly view of one medication class (share.html#<class id>): a short animation
+    // with plain captions and a plain summary. Clinician details are not shown here.
+    (function () {
+      const id = decodeURIComponent(location.hash.slice(1)), cls = window.MedLib && MedLib.get(id);
+      if (!cls || !cls.patient) { document.getElementById('missing').hidden = false; return; }
+      document.getElementById('share').hidden = false;
+      document.getElementById('s-name').textContent = cls.patient.name || cls.name;
+      document.getElementById('s-summary').textContent = cls.patient.summary || '';
+      document.title = `MedMotion — ${cls.patient.name || cls.name}`;
+      const player = new Player(document.getElementById('player'), { voice: false });
+      player.load({ title: cls.patient.name || cls.name, scenes: MedAnim.scenesFor(cls, { patient: true }) });
+    })();
+  </script>
+</body>
+</html>

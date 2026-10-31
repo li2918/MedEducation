@@ -142,10 +142,10 @@
     M.text(ctx, 'Insulin effect', x0 - 14, yt - 24, { size: 14, color: C.muted, align: 'left' });
     const g = (h, pk, k) => (h <= 0 ? 0 : Math.pow(h / pk, k) * Math.exp(k * (1 - h / pk)));
     const curves = [
-      ['Rapid-acting (lispro, aspart)', '#e0524a', (h) => g(h, 1.5, 3)],
+      ['Rapid-acting analogs', '#e0524a', (h) => g(h, 1.5, 3)],
       ['Short-acting (regular)', '#f2a531', (h) => 0.85 * g(h, 3, 3)],
       ['Intermediate (NPH)', '#2f6fde', (h) => 0.7 * g(h, 7, 2.5)],
-      ['Long-acting (glargine, degludec)', '#14a38b', (h) => 0.4 * seg(h, 0, 2) * (1 - seg(h, 22, 26))],
+      ['Long-acting analogs', '#14a38b', (h) => 0.4 * seg(h, 0, 2) * (1 - seg(h, 22, 26))],
     ];
     curves.forEach(([label, col, f], i) => {
       const reveal = seg(p, 0.05 + i * 0.18, 0.3 + i * 0.18);
@@ -1328,6 +1328,9 @@
       ],
     },
   ];
+
+  // Shared with the provider Medication Mechanism Library (js/pharmacology).
+  window.MedAssets = Object.assign(window.MedAssets || {}, { islet, myocyte, insulinChart, hepatocyteMetformin, proximalTubule });
 
   MedData.register({
     id: 't2d',

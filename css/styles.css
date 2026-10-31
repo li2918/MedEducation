@@ -253,3 +253,26 @@ a { color: var(--blue); }
 .lang-pick select { font: inherit; font-size: 0.85rem; font-weight: 700; border: 1px solid var(--line); border-radius: 10px; padding: 4px 8px; background: #fff; color: var(--ink); cursor: pointer; }
 html[lang="zh-CN"] .emergency summary::after { content: "点击查看症状"; }
 html[lang="zh-CN"] .emergency[open] summary::after { content: "收起"; }
+
+/* Provider medication library */
+.map-note { font-size: 0.86em; color: var(--muted); background: #f3f6fb; border-radius: 10px; padding: 8px 10px; margin: 0 0 10px; }
+.legend .map-note { margin-top: 8px; width: 100%; }
+.cls-filter { width: 100%; max-width: 360px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; margin-bottom: 6px; }
+.cls-group { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; width: 100%; margin: 4px 0; }
+.cls-role { font-size: 0.78em; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); width: 100%; }
+.detail .review { font-size: 0.85em; color: #8a5a00; background: #fff7e0; display: inline-block; padding: 3px 10px; border-radius: 999px; margin: 4px 0 10px; }
+.detail .site, .detail .cond-note, .detail .components { margin: 6px 0; }
+.detail .cond-note { background: #eef3fb; border-radius: 10px; padding: 8px 12px; }
+.role { font-weight: 700; }
+.role-common { color: #1d7a4c; } .role-selected { color: #1f4fa8; } .role-specialist { color: #7a4ea8; }
+.indications li.on { font-weight: 600; }
+.indications, .cls-refs { padding-left: 1.2em; }
+.table-wrap { overflow-x: auto; }
+table.profiles { border-collapse: collapse; width: 100%; font-size: 0.9em; }
+table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.share-box { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; border: 1px solid #bfe3cf; background: #f2faf5; border-radius: 12px; padding: 12px 14px; margin-top: 14px; }
+.share-box p { margin: 4px 0 0; }
+.share-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.edu-note { font-size: 0.82em; color: var(--muted); margin-top: 12px; }
+
+.share-note { color: var(--muted); font-size: 0.92em; background: #fff; border-radius: 12px; padding: 12px 14px; margin-top: 14px; box-shadow: var(--shadow); }
