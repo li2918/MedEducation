@@ -21,16 +21,9 @@
   const T2D = 'In type 2 diabetes, too much sugar stays in the blood.';
 
   // ---------------------------------------------------------------------------- diabetes
-  sb('biguanides', {
-    route: 'pill', dest: 'blood', target: 'liver',
-    scenes: [
-      `${T2D} This medicine is a pill. It soaks into the blood and travels to the liver.`,
-      'The liver stores sugar and lets it out into the blood. In type 2 diabetes, it lets out too much.',
-      "Let's look inside a liver cell, where new sugar is made.",
-      'The medicine helps the liver make and release less sugar. It does not force the pancreas to make more insulin.',
-      'Blood sugar comes down over time. Doctors check the kidneys before and during treatment.',
-    ],
-  });
+  // the metformin story has its own opening (the problem, then swallowing the pill) and its
+  // own six-scene narration in cinema.js
+  sb('biguanides', { route: 'pill', dest: 'blood', target: 'liver', opening: false });
   sb('sulfonylureas', {
     route: 'pill', dest: 'blood', caution: 'Blood sugar can drop too low',
     lines: {

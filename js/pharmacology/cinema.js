@@ -94,77 +94,260 @@
   }
 
   // ================================================================================== BIGUANIDES
+  // Six-scene kid-friendly story: too much sugar (the liver is one source) → swallowing the
+  // metformin pill (it dissolves in the gut and is absorbed) → inside a liver cell, which makes
+  // sugar from building blocks → metformin slows the sugar-making (never to zero) → a
+  // side-by-side before / with-metformin comparison → back to the whole person.
+  // Glucose is always a yellow hexagon; red and green only mark how much sugar leaves the liver
+  // (thick fast red stream vs thinner green stream). Metformin is the purple diamond. No insulin
+  // is released here: metformin does not push the pancreas. Its exact molecular mechanism is not
+  // settled, so the cell shows a slower "sugar-making" process rather than one blocked enzyme.
   def('biguanides', (cls) => {
-    const th = B().themeOf(cls, { organ: 'liver' }), L = [330, 280];
-    const liverClose = (ctx, s, out) => {
-      M.liver(ctx, L[0] - 30, L[1], 150);
-      M.vessel(ctx, 470, 236, 440, 86, { wall: 12, t: s, items: [{ kind: 'rbc', n: 7, r: 7 }] });
-      flow(ctx, [[L[0] + 70, L[1] - 10], [470, 280], [900, 280]], Math.round(2 + 8 * out), s, 0.25, (x, y) => glu(ctx, x, y));
-      M.text(ctx, 'Blood', 880, 226, { size: 13, align: 'right', color: C.muted, weight: 700 });
+    const Y = window.MedSym;
+    const LIV = at('liver'), GUT = at('gut'), HE = at('heart'), MOUTH = [274, 138];
+    const WHOLE = [270, 300, 1, 270, 300], LZ = [LIV[0] + 6, LIV[1], 2.6, 420, 280];
+    const RED = '#e0524a', GREEN = '#2fa36b';
+    const med = (ctx, x, y, r = 12, a = 1) => Y.medicine(ctx, x, y, r, a);
+    const legend = (ctx, items, a) => Y.drawMoleculeLegend(ctx, items, { alpha: a });
+    const call = (ctx, o) => Y.drawCallout(ctx, o);
+    const win = (p, a, b) => fade(p, a, a + 0.05) * (1 - fade(p, b - 0.05, b));
+    const scr = (c, pt) => [(pt[0] - c.fx) * c.k + c.sx, (pt[1] - c.fy) * c.k + c.sy];
+    // A stream of sugar leaving the liver: a soft coloured band (thick = more) with yellow
+    // glucose riding on it. Same speed and particle size in every state; only how many and how
+    // thick change.
+    function stream(ctx, pts, s, o) {
+      const a = o.a == null ? 1 : o.a;
+      if (a <= 0) return;
+      if (o.col) {
+        ctx.save(); ctx.globalAlpha *= a * 0.42; ctx.strokeStyle = o.col; ctx.lineWidth = o.w; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+        ctx.beginPath(); pts.forEach((q, i) => (i ? ctx.lineTo(q[0], q[1]) : ctx.moveTo(q[0], q[1]))); ctx.stroke(); ctx.restore();
+        const [x0, y0] = pts[pts.length - 2], [x1, y1] = pts[pts.length - 1];
+        ctx.save(); ctx.globalAlpha *= a * 0.75; Y.flowArrow(ctx, lerp(x0, x1, 0.55), lerp(y0, y1, 0.55), x1, y1, o.w * 0.45, o.col); ctx.restore();
+      }
+      flow(ctx, pts, Math.max(1, Math.round(o.n)), s, o.speed || 0.22, (x, y) => Y.glucose(ctx, x, y, o.r || 11, a));
+    }
+    // Sugar leaving the liver, drawn on screen from the liver toward open space so it is never
+    // hidden behind the body's blood vessels. rate 1 = too much (thick red), < 0.5 = less (green).
+    function liverOut(ctx, c, s, rate, a) {
+      if (a <= 0) return;
+      const L = scr(c, [LIV[0] + 12, LIV[1] - 4]), z = Math.min(1, c.k / 2.6), hi = rate > 0.7;
+      const pts = [L, [L[0] + 90 * z + 30, L[1] - 50 * z - 10], [L[0] + 210 * z + 40, L[1] - 70 * z - 20]];
+      stream(ctx, pts, s, { n: hi ? 6 : 2, w: (hi ? 26 : 9) * Math.max(0.5, z), col: hi ? RED : GREEN, r: 11 * Math.max(0.6, z), a, speed: 0.25 });
+      return pts[2];
+    }
+    // The see-through patient with the liver drawn in place.
+    const inside = (ctx, s, o = {}) => {
+      const k = o.k || 1, rk = Math.max(1, k * 0.55), lv = o.level == null ? 0.95 : o.level;
+      S.bodyWithBlood(ctx, 270, 300, 108, s, { density: lerp(0.25, 1.35, lv), sugarR: 6.5 / rk });
+      if (o.glow) bodyGlow(ctx, LIV[0], LIV[1], 36, o.glow, s);
+      M.liver(ctx, LIV[0], LIV[1], 30);
+      if (o.meds > 0) flow(ctx, [GUT, [256, 282], [LIV[0] + 4, LIV[1] + 10]], 4, s, 0.22, (x, y) => med(ctx, x, y, 5 / rk * 1.2, o.meds));
+      if (o.pill != null && o.pill >= 0) { const u = Math.min(1, o.pill), q = alongPath(gutPath(), u * 0.92); tablet(ctx, q[0], q[1], 0.45, 1 - seg(o.pill, 0.9, 1)); }
     };
-    const hepatocyte = (ctx, s, act, drug) => {
-      cellBox(ctx, 110, 110, 520, 330, '#f9e3da', '#cf8f7c', 'Liver cell (hepatocyte)');
-      M.dot(ctx, 200, 200, 30, '#d9b8ad'); M.text(ctx, 'Nucleus', 200, 245, { size: 12, color: C.muted, weight: 700 });
-      M.rr(ctx, 70, 300, 130, 34, 17); ctx.fillStyle = '#fff'; ctx.fill(); M.text(ctx, 'Lactate, amino acids, glycerol', 135, 352, { size: 12, color: C.muted, weight: 700 });
-      M.text(ctx, 'Building blocks', 135, 317, { size: 12, weight: 800, color: '#6b5e3e' });
-      flow(ctx, [[200, 317], [330, 300]], 4, s, 0.4, (x, y) => M.dot(ctx, x, y, 5, '#c79a6a'));
-      M.node(ctx, 'Glucose production', 400, 300, { w: 190, border: mix('#e0524a', '#9fb0c6', 1 - act), color: act > 0.6 ? '#a3261f' : C.ink });
-      M.rr(ctx, 320, 330, 160 * act, 8, 4); ctx.fillStyle = mix('#2fa36b', '#e0524a', act); ctx.fill();
-      // blood vessel on the right: glucose leaves the cell into it
-      M.rr(ctx, 690, 90, 90, 380, 30); ctx.fillStyle = C.wall; ctx.fill(); M.rr(ctx, 704, 90, 62, 380, 22); ctx.fillStyle = C.lumen; ctx.fill();
-      M.text(ctx, 'Blood', 735, 486, { size: 13, color: C.muted, weight: 700 });
-      flow(ctx, [[495, 300], [630, 280], [735, 260], [735, 470]], Math.round(1 + 8 * act), s, 0.3, (x, y) => glu(ctx, x, y));
-      if (drug > 0) flow(ctx, [[735, 100], [735, 200], [630, 230], [520, 260]], 4, s, 0.25, (x, y, i) => hex(ctx, x, y, 8, Math.min(1, drug * 2)));
+    const alongPath = (pts, u) => { let tot = 0; const L = []; for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); L.push(d); tot += d; } let d = u * tot, j = 0; while (j < L.length - 1 && d > L[j]) { d -= L[j]; j++; } const f = L[j] ? d / L[j] : 0; return [lerp(pts[j][0], pts[j + 1][0], f), lerp(pts[j][1], pts[j + 1][1], f)]; };
+    // The metformin tablet: white oval with a purple band (never yellow, never a hexagon).
+    function tablet(ctx, x, y, k = 1, a = 1, ang = -0.4) {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(ang); ctx.scale(k, k);
+      ctx.beginPath(); ctx.ellipse(0, 0, 16, 10, 0, 0, M.TAU); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = '#8456c7'; ctx.lineWidth = 2.5; ctx.stroke();
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0, 0, 16, 10, 0, 0, M.TAU); ctx.clip(); ctx.fillStyle = '#8456c7'; ctx.fillRect(-3, -11, 6, 22); ctx.restore();
+      ctx.restore();
+    }
+    function glass(ctx, x, y, tilt, a) {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(tilt);
+      ctx.beginPath(); ctx.moveTo(-11, -16); ctx.lineTo(11, -16); ctx.lineTo(8, 16); ctx.lineTo(-8, 16); ctx.closePath(); ctx.fillStyle = 'rgba(225,238,252,0.9)'; ctx.fill(); ctx.strokeStyle = '#9fb6d6'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-10, -4); ctx.lineTo(10, -4); ctx.lineTo(8, 16); ctx.lineTo(-8, 16); ctx.closePath(); ctx.fillStyle = 'rgba(110,170,240,0.6)'; ctx.fill();
+      ctx.restore();
+    }
+    // Liver tissue: cells in lobules around central veins, with blood channels.
+    const tissue = (ctx, s) => {
+      ctx.fillStyle = '#c0705a'; ctx.fillRect(0, 0, 960, 540);
+      for (let r = 0; r < 4; r++) for (let q = 0; q < 6; q++) {
+        const cx = 120 + q * 150 + (r % 2) * 75, cy = 80 + r * 130;
+        ctx.strokeStyle = 'rgba(255,225,205,0.55)'; ctx.lineWidth = 3; ctx.beginPath();
+        for (let i = 0; i < 6; i++) { const a = i / 6 * M.TAU + Math.PI / 6; ctx.lineTo(cx + Math.cos(a) * 78, cy + Math.sin(a) * 78); } ctx.closePath(); ctx.stroke();
+        for (let i = 0; i < 6; i++) { const a = i / 6 * M.TAU; ctx.strokeStyle = 'rgba(232,163,156,0.75)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(cx + Math.cos(a) * 14, cy + Math.sin(a) * 14); ctx.lineTo(cx + Math.cos(a) * 66, cy + Math.sin(a) * 66); ctx.stroke(); }
+        M.dot(ctx, cx, cy, 11, '#7a3b30');
+      }
     };
-    const pancreasNote = (ctx, a) => { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; M.pancreas(ctx, 120, 490, 40); ctx.restore(); tag(ctx, 'Does not directly push the pancreas to release insulin', 420, 492, a); };
+
+    // ---- the liver cell, full size -----------------------------------------------------------
+    // st: rate (how fast sugar is made: 1 normal, ~1.3 too much, ~0.5 with metformin), mode
+    // ('none' | 'high' | 'low' for the output band), med (metformin arriving 0..1).
+    const MACH = [345, 280], EXIT = [[455, 280], [575, 280], [640, 286], [670, 310], [670, 500]];
+    const DOCK = [[262, 246], [468, 238], [300, 354], [400, 354]];
+    const medAt = (i, m, s) => {
+      const u = seg(m, i * 0.15, i * 0.15 + 0.5);
+      if (u <= 0) return null;
+      const [dx, dy] = DOCK[i];
+      if (u < 1) { const q = alongPath([[670, 90 + i * 14], [600, 150], [dx + 30, dy - 20], [dx, dy]], ease(u)); return q; }
+      return [dx + Math.sin(s * 2 + i) * 3, dy + Math.cos(s * 2 + i) * 3];
+    };
+    const gear = (ctx, x, y, r, ang, col) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(ang); ctx.fillStyle = col;
+      for (let i = 0; i < 8; i++) { ctx.save(); ctx.rotate(i / 8 * M.TAU); ctx.fillRect(-r * 0.18, -r * 1.28, r * 0.36, r * 0.4); ctx.restore(); }
+      ctx.beginPath(); ctx.arc(0, 0, r, 0, M.TAU); ctx.fill(); M.dot(ctx, 0, 0, r * 0.35, '#fff3e0');
+      ctx.restore();
+    };
+    const cell = (ctx, s, st) => {
+      ctx.fillStyle = '#f9f1ee'; ctx.fillRect(0, 0, 960, 540);
+      M.rr(ctx, 30, 70, 590, 430, 60); ctx.fillStyle = '#f6d3c4'; ctx.fill(); ctx.lineWidth = 6; ctx.strokeStyle = '#b0644a'; ctx.stroke();
+      M.text(ctx, 'Liver Cell', 70, 104, { size: 17, align: 'left', weight: 800, color: '#8f3b2f' });
+      M.dot(ctx, 110, 420, 38, '#e3b4a3'); M.dot(ctx, 110, 420, 16, '#cf9a88');
+      // bloodstream on the right
+      M.rr(ctx, 642, 56, 56, 470, 26); ctx.fillStyle = '#fde3df'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#e8a39c'; ctx.stroke();
+      for (let i = 0; i < 6; i++) M.rbc(ctx, 670 + (i % 2 ? 9 : -9), 60 + ((s * 40 + i * 80) % 460), 7, 0.7);
+      M.text(ctx, 'Bloodstream', 670, 530, { size: 13, weight: 800, color: '#a3261f' });
+      // building blocks going into the sugar-making machine
+      const rate = st.rate, n = Math.round(2 + 3 * rate);
+      for (let i = 0; i < 6; i++) { const bx = 120 + (i % 3) * 30, by = 250 + Math.floor(i / 3) * 30; M.rr(ctx, bx - 8, by - 8, 16, 16, 4); ctx.fillStyle = '#a0703f'; ctx.fill(); ctx.strokeStyle = '#6e4a24'; ctx.lineWidth = 1.5; ctx.stroke(); }
+      M.text(ctx, 'Building blocks', 150, 320, { size: 13, weight: 800, color: '#6e4a24' });
+      flow(ctx, [[210, 280], [280, 280]], n, s, 0.3 * Math.max(0.4, rate), (x, y) => { M.rr(ctx, x - 7, y - 7, 14, 14, 4); ctx.fillStyle = '#a0703f'; ctx.fill(); });
+      // the machine: busier and redder when making too much, calmer when slowed
+      const hot = seg(rate, 1, 1.3);
+      if (hot > 0) { const g = ctx.createRadialGradient(MACH[0], MACH[1], 10, MACH[0], MACH[1], 110); g.addColorStop(0, `rgba(224,82,74,${0.35 * hot})`); g.addColorStop(1, 'rgba(224,82,74,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(MACH[0], MACH[1], 110, 0, M.TAU); ctx.fill(); }
+      M.rr(ctx, 280, 225, 170, 110, 22); ctx.fillStyle = '#fff3e0'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = mix('#d08a3a', RED, hot); ctx.stroke();
+      const turn = s * 2.4 * Math.max(0.35, rate);
+      gear(ctx, 330, 270, 22, turn, '#d08a3a'); gear(ctx, 392, 296, 17, -turn * 1.3, '#e3a554');
+      M.text(ctx, 'Making Sugar', 365, 212, { size: 15, weight: 800, color: '#8a5a00' });
+      // sugar leaving the cell into the blood
+      stream(ctx, EXIT, s, { n: 1 + 5 * rate, w: st.mode === 'high' ? 30 : st.mode === 'low' ? 11 : 0, col: st.mode === 'high' ? RED : st.mode === 'low' ? GREEN : null, r: 12, speed: 0.2 });
+      for (let i = 0; i < DOCK.length; i++) { const q = medAt(i, st.med, s); if (q) med(ctx, q[0], q[1], 13); }
+    };
+    // ---- before / with metformin, side by side ----------------------------------------------
+    const panel = (ctx, s, x0, withMed) => {
+      M.rr(ctx, x0, 70, 320, 380, 22); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = withMed ? GREEN : RED; ctx.stroke();
+      M.text(ctx, withMed ? 'With Metformin' : 'Before Metformin', x0 + 160, 102, { size: 19, weight: 900, color: withMed ? '#1d7a4c' : '#a3261f' });
+      M.rr(ctx, x0 + 250, 130, 44, 300, 20); ctx.fillStyle = '#fde3df'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#e8a39c'; ctx.stroke();
+      M.liver(ctx, x0 + 120, 260, 92);
+      stream(ctx, [[x0 + 170, 236], [x0 + 236, 236], [x0 + 272, 252], [x0 + 272, 425]], s, { n: withMed ? 3 : 9, w: withMed ? 9 : 24, col: withMed ? GREEN : RED, r: 11, speed: 0.2 });
+      if (withMed) [[x0 + 70, 200], [x0 + 150, 300], [x0 + 60, 310]].forEach(([x, y], i) => med(ctx, x + Math.sin(s * 2 + i) * 3, y, 12));
+      M.pill(ctx, withMed ? 'Less sugar released' : 'Too much sugar released', x0 + 150, 420, { size: 15, bg: withMed ? '#e9f7ef' : '#fdecea', border: withMed ? GREEN : RED, color: withMed ? '#1d7a4c' : '#a3261f' });
+    };
+
+    const LEG_GL = [{ key: 'glucose', title: 'Glucose (Sugar)', note: 'Sugar in your blood' }, 'liver'];
+    const LEG_MED = ['metformin-medicine', { key: 'glucose', title: 'Glucose (Sugar)', note: 'Sugar in your blood' }];
+    const LEG_CMP = [{ key: 'metformin-medicine', title: 'Metformin', note: 'The medicine' }, { key: 'glucose', title: 'Glucose', note: 'Sugar' }, 'high-output', 'low-output'];
     return [
-      { label: 'Whole-body problem', dur: 8, caption: 'In type 2 diabetes, too much glucose can remain in the bloodstream. The liver is one important part of this problem.',
+      // 1 ---------------------------------------------------------------- too much sugar
+      { label: 'Too much sugar in the blood', dur: 13, caption: 'Our body needs some sugar for energy. The liver helps keep sugar in our blood. But in type 2 diabetes, the liver may release more sugar than we need.',
         draw(ctx, p, s) {
-          const lv = lerp(0.6, 1, fade(p, 0, 0.5));
-          B().body(ctx, th, lv, s);
-          xray(ctx, ['liver', 'pancreas', 'muscle'], 'liver', s, fade(p, 0.35, 0.6));
-          meter(ctx, 'Blood glucose', lv, 600, 110, fade(p, 0.1, 0.3));
-          tag(ctx, 'Excess glucose in the blood', 740, 230, fade(p, 0.2, 0.4));
-          tag(ctx, 'Liver', at('liver')[0] - 80, at('liver')[1], fade(p, 0.55, 0.7), 'key');
+          const xr = fade(p, 0.16, 0.3), c = camAt([[0, ...WHOLE], [0.4, ...WHOLE], [0.66, ...LZ], [1, ...LZ]], p);
+          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; M.person(ctx, 270, 300, 108, { t: s, mood: 0.55 }); ctx.restore(); }
+          if (xr > 0) { ctx.save(); ctx.globalAlpha *= xr; withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: 1, glow: fade(p, 0.56, 0.66) })); ctx.restore(); }
+          const end = liverOut(ctx, c, s, 1, fade(p, 0.7, 0.8));
+          if (end) tag(ctx, 'Too much sugar released', end[0] + 20, end[1] - 26, fade(p, 0.76, 0.84), 'warn');
+          // one large sugar gets the introduction
+          const gx = 360, gy = 200 + Math.sin(s * 2) * 3, ga = fade(p, 0.28, 0.34) * (1 - fade(p, 0.5, 0.56));
+          if (ga > 0) Y.glucose(ctx, gx, gy, 15, ga, { letter: true });
+          call(ctx, { text: 'Glucose = Sugar', targetX: gx, targetY: gy, labelX: 560, labelY: 200, radius: 22, tone: 'sugar', progress: win(p, 0.3, 0.52) });
+          const L = scr(c, LIV);
+          call(ctx, { text: 'Liver', targetX: L[0], targetY: L[1], labelX: 330, labelY: 470, radius: 40, tone: 'note', progress: win(p, 0.62, 0.8) });
+          tag(ctx, 'Too much sugar in blood', 640, 450, fade(p, 0.86, 0.92), 'warn');
+          M.text(ctx, 'The liver is one of several reasons', 640, 486, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.86, 0.94) });
+          legend(ctx, LEG_GL, fade(p, 0.3, 0.38));
         } },
-      { label: 'The liver and blood glucose', dur: 9, caption: 'Your liver normally releases glucose to keep you supplied with energy. In type 2 diabetes, it may release more than your body needs.',
+      // 2 ---------------------------------------------------------------- taking metformin
+      { label: 'Taking metformin', dur: 12, caption: 'Metformin is a medicine taken as a pill. It works in several ways, including helping the liver make less sugar.',
         draw(ctx, p, s) {
-          zoom(ctx, fade(p, 0, 0.45), at('liver'), L, () => { B().body(ctx, th, 1, s); xray(ctx, ['liver', 'pancreas', 'muscle'], 'liver', s); }, () => liverClose(ctx, s, 1));
-          tag(ctx, 'The liver releases glucose into the blood', 330, 96, fade(p, 0.45, 0.6), 'key');
-          const ia = fade(p, 0.6, 0.75);
-          if (ia > 0) {
-            ctx.save(); ctx.globalAlpha *= ia; M.card(ctx, 600, 360, 300, 130, { r: 16 });
-            M.rr(ctx, 620, 395, 160, 60, 20); ctx.fillStyle = '#f8dcd7'; ctx.fill();
-            for (let x = 634; x < 770; x += 18) { ctx.strokeStyle = 'rgba(200,120,110,0.4)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 400); ctx.lineTo(x, 450); ctx.stroke(); }
-            M.key(ctx, 805, 410, 0.9, Math.PI, C.teal); glu(ctx, 820, 445); glu(ctx, 845, 430);
-            M.text(ctx, 'Muscle: weaker response to insulin', 750, 378, { size: 12, weight: 800, color: '#a3461f' });
+          const back = fade(p, 0, 0.08), xr = fade(p, 0.42, 0.52);
+          const c = camAt([[0, ...WHOLE], [0.6, ...WHOLE], [0.95, ...LZ], [1, ...LZ]], p);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; const c0 = camAt([[0, ...LZ]], 0); withCam(ctx, c0, () => inside(ctx, s, { k: c0.k, level: 1 })); liverOut(ctx, c0, s, 1, 1); ctx.restore(); }
+          if (xr < 1) {
+            ctx.save(); ctx.globalAlpha *= back * (1 - xr);
+            M.person(ctx, 270, 300, 108, { t: s, mood: 0.8 });
+            const act = seg(p, 0.08, 0.42), hand = [354, 302], u = ease(seg(act, 0.05, 0.5));
+            if (act < 0.55) tablet(ctx, lerp(hand[0], MOUTH[0] + 8, u), lerp(hand[1], MOUTH[1] + 6, u) - Math.sin(u * Math.PI) * 50, 0.8, 1 - seg(act, 0.48, 0.55));
+            const g = seg(act, 0.55, 1); glass(ctx, lerp(hand[0], MOUTH[0] + 26, ease(seg(g, 0, 0.4))), lerp(hand[1], MOUTH[1] + 14, ease(seg(g, 0, 0.4))), -0.9 * seg(g, 0.35, 0.6) * (1 - seg(g, 0.85, 1)), fade(act, 0.5, 0.58));
+            ctx.restore();
+            call(ctx, { text: 'Metformin — a pill', targetX: lerp(hand[0], MOUTH[0] + 8, u), targetY: lerp(hand[1], MOUTH[1] + 6, u) - Math.sin(u * Math.PI) * 50, labelX: 580, labelY: 210, radius: 20, tone: 'key', icon: (c2, x, y) => tablet(c2, x, y, 0.55), progress: win(p, 0.1, 0.32) });
+          }
+          if (xr > 0) {
+            ctx.save(); ctx.globalAlpha *= xr;
+            withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: 1, pill: seg(p, 0.45, 0.62), meds: fade(p, 0.6, 0.68) }));
+            ctx.restore();
+            // a representative medicine diamond on its way to the liver
+            const q = scr(c, alongPath([GUT, [256, 282], [LIV[0] + 4, LIV[1] + 10]], (s * 0.22) % 1));
+            call(ctx, { text: 'Purple = Metformin', targetX: q[0], targetY: q[1], labelX: 600, labelY: 330, radius: 16, tone: 'key', icon: (c2, x, y) => med(c2, x, y, 10), progress: win(p, 0.66, 0.86) });
+            tag(ctx, 'It also has effects in the gut', 600, 450, fade(p, 0.86, 0.94), 'note');
+          }
+          legend(ctx, LEG_MED, fade(p, 0.1, 0.18));
+        } },
+      // 3 ---------------------------------------------------------------- how the liver makes sugar
+      { label: 'How the liver makes sugar', dur: 12, caption: 'Your liver can make sugar from other materials in your body. It then releases sugar into your blood, even when you are not eating.',
+        draw(ctx, p, s) {
+          const c = camAt([[0, ...LZ], [0.26, LIV[0] + 6, LIV[1], 7, 480, 280]], p), tis = fade(p, 0.22, 0.32), cl = fade(p, 0.36, 0.46);
+          if (tis < 1) withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: 1, glow: 0.6 }));
+          lensOpen(ctx, tis, () => tissue(ctx, s));
+          if (tis > 0 && cl < 1) tag(ctx, 'Liver tissue', 480, 505, tis * (1 - cl), 'note');
+          const st = { rate: 1, mode: 'none', med: 0 };
+          lensOpen(ctx, cl, () => cell(ctx, s, st));
+          if (cl >= 1) {
+            call(ctx, { text: 'Sugar Made Here', targetX: MACH[0] + 20, targetY: MACH[1], labelX: 330, labelY: 460, radius: 60, tone: 'note', progress: win(p, 0.5, 0.66) });
+            call(ctx, { text: 'Glucose (Sugar)', targetX: 520, targetY: 280, labelX: 330, labelY: 460, radius: 18, tone: 'sugar', progress: win(p, 0.66, 0.8) });
+            call(ctx, { text: 'Sugar Enters Blood', targetX: 670, targetY: 380, labelX: 330, labelY: 460, radius: 26, tone: 'note', progress: win(p, 0.8, 0.96) });
+            tag(ctx, 'Normal and useful, in the right amount', 330, 40, fade(p, 0.9, 0.97), 'good');
+          }
+          legend(ctx, LEG_GL, 1);
+        } },
+      // 4 ---------------------------------------------------------------- metformin slows it
+      { label: 'Metformin slows the process', dur: 15, caption: "Metformin helps slow down the liver's sugar-making process. So the liver sends less extra sugar into the blood.",
+        draw(ctx, p, s) {
+          const slow = fade(p, 0.5, 0.74);
+          const st = { rate: lerp(1, 1.3, fade(p, 0, 0.12)) * (1 - slow) + 0.5 * slow, mode: slow < 0.5 ? 'high' : 'low', med: seg(p, 0.28, 0.6) };
+          cell(ctx, s, st);
+          S.phasePill(ctx, 330, 40, p, [[0, 'Before Metformin', '#a3261f'], [0.56, 'With Metformin', '#1d7a4c']]);
+          tag(ctx, 'Too much sugar', 560, 230, fade(p, 0.08, 0.16) * (1 - fade(p, 0.48, 0.54)), 'warn');
+          const m0 = medAt(0, st.med, s);
+          if (m0) call(ctx, { text: 'Metformin (Medicine)', targetX: m0[0], targetY: m0[1], labelX: 330, labelY: 460, radius: 18, tone: 'key', icon: (c2, x, y) => med(c2, x, y, 10), progress: win(p, 0.3, 0.5) });
+          M.text(ctx, 'Exactly how it works is still being studied', 330, 72, { size: 12, weight: 700, color: C.muted, alpha: fade(p, 0.56, 0.62) * (1 - fade(p, 0.76, 0.8)) });
+          call(ctx, { text: 'Less Sugar Released', targetX: 600, targetY: 282, labelX: 330, labelY: 460, radius: 22, tone: 'good', progress: win(p, 0.76, 0.93) });
+          tag(ctx, 'The liver still makes some sugar', 330, 460, fade(p, 0.93, 0.98), 'note');
+          legend(ctx, LEG_MED, 1);
+        } },
+      // 5 ---------------------------------------------------------------- before vs with
+      { label: 'Before and with metformin', dur: 13, caption: 'See the difference? With metformin, the liver releases less sugar. That helps lower blood sugar over time.',
+        draw(ctx, p, s) {
+          const back = fade(p, 0, 0.1);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; cell(ctx, s, { rate: 0.5, mode: 'low', med: 1 }); ctx.restore(); }
+          ctx.save(); ctx.globalAlpha *= back; ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540);
+          panel(ctx, s, 30, false); panel(ctx, s, 370, true);
+          ctx.restore();
+          M.text(ctx, 'A picture of the idea, not an exact amount', 360, 486, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.7, 0.8) });
+          legend(ctx, LEG_CMP, back);
+        } },
+      // 6 ---------------------------------------------------------------- the whole person
+      { label: 'Back to the whole person', dur: 14, caption: "Over time, this can help keep blood sugar in a healthier range. Metformin usually doesn't cause low blood sugar when taken alone. Stomach upset can happen, and kidney checks are important.",
+        draw(ctx, p, s) {
+          const off = fade(p, 0, 0.1), person = fade(p, 0.62, 0.72);
+          const c = camAt([[0, ...LZ], [0.1, ...LZ], [0.34, ...WHOLE], [1, ...WHOLE]], p), lv = lerp(0.95, 0.55, fade(p, 0.3, 0.6));
+          if (person < 1) { ctx.save(); ctx.globalAlpha *= 1 - person; withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: lv, meds: 0.7 })); liverOut(ctx, c, s, 0.4, fade(p, 0.06, 0.16) * (1 - fade(p, 0.5, 0.6))); ctx.restore(); }
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; ctx.fillStyle = '#f7f9fd'; ctx.fillRect(0, 0, 960, 540); panel(ctx, s, 30, false); panel(ctx, s, 370, true); ctx.restore(); }
+          if (person > 0) {
+            ctx.save(); ctx.globalAlpha *= person;
+            ctx.fillStyle = '#c9e7b5'; ctx.fillRect(40, GROUND, 520, 10);
+            mover(ctx, 200 + 120 * seg(p, 0.7, 1), s * 3, 0.45, 0.08, 1, s);
             ctx.restore();
           }
-          tag(ctx, 'The liver is one source among several', 330, 470, fade(p, 0.75, 0.9));
-        } },
-      { label: 'Inside a liver cell', dur: 9, caption: 'Biguanides work mainly by reducing glucose production in the liver, with additional effects on glucose metabolism.',
-        draw(ctx, p, s) {
-          zoom(ctx, fade(p, 0, 0.4), [L[0] - 30, L[1]], [370, 280], () => liverClose(ctx, s, 1), () => hepatocyte(ctx, s, 1, fade(p, 0.55, 0.9)));
-          tag(ctx, 'Medicine arrives from the blood', 735, 500, fade(p, 0.6, 0.75), 'key');
-        } },
-      { label: 'Mechanism', dur: 13, caption: 'With this medication, the liver releases less glucose into the blood. It does not directly force the pancreas to release more insulin.',
-        draw(ctx, p, s) {
-          const act = lerp(1, 0.3, fade(p, 0.1, 0.55));
-          hepatocyte(ctx, s, act, 1);
-          for (let i = 0; i < 4; i++) hex(ctx, 330 + i * 36, 230 + Math.sin(s * 2 + i) * 6, 8);
-          tag(ctx, 'Altered liver-cell energy metabolism', 400, 200, fade(p, 0.1, 0.25), 'key');
-          M.text(ctx, 'exact molecular target still debated', 400, 176, { size: 12, color: C.muted, weight: 700, alpha: fade(p, 0.15, 0.3) });
-          tag(ctx, 'Less glucose made and released', 400, 400, fade(p, 0.45, 0.6), 'good');
-          pancreasNote(ctx, fade(p, 0.65, 0.8));
-        } },
-      { label: 'Whole-body result', dur: 11, caption: 'That helps lower blood glucose over time. Kidney function matters when deciding whether this treatment is appropriate.',
-        draw(ctx, p, s) {
-          const z = 1 - fade(p, 0, 0.3), lv = lerp(1, 0.45, fade(p, 0.3, 0.85));
-          zoom(ctx, z, at('liver'), [370, 280], () => { ctx.save(); ctx.translate(0, Math.sin(s * 3) * 2 * (1 - lv)); B().body(ctx, th, lv, s); ctx.restore(); xray(ctx, ['liver', 'kidney'], 'liver', s, 0.8); }, () => hepatocyte(ctx, s, 0.3, 1));
-          meter(ctx, 'Blood glucose', lv, 600, 110, 1 - z);
-          tag(ctx, 'Less hepatic glucose output', 740, 230, fade(p, 0.35, 0.5), 'good');
-          timeChip(ctx, ['Days', 'Weeks'], seg(p, 0.35, 0.85), 740, 300);
-          tag(ctx, 'Kidney function guides use', 740, 380, fade(p, 0.75, 0.9), 'warn');
+          // recap: medicine → liver makes less sugar → better blood sugar control
+          const ra = fade(p, 0.36, 0.44);
+          if (ra > 0) {
+            ctx.save(); ctx.globalAlpha *= ra;
+            med(ctx, 96, 40, 12); M.text(ctx, 'Metformin', 150, 41, { size: 15, weight: 800, color: '#4b3a8f' });
+            M.text(ctx, '→', 214, 41, { size: 18, weight: 900, color: '#8a9bb4' });
+            M.pill(ctx, 'Liver makes less sugar', 320, 41, { size: 14, bg: '#e9f7ef', border: GREEN, color: '#1d7a4c' });
+            M.text(ctx, '→', 432, 41, { size: 18, weight: 900, color: '#8a9bb4' });
+            M.pill(ctx, 'Better blood sugar control', 552, 41, { size: 14, bg: '#e9f7ef', border: GREEN, color: '#1d7a4c' });
+            ctx.restore();
+          }
+          meter(ctx, 'Blood sugar', lv, 600, 160, fade(p, 0.36, 0.44));
+          if (p > 0.4) timeChip(ctx, ['Days', 'Weeks'], seg(p, 0.4, 0.75), 740, 260);
+          M.text(ctx, 'Sugar is still there, at a healthier level', 740, 300, { size: 13, weight: 700, color: C.muted, alpha: fade(p, 0.5, 0.58) });
+          tag(ctx, 'Usually no low blood sugar when taken alone', 740, 370, fade(p, 0.72, 0.8), 'good');
+          tag(ctx, 'Stomach upset can happen', 740, 420, fade(p, 0.8, 0.88), 'warn');
+          tag(ctx, 'Kidney checks are important', 740, 466, fade(p, 0.86, 0.94), 'warn');
+          legend(ctx, LEG_MED, fade(p, 0.12, 0.2) * (1 - person));
         } },
     ];
   });

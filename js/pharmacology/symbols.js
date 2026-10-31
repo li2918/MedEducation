@@ -78,7 +78,21 @@
     'glp1-message': { title: 'GLP-1 message', note: 'A natural signal from the gut', icon: (ctx, x, y) => message(ctx, 'glp1', x, y, 7) },
     'gip-message': { title: 'GIP message', note: 'A natural signal from the gut', icon: (ctx, x, y) => message(ctx, 'gip', x, y, 7) },
     'dual-medicine': { title: 'GIP/GLP-1 Medicine', note: 'Can activate both receiver types', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    // biguanides (metformin) story; red and green mark how much sugar leaves the liver, the
+    // sugar itself always stays yellow
+    'metformin-medicine': { title: 'Metformin (Medicine)', note: 'Helps the liver release less sugar', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    liver: { title: 'Liver', note: 'Helps control blood sugar', icon: (ctx, x, y) => M.liver(ctx, x + 1, y + 2, 15) },
+    'high-output': { title: 'More sugar released', note: 'Too much leaves the liver', icon: (ctx, x, y) => flowArrow(ctx, x - 13, y, x + 13, y, 9, '#e0524a') },
+    'low-output': { title: 'Less sugar released', note: 'Less leaves the liver', icon: (ctx, x, y) => flowArrow(ctx, x - 13, y, x + 13, y, 3.5, '#2fa36b') },
   };
+  // A thick (or thin) flow arrow for how much sugar is leaving an organ.
+  function flowArrow(ctx, x0, y0, x1, y1, w, col) {
+    const ang = Math.atan2(y1 - y0, x1 - x0), hl = w + 7;
+    ctx.save(); ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = w; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1 - Math.cos(ang) * hl * 0.6, y1 - Math.sin(ang) * hl * 0.6); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - hl * Math.cos(ang - 0.5), y1 - hl * Math.sin(ang - 0.5)); ctx.lineTo(x1 - hl * Math.cos(ang + 0.5), y1 - hl * Math.sin(ang + 0.5)); ctx.closePath(); ctx.fill();
+    ctx.restore();
+  }
   // items: keys of ITEMS, or { key, title, note, dim }. Drawn as a stack at the top right by
   // default (x, y: top-left corner). Rows can be dimmed to keep the focus on the others.
   function drawMoleculeLegend(ctx, items, o = {}) {
@@ -118,7 +132,7 @@
   function drawCallout(ctx, o) {
     const a = o.progress == null ? 1 : o.progress;
     if (a <= 0) return;
-    const tone = { key: ['#f3efff', C.purple, '#4b3a8f'], good: ['#e9f7ef', '#2fa36b', '#1d7a4c'], sugar: ['#fff6dc', '#e8a10c', '#8a5a00'], insulin: ['#e3f6f3', COL.insulin, '#0f6b60'], glp1: ['#e8f0fd', COL.glp1, '#1f4fa8'], gip: ['#fff1e5', COL.gip, '#a3520f'], note: ['#ffffff', '#8a9bb4', '#3b4a5c'] }[o.tone || 'key'];
+    const tone = { key: ['#f3efff', C.purple, '#4b3a8f'], good: ['#e9f7ef', '#2fa36b', '#1d7a4c'], sugar: ['#fff6dc', '#e8a10c', '#8a5a00'], insulin: ['#e3f6f3', COL.insulin, '#0f6b60'], glp1: ['#e8f0fd', COL.glp1, '#1f4fa8'], gip: ['#fff1e5', COL.gip, '#a3520f'], high: ['#fdecea', '#e0524a', '#a3261f'], note: ['#ffffff', '#8a9bb4', '#3b4a5c'] }[o.tone || 'key'];
     ctx.save(); ctx.globalAlpha *= a;
     ctx.font = `800 16px ${M.FONT}`;
     const tw = ctx.measureText(window.I18N ? I18N.tr(o.text) : o.text).width, iw = o.icon ? 30 : 0, w = tw + iw + 28, h = 38;
@@ -138,5 +152,5 @@
     ctx.restore();
   }
 
-  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, food, ITEMS, drawMoleculeLegend, drawCallout };
+  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
 })();
