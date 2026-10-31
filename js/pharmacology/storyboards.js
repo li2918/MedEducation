@@ -82,10 +82,8 @@
     },
   });
   sb('glp1-ra', { route: 'shot', dest: 'blood', target: 'pancreas', opening: false });
-  sb('gip-glp1-ra', {
-    route: 'shot', dest: 'blood', target: 'pancreas',
-    scenes: ['This medicine is a small shot under the skin, once a week. After we eat, sugar goes into our blood, and the body sends messages to handle it.'],
-  });
+  // the dual story has its own opening (two gut messages, then the weekly shot) and narration
+  sb('gip-glp1-ra', { route: 'shot', dest: 'blood', target: 'pancreas', opening: false });
   sb('sglt2-inhibitors', {
     route: 'pill', dest: 'blood', target: 'kidney',
     scenes: [

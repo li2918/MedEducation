@@ -38,7 +38,7 @@
     ],
     pregnancy: [
       { id: 'diabetes', name: 'Diabetes in Pregnancy', icon: 'glucose' },
-      { id: 'blood-pressure', name: 'Blood Pressure Disorders', icon: 'heart' },
+      { id: 'blood-pressure', name: 'Blood Pressure Disorders', icon: 'bp' },
       { id: 'common', name: 'Common Pregnancy Conditions', icon: 'stomach' },
       { id: 'physiology', name: 'Pregnancy Physiology', icon: 'placenta' },
       { id: 'postpartum', name: 'Postpartum Recovery', icon: 'postpartum' },

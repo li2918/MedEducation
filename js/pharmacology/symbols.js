@@ -4,7 +4,9 @@
 //   glucose (sugar)   yellow hexagon, with a "G" when drawn large
 //   insulin           teal key
 //   medicine          purple rounded diamond with a white rim (the MedMotion drug symbol)
-//   GLP-1 receiver    blue round receiver on a cell membrane
+//   GLP-1 receiver    blue ROUND receiver on a cell membrane
+//   GIP receiver      orange SQUARE receiver on a cell membrane
+//   natural messages  small blue circle (GLP-1) and small orange square (GIP) from the gut
 //   food              brown rounded chunks
 // Plus two annotation helpers:
 //   drawMoleculeLegend  a compact side legend, kept on screen whenever the particles it names
@@ -13,7 +15,7 @@
 //                       only while a new idea is introduced, then faded out
 (function () {
   const { C, lerp, mix } = M;
-  const COL = { glucose: '#ffb703', glucoseInk: '#a8540b', insulin: C.teal, medicine: C.purple, glp1: '#2f6fde', food: '#b9773f' };
+  const COL = { glucose: '#ffb703', glucoseInk: '#a8540b', insulin: C.teal, medicine: C.purple, glp1: '#2f6fde', gip: '#f08c3a', food: '#b9773f' };
 
   function glucose(ctx, x, y, r = 7, a = 1, o = {}) {
     if (a <= 0) return;
@@ -34,14 +36,25 @@
     ctx.restore();
     M.dot(ctx, x - r * 0.18, y - r * 0.28, Math.max(1, r * 0.16), '#ffffff', 0.75 * a);
   }
-  // Blue round GLP-1 receiver standing on a membrane at y (head above, stem below).
+  // A receiver standing on a membrane at y (head above, stem below): blue round for GLP-1
+  // (default), orange square for GIP (o.kind === 'gip').
   function receptor(ctx, x, y, on, s, o = {}) {
-    const col = COL.glp1, k = o.scale || 1;
+    const gip = o.kind === 'gip', col = gip ? COL.gip : COL.glp1, k = o.scale || 1;
     if (on > 0) { const g = ctx.createRadialGradient(x, y - 14 * k, 0, x, y - 14 * k, 44 * k); g.addColorStop(0, `rgba(255,214,90,${0.65 * on * (0.75 + 0.25 * Math.sin(s * 5))})`); g.addColorStop(1, 'rgba(255,214,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 14 * k, 44 * k, 0, M.TAU); ctx.fill(); }
     ctx.save(); ctx.fillStyle = col; ctx.strokeStyle = mix(col, '#000000', 0.25); ctx.lineWidth = 2.5;
     M.rr(ctx, x - 7 * k, y, 14 * k, 34 * k, 5 * k); ctx.fill(); ctx.stroke();
-    ctx.beginPath(); ctx.arc(x, y - 14 * k, 16 * k, 0, M.TAU); ctx.fill(); ctx.stroke();
-    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y - 14 * k, 7 * k, 0, M.TAU); ctx.fill();
+    if (gip) { M.rr(ctx, x - 16 * k, y - 30 * k, 32 * k, 32 * k, 3 * k); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 7 * k, y - 21 * k, 14 * k, 14 * k); }
+    else { ctx.beginPath(); ctx.arc(x, y - 14 * k, 16 * k, 0, M.TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y - 14 * k, 7 * k, 0, M.TAU); ctx.fill(); }
+    ctx.restore();
+  }
+  // Natural gut messages: a small blue circle (GLP-1) or a small orange square (GIP). Smaller
+  // and plainer than the medicine diamond, so the natural signals never look like the drug.
+  function message(ctx, kind, x, y, r = 6, a = 1) {
+    if (a <= 0) return;
+    const col = kind === 'gip' ? COL.gip : COL.glp1;
+    ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = col; ctx.strokeStyle = mix(col, '#000000', 0.3); ctx.lineWidth = 1.5;
+    if (kind === 'gip') { M.rr(ctx, x - r, y - r, 2 * r, 2 * r, r * 0.25); ctx.fill(); ctx.stroke(); }
+    else { ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fill(); ctx.stroke(); }
     ctx.restore();
   }
   function food(ctx, x, y, r = 8, a = 1, i = 0) {
@@ -59,6 +72,12 @@
     medicine: { title: 'GLP-1 medicine', note: 'Helps control sugar and hunger', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     receptor: { title: 'GLP-1 receiver', note: 'Turns on when GLP-1 arrives', icon: (ctx, x, y) => receptor(ctx, x, y + 6, 0, 0, { scale: 0.62 }) },
     food: { title: 'Food', note: 'Moving out of the stomach', icon: (ctx, x, y) => food(ctx, x, y, 10, 1, 0) },
+    // dual GIP/GLP-1 story
+    'glp1-receptor': { title: 'GLP-1 Receiver', note: 'Responds to the GLP-1 signal', icon: (ctx, x, y) => receptor(ctx, x, y + 6, 0, 0, { scale: 0.62 }) },
+    'gip-receptor': { title: 'GIP Receiver', note: 'Responds to the GIP signal', icon: (ctx, x, y) => receptor(ctx, x, y + 7, 0, 0, { scale: 0.58, kind: 'gip' }) },
+    'glp1-message': { title: 'GLP-1 message', note: 'A natural signal from the gut', icon: (ctx, x, y) => message(ctx, 'glp1', x, y, 7) },
+    'gip-message': { title: 'GIP message', note: 'A natural signal from the gut', icon: (ctx, x, y) => message(ctx, 'gip', x, y, 7) },
+    'dual-medicine': { title: 'GIP/GLP-1 Medicine', note: 'Can activate both receiver types', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
   };
   // items: keys of ITEMS, or { key, title, note, dim }. Drawn as a stack at the top right by
   // default (x, y: top-left corner). Rows can be dimmed to keep the focus on the others.
@@ -72,15 +91,21 @@
     let tw = 0;
     rows.forEach((r) => { ctx.font = `800 15px ${M.FONT}`; tw = Math.max(tw, ctx.measureText(T(r.title)).width); ctx.font = `700 12px ${M.FONT}`; tw = Math.max(tw, ctx.measureText(T(r.note)).width); });
     ctx.restore();
-    const w = o.w || Math.max(170, Math.ceil(tw) + 64), x = o.x == null ? 944 - w : o.x, y = o.y == null ? 16 : o.y, rh = 54, h = rows.length * rh + 12;
+    // on a small screen (canvas shown under 520 px wide) the notes are dropped and rows shrink
+    const compact = o.compact != null ? o.compact : !!(ctx.canvas && ctx.canvas.clientWidth && ctx.canvas.clientWidth < 520);
+    if (compact) { tw = 0; ctx.save(); ctx.font = `800 17px ${M.FONT}`; rows.forEach((r) => { tw = Math.max(tw, ctx.measureText(T(r.title)).width); }); ctx.restore(); }
+    const rh = compact ? 40 : 54, w = o.w || Math.max(compact ? 120 : 170, Math.ceil(tw) + 64), x = o.x == null ? 944 - w : o.x, y = o.y == null ? 16 : o.y, h = rows.length * rh + 12;
     ctx.save(); ctx.globalAlpha *= Math.min(1, a);
     M.card(ctx, x, y, w, h, { r: 14, fill: 'rgba(255,255,255,0.94)', border: '#d7e0ec' });
     rows.forEach((r, i) => {
       const cy = y + 6 + i * rh + rh / 2;
       ctx.save(); if (r.dim) ctx.globalAlpha *= 0.4;
       r.icon(ctx, x + 26, cy);
-      M.text(ctx, r.title, x + 50, cy - 9, { size: 15, weight: 800, align: 'left', color: C.ink });
-      M.text(ctx, r.note, x + 50, cy + 10, { size: 12, weight: 700, align: 'left', color: C.muted });
+      if (compact) M.text(ctx, r.title, x + 50, cy, { size: 17, weight: 800, align: 'left', color: C.ink });
+      else {
+        M.text(ctx, r.title, x + 50, cy - 9, { size: 15, weight: 800, align: 'left', color: C.ink });
+        M.text(ctx, r.note, x + 50, cy + 10, { size: 12, weight: 700, align: 'left', color: C.muted });
+      }
       ctx.restore();
     });
     ctx.restore();
@@ -93,7 +118,7 @@
   function drawCallout(ctx, o) {
     const a = o.progress == null ? 1 : o.progress;
     if (a <= 0) return;
-    const tone = { key: ['#f3efff', C.purple, '#4b3a8f'], good: ['#e9f7ef', '#2fa36b', '#1d7a4c'], sugar: ['#fff6dc', '#e8a10c', '#8a5a00'], insulin: ['#e3f6f3', COL.insulin, '#0f6b60'], note: ['#ffffff', '#8a9bb4', '#3b4a5c'] }[o.tone || 'key'];
+    const tone = { key: ['#f3efff', C.purple, '#4b3a8f'], good: ['#e9f7ef', '#2fa36b', '#1d7a4c'], sugar: ['#fff6dc', '#e8a10c', '#8a5a00'], insulin: ['#e3f6f3', COL.insulin, '#0f6b60'], glp1: ['#e8f0fd', COL.glp1, '#1f4fa8'], gip: ['#fff1e5', COL.gip, '#a3520f'], note: ['#ffffff', '#8a9bb4', '#3b4a5c'] }[o.tone || 'key'];
     ctx.save(); ctx.globalAlpha *= a;
     ctx.font = `800 16px ${M.FONT}`;
     const tw = ctx.measureText(window.I18N ? I18N.tr(o.text) : o.text).width, iw = o.icon ? 30 : 0, w = tw + iw + 28, h = 38;
@@ -113,5 +138,5 @@
     ctx.restore();
   }
 
-  window.MedSym = { COL, glucose, insulin, medicine, receptor, food, ITEMS, drawMoleculeLegend, drawCallout };
+  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, food, ITEMS, drawMoleculeLegend, drawCallout };
 })();

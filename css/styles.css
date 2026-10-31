@@ -370,7 +370,7 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
 .pop-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin: 26px 0 8px; text-align: left; }
 .pop-card, .cat-card { font: inherit; text-align: left; cursor: pointer; background: var(--card); border: 2px solid transparent; border-radius: 20px; box-shadow: var(--shadow); padding: 22px; display: flex; flex-direction: column; gap: 6px; color: var(--ink); }
 .pop-card:hover, .cat-card:hover, .pop-card:focus-visible, .cat-card:focus-visible { border-color: var(--blue); outline: none; }
-.card-icon { width: 72px; height: 72px; }
+.card-icon { width: 84px; height: 84px; }
 .pc-name { font-size: 1.45rem; font-weight: 800; }
 .pc-blurb { color: var(--muted); font-size: 1.02rem; }
 .pc-count, .cc-count { font-size: 0.86rem; font-weight: 700; color: var(--blue-dark); margin-top: 4px; }
