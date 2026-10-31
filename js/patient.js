@@ -161,7 +161,7 @@
         M.person(ctx, c - 11, 46, 11, { mood: 1, look: { shirt: '#ffd36b', shirtShade: '#e8b84a', pants: '#5b8def' } });
         M.person(ctx, c + 14, 54, 7.5, { mood: 1, look: { shirt: '#7fd1a8', shirtShade: '#5fb88c', pants: '#e0794a' } });
         M.dot(ctx, c + 26, 64, 4.5, '#e0524a'); M.dot(ctx, c + 25, 62.5, 1.4, '#ffffff', 0.8);
-      } else if (kind === 'pregnancy') womanSide(ctx, 1, false);
+      } else if (kind === 'pregnancy') womanSide(ctx);
       else if (kind === 'heart') M.heart(ctx, c, c + 2, 14, {});
       else if (kind === 'glucose') { M.glucose(ctx, c - 10, c - 6, 11); M.glucose(ctx, c + 12, c + 4, 9); M.glucose(ctx, c - 4, c + 14, 8); }
       else if (kind === 'lungs') M.lungs(ctx, c, c + 2, 26, {});
@@ -183,16 +183,16 @@
         for (let i = 0; i < 6; i++) { const a = i / 6 * M.TAU; ctx.beginPath(); ctx.moveTo(c, c); ctx.lineTo(c + Math.cos(a) * 18, c + Math.sin(a) * 18); ctx.stroke(); }
         ctx.strokeStyle = '#8fb3e8'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(c, c); ctx.quadraticCurveTo(c + 18, c + 26, c + 4, 66); ctx.stroke();
       } else if (kind === 'postpartum') {
-        womanSide(ctx, 0, true);
+        momFront(ctx);
       } else if (kind === 'warning') {
         ctx.fillStyle = '#ffd36b'; ctx.strokeStyle = '#d18b00'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(c, 12); ctx.lineTo(c + 26, 58); ctx.lineTo(c - 26, 58); ctx.closePath(); ctx.fill(); ctx.stroke();
         M.text(ctx, '!', c, 44, { size: 26, weight: 900, color: '#8a5a00' });
       }
     } catch (e) { /* a missing drawing never blocks navigation */ }
   }
-  // A woman seen from the side, facing right: belly (0..1) for pregnancy, baby for a newborn
-  // held in her arms (postpartum). Drawn in the 72 × 72 icon box.
-  function womanSide(ctx, belly, baby) {
+  // A pregnant woman seen from the side, facing right, in the 72 × 72 icon box.
+  function womanSide(ctx) {
+    const belly = 1;
     const skin = '#f1c7a5', hair = '#5b3a29', dress = '#f4a7c0';
     ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
     ctx.fillStyle = skin; M.rr(ctx, 31, 52, 5, 13, 2); ctx.fill(); M.rr(ctx, 36, 52, 5, 13, 2); ctx.fill();
@@ -210,18 +210,33 @@
     M.dot(ctx, 28.2, 8.6, 3.8, hair);
     M.dot(ctx, 40.2, 11.4, 0.95, '#3b2a20');
     ctx.strokeStyle = skin; ctx.lineWidth = 3.6;
-    if (baby) {
-      // a newborn wrapped in a blanket, cradled at the chest
-      ctx.save(); ctx.translate(44, 31); ctx.rotate(-0.35); ctx.fillStyle = '#cfe3f7'; ctx.strokeStyle = '#9fb6d6'; ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.ellipse(0, 0, 9, 5.5, 0, 0, M.TAU); ctx.fill(); ctx.stroke(); ctx.restore();
-      M.dot(ctx, 50.5, 26.5, 3.8, skin); M.dot(ctx, 51.2, 25, 2.4, '#7a5a40', 0.0);
-      ctx.strokeStyle = skin; ctx.lineWidth = 3.6;
-      ctx.beginPath(); ctx.moveTo(35, 24); ctx.quadraticCurveTo(33, 36, 42, 36.5); ctx.lineTo(50, 33); ctx.stroke();
-    } else {
-      // a hand resting on the belly
-      ctx.beginPath(); ctx.moveTo(35, 24); ctx.quadraticCurveTo(33.5, 34, 45 + 6 * belly, 38); ctx.stroke();
-    }
+    // a hand resting on the belly
+    ctx.beginPath(); ctx.moveTo(35, 24); ctx.quadraticCurveTo(33.5, 34, 51, 38); ctx.stroke();
     ctx.fillStyle = '#d98aa4'; M.rr(ctx, 32.5, 22, 5.5, 6, 2.5); ctx.fill();
+    ctx.restore();
+  }
+  // A mother seen from the front, holding a newborn wrapped in a blanket (postpartum).
+  function momFront(ctx) {
+    const skin = '#f1c7a5', hair = '#5b3a29', dress = '#f4a7c0', c = 36;
+    ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.fillStyle = skin; M.rr(ctx, c - 6, 52, 5, 13, 2); ctx.fill(); M.rr(ctx, c + 1, 52, 5, 13, 2); ctx.fill();
+    ctx.fillStyle = '#4f6690'; M.rr(ctx, c - 7, 63, 7, 4, 2); ctx.fill(); M.rr(ctx, c, 63, 7, 4, 2); ctx.fill();
+    ctx.fillStyle = hair; M.rr(ctx, c - 9, 6, 18, 22, 8); ctx.fill();                      // long hair behind
+    ctx.fillStyle = dress; ctx.beginPath(); ctx.moveTo(c - 8, 22); ctx.lineTo(c + 8, 22); ctx.lineTo(c + 12, 55); ctx.lineTo(c - 12, 55); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = skin; M.rr(ctx, c - 2.5, 16, 5, 7, 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(c, 12, 7, 0, M.TAU); ctx.fill();
+    ctx.fillStyle = hair; ctx.beginPath(); ctx.arc(c, 11.5, 7.4, Math.PI * 1.02, Math.PI * 1.98); ctx.quadraticCurveTo(c + 2, 8, c - 7.3, 11); ctx.closePath(); ctx.fill();
+    M.dot(ctx, c - 2.6, 12.6, 0.95, '#3b2a20'); M.dot(ctx, c + 2.6, 12.6, 0.95, '#3b2a20');
+    ctx.strokeStyle = '#c0705a'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(c, 14.2, 2, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+    // arms (sleeves at the shoulders) cradle the baby, who is drawn on top
+    ctx.strokeStyle = skin; ctx.lineWidth = 3.4;
+    ctx.beginPath(); ctx.moveTo(c - 9, 25); ctx.quadraticCurveTo(c - 13, 38, c - 3, 42.5); ctx.lineTo(c + 7, 41.5); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(c + 9, 25); ctx.quadraticCurveTo(c + 13, 36, c + 8, 40.5); ctx.stroke();
+    ctx.fillStyle = '#d98aa4'; M.rr(ctx, c - 11.5, 22, 6, 6, 2.5); ctx.fill(); M.rr(ctx, c + 5.5, 22, 6, 6, 2.5); ctx.fill();
+    ctx.save(); ctx.translate(c, 37); ctx.rotate(-0.12); ctx.fillStyle = '#cfe3f7'; ctx.strokeStyle = '#9fb6d6'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(0, 0, 10.5, 5.8, 0, 0, M.TAU); ctx.fill(); ctx.stroke(); ctx.restore();
+    M.dot(ctx, c + 9, 33.5, 4.3, skin);
+    ctx.strokeStyle = '#7a5a40'; ctx.lineWidth = 0.9; ctx.beginPath(); ctx.arc(c + 10, 33.3, 1.1, 0.1 * Math.PI, 0.9 * Math.PI); ctx.stroke();
     ctx.restore();
   }
   const icon = (kind) => `<canvas class="card-icon" data-icon="${kind}" width="72" height="72" aria-hidden="true"></canvas>`;
