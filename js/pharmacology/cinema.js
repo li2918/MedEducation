@@ -296,19 +296,26 @@
   function legend(ctx, items, x, y, a) { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; let cx = x; items.forEach(([d, t]) => { d(cx, y); M.text(ctx, t, cx + 14, y, { size: 13, align: 'left', color: C.muted, weight: 700 }); ctx.font = `700 13px ${M.FONT}`; cx += 40 + ctx.measureText(t).width; }); ctx.restore(); }
 
   // ===================================================================================== STATINS
+  // ---- shared lipid pieces (statins, PCSK9 antibodies) ------------------------------------
+  const LIP_L = [330, 280];
+  const ldl = (ctx, x, y, r = 8, a = 1) => { M.dot(ctx, x, y, r, '#f2a531', a); M.dot(ctx, x, y, r * 0.55, '#ffe3a3', a); };
+  const artery = (ctx, s, n, a = 1) => { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; M.card(ctx, 600, 330, 300, 150, { r: 16 }); M.vessel(ctx, 620, 370, 260, 80, { wall: 12, t: s, plaque: 0.45, plaqueX: 0.55, items: [] }); for (let i = 0; i < n; i++) { const ph = (s * 0.2 + i / n) % 1; ldl(ctx, 620 + ph * 260, 410 + Math.sin(i * 2 + s) * 12, 6); } M.text(ctx, 'Artery wall: plaque can build over years', 750, 352, { size: 12, weight: 800, color: '#8a5a00' }); ctx.restore(); };
+  // Liver beside a blood vessel: it makes cholesterol and captures LDL with receptors.
+  // capture: share of passing LDL taken up; o.pcsk9 adds PCSK9 particles in the blood.
+  const liverLDL = (ctx, s, capture, o = {}) => {
+    const L = LIP_L;
+    M.liver(ctx, L[0] - 40, L[1], 150);
+    M.vessel(ctx, 470, 236, 440, 86, { wall: 12, t: s, items: [] });
+    for (let i = 0; i < 8; i++) { const ph = (s * 0.18 + i / 8) % 1, x = 900 - ph * 430, taken = rnd(i + 7) < capture && x < 520; if (!taken) ldl(ctx, x, 280 + Math.sin(i * 3) * 18); else ldl(ctx, lerp(520, 420, seg(x, 520, 470)), 280, 8, 1 - seg(x, 500, 470)); }
+    [[410, 230], [425, 285], [410, 335]].forEach(([x, y]) => { ctx.save(); ctx.strokeStyle = '#4f7fe0'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x, y); ctx.lineTo(x + 8, y - 8); ctx.moveTo(x, y); ctx.lineTo(x + 8, y + 8); ctx.stroke(); ctx.restore(); });
+    for (let i = 0; i < 3; i++) M.cholesterol(ctx, 250 + i * 30, 270 + Math.sin(s * 2 + i) * 4, 9, 1, s);
+    M.text(ctx, 'Makes cholesterol', 290, 330, { size: 13, weight: 800, color: '#fff' });
+    M.text(ctx, 'LDL receptors capture LDL', 560, 220, { size: 13, weight: 800, color: '#1f4fa8' });
+    if (o.pcsk9) for (let i = 0; i < 5; i++) { const ph = (s * 0.14 + i / 5) % 1; M.dot(ctx, 900 - ph * 470, 262 + (i % 3) * 18, 5, '#e0524a', o.pcsk9 * Math.min(1, ph * 6, (1 - ph) * 6)); if (o.ab) { ctx.save(); ctx.strokeStyle = C.purple; ctx.lineWidth = 3; ctx.lineCap = 'round'; const x = 900 - ph * 470 + 10, y = 262 + (i % 3) * 18 - 6; ctx.globalAlpha *= o.ab; ctx.beginPath(); ctx.moveTo(x, y + 7); ctx.lineTo(x, y); ctx.lineTo(x - 5, y - 6); ctx.moveTo(x, y); ctx.lineTo(x + 5, y - 6); ctx.stroke(); ctx.restore(); } }
+  };
+
   def('statins', (cls) => {
-    const th = B().themeOf(cls, { organ: 'liver' }), L = [330, 280], A = Object.assign({}, (MedLib.mech('hmgcr-inhibition') || {}).anim);
-    const ldl = (ctx, x, y, r = 8, a = 1) => { M.dot(ctx, x, y, r, '#f2a531', a); M.dot(ctx, x, y, r * 0.55, '#ffe3a3', a); };
-    const artery = (ctx, s, n, a = 1) => { if (a <= 0) return; ctx.save(); ctx.globalAlpha *= a; M.card(ctx, 600, 330, 300, 150, { r: 16 }); M.vessel(ctx, 620, 370, 260, 80, { wall: 12, t: s, plaque: 0.45, plaqueX: 0.55, items: [] }); for (let i = 0; i < n; i++) { const ph = (s * 0.2 + i / n) % 1; ldl(ctx, 620 + ph * 260, 410 + Math.sin(i * 2 + s) * 12, 6); } M.text(ctx, 'Artery wall: plaque can build over years', 750, 352, { size: 12, weight: 800, color: '#8a5a00' }); ctx.restore(); };
-    const liverClose = (ctx, s, capture) => {
-      M.liver(ctx, L[0] - 40, L[1], 150);
-      M.vessel(ctx, 470, 236, 440, 86, { wall: 12, t: s, items: [] });
-      for (let i = 0; i < 8; i++) { const ph = (s * 0.18 + i / 8) % 1, x = 900 - ph * 430, taken = rnd(i + 7) < capture && x < 520; if (!taken) ldl(ctx, x, 280 + Math.sin(i * 3) * 18); else ldl(ctx, lerp(520, 420, seg(x, 520, 470)), 280, 8, 1 - seg(x, 500, 470)); }
-      [[410, 230], [425, 285], [410, 335]].forEach(([x, y]) => { ctx.save(); ctx.strokeStyle = '#4f7fe0'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x - 12, y); ctx.lineTo(x, y); ctx.lineTo(x + 8, y - 8); ctx.moveTo(x, y); ctx.lineTo(x + 8, y + 8); ctx.stroke(); ctx.restore(); });
-      for (let i = 0; i < 3; i++) M.cholesterol(ctx, 250 + i * 30, 270 + Math.sin(s * 2 + i) * 4, 9, 1, s);
-      M.text(ctx, 'Makes cholesterol', 290, 330, { size: 13, weight: 800, color: '#fff' });
-      M.text(ctx, 'LDL receptors capture LDL', 560, 220, { size: 13, weight: 800, color: '#1f4fa8' });
-    };
+    const th = B().themeOf(cls, { organ: 'liver' }), L = LIP_L, A = Object.assign({}, (MedLib.mech('hmgcr-inhibition') || {}).anim);
     return [
       { label: 'Whole-body problem', dur: 8, caption: 'LDL cholesterol travels through the blood. When levels remain too high, cardiovascular risk can increase over time.',
         draw(ctx, p, s) {
@@ -318,12 +325,12 @@
         } },
       { label: 'The liver and LDL', dur: 9, caption: 'The liver both makes cholesterol and removes LDL particles from your blood using special receptors.',
         draw(ctx, p, s) {
-          zoom(ctx, fade(p, 0, 0.45), at('liver'), L, () => { B().body(ctx, th, 1, s); xray(ctx, ['liver'], 'liver', s); }, () => liverClose(ctx, s, 0.3));
+          zoom(ctx, fade(p, 0, 0.45), at('liver'), L, () => { B().body(ctx, th, 1, s); xray(ctx, ['liver'], 'liver', s); }, () => liverLDL(ctx, s, 0.3));
         } },
       { label: 'Inside a liver cell', dur: 10, caption: 'Inside liver cells, an enzyme called HMG-CoA reductase helps make cholesterol.',
         draw(ctx, p, s) {
           const z = fade(p, 0, 0.4);
-          if (z < 1) { ctx.save(); ctx.globalAlpha *= 1 - seg(z, 0.5, 0.9); cam(ctx, 380, 285, lerp(1, 3, z), 380, 285, () => liverClose(ctx, s, 0.3)); ctx.restore(); }
+          if (z < 1) { ctx.save(); ctx.globalAlpha *= 1 - seg(z, 0.5, 0.9); cam(ctx, 380, 285, lerp(1, 3, z), 380, 285, () => liverLDL(ctx, s, 0.3)); ctx.restore(); }
           if (z > 0.5) { ctx.save(); ctx.globalAlpha *= seg(z, 0.5, 1); MedAnim.organView(ctx, 'liver', 150, 280, 70, { t: s }); MedAnim.stage(ctx, p, s, A, 0); ctx.restore(); }
         } },
       { label: 'Mechanism', dur: 14, caption: 'Statins slow this enzyme. In response, the liver increases LDL receptors, allowing it to remove more LDL from the bloodstream.',
@@ -335,11 +342,153 @@
       { label: 'Whole-body result', dur: 11, caption: 'LDL levels generally fall over weeks. Over time, reducing LDL helps lower the risk of heart attacks and strokes.',
         draw(ctx, p, s) {
           const z = 1 - fade(p, 0, 0.25), lv = lerp(1, 0.45, fade(p, 0.25, 0.7));
-          zoom(ctx, z, at('liver'), L, () => B().body(ctx, th, lv, s), () => liverClose(ctx, s, 0.8));
+          zoom(ctx, z, at('liver'), L, () => B().body(ctx, th, lv, s), () => liverLDL(ctx, s, 0.8));
           meter(ctx, 'LDL cholesterol in the blood', lv, 600, 110, 1 - z);
           timeChip(ctx, ['Weeks', 'Months', 'Years'], seg(p, 0.25, 0.95), 750, 230);
           artery(ctx, s, Math.round(lerp(5, 2, fade(p, 0.3, 0.8))), 1 - z);
           tag(ctx, 'Lower risk of heart attack and stroke over time', 750, 500, fade(p, 0.75, 0.9), 'good');
+        } },
+    ];
+  });
+
+  // ======================================================== CHOLESTEROL ABSORPTION INHIBITORS
+  def('cholesterol-absorption-inhibitors', (cls) => {
+    const th = B().themeOf(cls, { organ: 'gut' }), G = [330, 280], A = Object.assign({}, (MedLib.mech('npc1l1-block') || {}).anim);
+    // Small intestine up close: dietary and biliary cholesterol in the lumen is taken up by the
+    // lining (villi) and carried on toward the liver; uptake: share absorbed.
+    const gutClose = (ctx, s, uptake) => {
+      M.rr(ctx, 60, 140, 560, 120, 30); ctx.fillStyle = '#fdeee2'; ctx.fill();
+      M.text(ctx, 'Intestine (inside)', 80, 130, { size: 13, align: 'left', color: C.muted, weight: 700 });
+      for (let x = 70; x < 620; x += 46) { ctx.beginPath(); ctx.ellipse(x + 20, 280, 18, 30, 0, Math.PI, 0); ctx.fillStyle = '#f2b8a4'; ctx.fill(); }
+      M.rr(ctx, 60, 280, 560, 70, 18); ctx.fillStyle = '#f2b8a4'; ctx.fill();
+      M.text(ctx, 'Intestinal lining', 340, 330, { size: 13, color: '#8a3b33', weight: 800 });
+      for (let i = 0; i < 9; i++) {
+        const ph = (s * 0.2 + i / 9) % 1, x = 80 + ph * 520, absorbed = rnd(i + 11) < uptake;
+        if (absorbed && ph > 0.4) { const u = seg(ph, 0.4, 1); M.cholesterol(ctx, lerp(x, 700, u), lerp(200, 400 - 60 * u, u), 8, 1 - u * 0.3, s); }
+        else M.cholesterol(ctx, x, 200 + Math.sin(i * 2) * 20, 8, 1, s);
+      }
+      M.liver(ctx, 800, 300, 90);
+      M.arrow(ctx, 640, 360, 720, 320, { color: '#c99a3a', width: 4, head: 10, alpha: 0.4 + 0.6 * uptake });
+      M.text(ctx, 'To the liver', 800, 380, { size: 13, color: C.muted, weight: 800 });
+    };
+    return [
+      { label: 'Whole-body problem', dur: 8, caption: 'LDL cholesterol in the blood comes partly from cholesterol the liver makes and partly from cholesterol absorbed in the gut.',
+        draw(ctx, p, s) {
+          B().body(ctx, th, lerp(0.7, 1, fade(p, 0, 0.5)), s);
+          xray(ctx, ['liver'], 'liver', s, fade(p, 0.3, 0.5));
+          meter(ctx, 'LDL cholesterol in the blood', 1, 600, 110, fade(p, 0.1, 0.3));
+          tag(ctx, 'Cholesterol from the gut and the liver', 740, 230, fade(p, 0.45, 0.6), 'key');
+        } },
+      { label: 'Absorption in the gut', dur: 9, caption: 'In the small intestine, cholesterol from food and bile is taken up by the intestinal lining and carried toward the liver.',
+        draw(ctx, p, s) { zoom(ctx, fade(p, 0, 0.45), at('gut'), G, () => { B().body(ctx, th, 1, s); }, () => gutClose(ctx, s, 0.8)); } },
+      { label: 'The NPC1L1 transporter', dur: 10, caption: 'A transporter called NPC1L1 on intestinal cells helps move cholesterol into the body.',
+        draw(ctx, p, s) {
+          const z = fade(p, 0, 0.4);
+          if (z < 1) { ctx.save(); ctx.globalAlpha *= 1 - seg(z, 0.5, 0.9); cam(ctx, 340, 280, lerp(1, 3, z), 340, 280, () => gutClose(ctx, s, 0.8)); ctx.restore(); }
+          if (z > 0.5) { ctx.save(); ctx.globalAlpha *= seg(z, 0.5, 1); MedAnim.organView(ctx, 'gut', 150, 280, 70, { t: s }); MedAnim.stage(ctx, p, s, A, 0); ctx.restore(); }
+        } },
+      { label: 'Mechanism', dur: 13, caption: 'These medicines block NPC1L1, so less cholesterol is absorbed and less reaches the liver. The liver then makes more LDL receptors and clears more LDL from the blood.',
+        draw(ctx, p, s) {
+          MedAnim.organView(ctx, 'gut', 150, 280, 70, { t: s });
+          MedAnim.stage(ctx, p, s, A, fade(p, 0.1, 0.5));
+          const a = fade(p, 0.6, 0.75);
+          if (a > 0) { M.card(ctx, 40, 400, 240, 110, { r: 14, alpha: a }); ctx.save(); ctx.globalAlpha *= a; M.liver(ctx, 90, 455, 34); ctx.restore(); M.text(ctx, 'Less cholesterol arrives', 130, 440, { size: 12, align: 'left', weight: 800, alpha: a }); M.text(ctx, '→ more LDL receptors', 130, 466, { size: 12, align: 'left', weight: 800, color: '#1d7a4c', alpha: a }); }
+        } },
+      { label: 'Whole-body result', dur: 11, caption: 'LDL cholesterol falls modestly over a few weeks. These medicines are often added to a statin when more lowering is needed.',
+        draw(ctx, p, s) {
+          const z = 1 - fade(p, 0, 0.3), lv = lerp(1, 0.65, fade(p, 0.3, 0.8));
+          zoom(ctx, z, at('gut'), G, () => B().body(ctx, th, lv, s), () => gutClose(ctx, s, 0.25));
+          meter(ctx, 'LDL cholesterol in the blood', lv, 600, 110, 1 - z);
+          timeChip(ctx, ['Days', 'Weeks'], seg(p, 0.3, 0.85), 740, 230);
+          tag(ctx, 'Modest LDL lowering; often added to a statin', 740, 300, fade(p, 0.6, 0.75), 'good');
+        } },
+    ];
+  });
+
+  // ===================================================================== PCSK9 MONOCLONAL ANTIBODIES
+  def('pcsk9-mab', (cls) => {
+    const th = B().themeOf(cls, { organ: 'liver' }), A = Object.assign({}, (MedLib.mech('pcsk9-antibody') || {}).anim);
+    return [
+      { label: 'Whole-body problem', dur: 8, caption: 'When LDL cholesterol stays high despite other treatment, more LDL particles keep circulating in the blood.',
+        draw(ctx, p, s) {
+          B().body(ctx, th, lerp(0.7, 1, fade(p, 0, 0.5)), s);
+          meter(ctx, 'LDL cholesterol in the blood', 1, 600, 110, fade(p, 0.1, 0.3));
+          artery(ctx, s, 5, fade(p, 0.4, 0.6));
+        } },
+      { label: 'LDL receptors and PCSK9', dur: 9, caption: 'The liver clears LDL with receptors on its surface. A protein called PCSK9 tags these receptors for destruction, so fewer are available.',
+        draw(ctx, p, s) {
+          zoom(ctx, fade(p, 0, 0.45), at('liver'), LIP_L, () => { B().body(ctx, th, 1, s); xray(ctx, ['liver'], 'liver', s); }, () => liverLDL(ctx, s, 0.25, { pcsk9: 1 }));
+          tag(ctx, 'PCSK9 in the blood', 690, 200, fade(p, 0.55, 0.7), 'warn');
+        } },
+      { label: 'Receptors lost', dur: 10, caption: 'When PCSK9 binds an LDL receptor, the receptor is broken down inside the cell instead of returning to the surface.',
+        draw(ctx, p, s) {
+          const z = fade(p, 0, 0.4);
+          if (z < 1) { ctx.save(); ctx.globalAlpha *= 1 - seg(z, 0.5, 0.9); cam(ctx, 400, 285, lerp(1, 3, z), 400, 285, () => liverLDL(ctx, s, 0.25, { pcsk9: 1 })); ctx.restore(); }
+          if (z > 0.5) { ctx.save(); ctx.globalAlpha *= seg(z, 0.5, 1); MedAnim.organView(ctx, 'liver', 150, 280, 70, { t: s }); MedAnim.stage(ctx, p, s, A, 0); ctx.restore(); }
+        } },
+      { label: 'Mechanism', dur: 14, caption: 'PCSK9 antibodies bind PCSK9 in the blood. Receptors are spared, recycle back to the surface, and capture more LDL.',
+        draw(ctx, p, s) {
+          MedAnim.organView(ctx, 'liver', 150, 280, 70, { t: s });
+          MedAnim.stage(ctx, p, s, A, fade(p, 0.1, 0.6));
+          tag(ctx, 'Receptors recycle → more LDL removed', 615, 515, fade(p, 0.55, 0.7), 'good');
+        } },
+      { label: 'Whole-body result', dur: 11, caption: 'LDL cholesterol falls substantially, usually alongside a statin, and lower LDL reduces cardiovascular risk over time.',
+        draw(ctx, p, s) {
+          const z = 1 - fade(p, 0, 0.25), lv = lerp(1, 0.35, fade(p, 0.25, 0.7));
+          zoom(ctx, z, at('liver'), LIP_L, () => B().body(ctx, th, lv, s), () => liverLDL(ctx, s, 0.85, { pcsk9: 1, ab: 1 }));
+          meter(ctx, 'LDL cholesterol in the blood', lv, 600, 110, 1 - z);
+          timeChip(ctx, ['Weeks', 'Months', 'Years'], seg(p, 0.25, 0.95), 750, 230);
+          artery(ctx, s, Math.round(lerp(5, 2, fade(p, 0.3, 0.8))), 1 - z);
+          tag(ctx, 'Large LDL lowering, usually with a statin', 750, 500, fade(p, 0.7, 0.85), 'good');
+        } },
+    ];
+  });
+
+  // ==================================================================================== FIBRATES
+  def('fibrates', (cls) => {
+    const th = B().themeOf(cls, { organ: 'liver', stage: 'trl' }), A = Object.assign({}, (MedLib.mech('ppara-agonism') || {}).anim), V = [480, 280];
+    // Liver sends triglyceride-rich particles into a capillary; lipoprotein lipase on the vessel
+    // wall strips their triglyceride for nearby muscle and fat. lpl: how active the clearance is.
+    const trlFlow = (ctx, s, lpl, make = 1) => {
+      M.liver(ctx, 150, 240, 110);
+      M.rr(ctx, 240, 220, 680, 90, 24); ctx.fillStyle = '#fde8e4'; ctx.fill(); ctx.fillStyle = '#f2b8ae'; ctx.fillRect(240, 300, 680, 10);
+      M.text(ctx, 'Capillary', 900, 212, { size: 12, align: 'right', color: C.muted, weight: 700 });
+      M.rr(ctx, 320, 340, 560, 110, 20); ctx.fillStyle = '#ffeec4'; ctx.fill(); M.text(ctx, 'Muscle and fat use the fatty acids', 600, 470, { size: 12, color: C.muted, weight: 700 });
+      [420, 580, 740].forEach((x) => { ctx.save(); ctx.beginPath(); ctx.moveTo(x, 300); ctx.arc(x, 300, 16, Math.PI + 0.5, -0.5); ctx.closePath(); ctx.fillStyle = mix('#9fb0c6', '#2fa36b', lpl); ctx.fill(); ctx.restore(); });
+      M.text(ctx, 'LPL', 580, 330, { size: 12, weight: 800, color: '#1d7a4c' });
+      for (let i = 0; i < 7; i++) { if (rnd(i + 21) > make) continue; const ph = (s * 0.16 + i / 7) % 1, x = 240 + ph * 680, r = lerp(16, lerp(14, 6, lpl), seg(ph, 0.2, 0.85)); M.dot(ctx, x, 255 + (i % 3) * 14, r, '#ffd56b', Math.min(1, ph * 8, (1 - ph) * 8)); M.dot(ctx, x, 255 + (i % 3) * 14, r * 0.4, '#f2a531', Math.min(1, ph * 8, (1 - ph) * 8)); }
+      for (let i = 0; i < 10; i++) { if (rnd(i + 31) > lpl) continue; const ph = (s * 0.4 + i / 10) % 1; M.dot(ctx, [420, 580, 740][i % 3] + (rnd(i) - 0.5) * 40, lerp(310, 430, ph), 4, '#e8a33c', 1 - ph); }
+    };
+    return [
+      { label: 'Whole-body problem', dur: 8, caption: 'With high triglycerides, too many triglyceride-rich particles circulate in the blood. Very high levels raise the risk of pancreatitis.',
+        draw(ctx, p, s) {
+          B().body(ctx, th, lerp(0.7, 1, fade(p, 0, 0.5)), s);
+          meter(ctx, 'Triglycerides in the blood', 1, 600, 110, fade(p, 0.1, 0.3));
+          tag(ctx, 'Triglyceride-rich particles, not LDL, are the focus', 740, 230, fade(p, 0.45, 0.6), 'key');
+        } },
+      { label: 'How triglycerides are cleared', dur: 10, caption: 'The liver releases triglyceride-rich particles into the blood. An enzyme on the vessel wall, lipoprotein lipase, breaks down their triglyceride for muscle and fat to use.',
+        draw(ctx, p, s) { zoom(ctx, fade(p, 0, 0.45), at('liver'), V, () => { B().body(ctx, th, 1, s); xray(ctx, ['liver'], 'liver', s); }, () => trlFlow(ctx, s, 0.35)); } },
+      { label: 'Clearance slowed', dur: 10, caption: 'A protein called ApoC-III slows lipoprotein lipase, so triglyceride-rich particles linger in the blood.',
+        draw(ctx, p, s) {
+          const z = fade(p, 0, 0.4);
+          if (z < 1) { ctx.save(); ctx.globalAlpha *= 1 - seg(z, 0.5, 0.9); cam(ctx, 480, 280, lerp(1, 2, z), 480, 280, () => trlFlow(ctx, s, 0.35)); ctx.restore(); }
+          if (z > 0.5) { ctx.save(); ctx.globalAlpha *= seg(z, 0.5, 1); MedAnim.organView(ctx, 'liver', 150, 280, 70, { t: s }); MedAnim.stage(ctx, p, s, A, 0); ctx.restore(); }
+        } },
+      { label: 'Mechanism', dur: 14, caption: 'Fibrates activate PPAR-alpha in the liver. Lipoprotein lipase activity rises and ApoC-III falls, so triglyceride-rich particles are cleared faster.',
+        draw(ctx, p, s) {
+          MedAnim.organView(ctx, 'liver', 150, 280, 70, { t: s });
+          MedAnim.stage(ctx, p, s, A, fade(p, 0.1, 0.6));
+          tag(ctx, 'Faster triglyceride clearance', 615, 515, fade(p, 0.55, 0.7), 'good');
+          M.text(ctx, 'Effect on LDL is modest', 150, 470, { size: 13, weight: 800, color: C.muted, alpha: fade(p, 0.7, 0.85) });
+        } },
+      { label: 'Whole-body result', dur: 12, caption: 'Triglycerides fall over weeks. Fibrates are mainly used for high triglycerides, not as LDL-lowering medicines, and providers watch kidney function and muscle symptoms.',
+        draw(ctx, p, s) {
+          const z = 1 - fade(p, 0, 0.3), lv = lerp(1, 0.45, fade(p, 0.3, 0.8));
+          zoom(ctx, z, at('liver'), V, () => B().body(ctx, th, lv, s), () => trlFlow(ctx, s, 0.9));
+          meter(ctx, 'Triglycerides in the blood', lv, 600, 110, 1 - z);
+          timeChip(ctx, ['Days', 'Weeks'], seg(p, 0.3, 0.85), 740, 230);
+          tag(ctx, 'Lower triglycerides; modest LDL effect', 740, 300, fade(p, 0.55, 0.7), 'good');
+          tag(ctx, 'Watch kidney function and muscle symptoms', 740, 360, fade(p, 0.75, 0.9), 'warn');
         } },
     ];
   });

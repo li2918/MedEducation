@@ -416,20 +416,22 @@
     patient: { name: 'MTP inhibitor (specialist)', summary: 'This medicine is used only for a rare inherited condition that causes very high LDL cholesterol. It stops the liver from sending out the fat particles that turn into LDL. It can cause fat to build up in the liver, so you will need regular liver blood tests and a low-fat diet.' },
   });
 
+  // Sidebar shows the four core classes; entries with nav: false stay mapped (so their
+  // indications, animation theme, and deep links still work) but are not listed.
   MedLib.map('hyperlipidemia', {
     overview: 'Hyperlipidemia raises atherosclerotic cardiovascular disease (ASCVD) risk mainly through apoB-containing lipoproteins, with LDL cholesterol as the main treatment target; elevated triglycerides mark excess triglyceride-rich lipoproteins and, when severe, pancreatitis risk. The 2026 ACC/AHA/multisociety dyslipidemia guideline keeps lifestyle plus statins as the foundation, reintroduces risk-based LDL-C goals, and adds non-statin therapy when goals are not met. Specialist therapies address rare genetic disorders such as homozygous familial hypercholesterolemia and familial chylomicronemia syndrome.',
     entries: [
       { id: 'statins', role: 'common', note: 'Foundational therapy for primary and secondary prevention; intensity is matched to risk, and benefit tracks absolute LDL-C reduction.' },
       { id: 'cholesterol-absorption-inhibitors', role: 'common', note: 'Common first non-statin add-on when LDL-C stays above goal on a statin, or with statin intolerance; inexpensive, oral, and well tolerated.' },
       { id: 'pcsk9-mab', role: 'selected', note: 'Add-on for high- or very-high-risk patients, including ASCVD and familial hypercholesterolemia, when LDL-C remains above goal; proven event reduction.' },
-      { id: 'pcsk9-sirna', role: 'selected', note: 'Non-statin option with twice-yearly clinic dosing after initial doses; cardiovascular outcome data were pending at the time of the 2026 guideline.' },
-      { id: 'acl-inhibitors', role: 'selected', note: 'Oral option for statin-intolerant patients or as an add-on, with outcome evidence in statin intolerance (CLEAR Outcomes); avoid with gout or tendon disease.' },
-      { id: 'bile-acid-sequestrants', role: 'specialist', note: 'Less commonly used; modest LDL-C lowering, and avoided when triglycerides are high because they can raise them.' },
+      { id: 'pcsk9-sirna', nav: false, role: 'selected', note: 'Non-statin option with twice-yearly clinic dosing after initial doses; cardiovascular outcome data were pending at the time of the 2026 guideline.' },
+      { id: 'acl-inhibitors', nav: false, role: 'selected', note: 'Oral option for statin-intolerant patients or as an add-on, with outcome evidence in statin intolerance (CLEAR Outcomes); avoid with gout or tendon disease.' },
+      { id: 'bile-acid-sequestrants', nav: false, role: 'specialist', note: 'Less commonly used; modest LDL-C lowering, and avoided when triglycerides are high because they can raise them.' },
       { id: 'fibrates', role: 'selected', note: 'Mainly for severe hypertriglyceridemia to reduce pancreatitis risk; not routinely added to statins for cardiovascular outcomes.' },
-      { id: 'omega3-rx', role: 'selected', note: 'Purified EPA may be considered for selected statin-treated patients with ASCVD or diabetes and persistently elevated triglycerides; any prescription omega-3 can lower severely elevated triglycerides.' },
-      { id: 'angptl3-inhibitors', role: 'specialist', note: 'Homozygous familial hypercholesterolemia only, added to other LDL-lowering therapy, in a specialist lipid clinic.' },
-      { id: 'apoc3-inhibitors', role: 'specialist', note: 'Familial chylomicronemia syndrome (and, for one agent, severe hypertriglyceridemia ≥500 mg/dL) to reduce triglycerides and pancreatitis risk, alongside a very low-fat diet.' },
-      { id: 'mtp-inhibitors', role: 'specialist', note: 'Homozygous familial hypercholesterolemia only, under a REMS because of hepatotoxicity.' },
+      { id: 'omega3-rx', nav: false, role: 'selected', note: 'Purified EPA may be considered for selected statin-treated patients with ASCVD or diabetes and persistently elevated triglycerides; any prescription omega-3 can lower severely elevated triglycerides.' },
+      { id: 'angptl3-inhibitors', nav: false, role: 'specialist', note: 'Homozygous familial hypercholesterolemia only, added to other LDL-lowering therapy, in a specialist lipid clinic.' },
+      { id: 'apoc3-inhibitors', nav: false, role: 'specialist', note: 'Familial chylomicronemia syndrome (and, for one agent, severe hypertriglyceridemia ≥500 mg/dL) to reduce triglycerides and pancreatitis risk, alongside a very low-fat diet.' },
+      { id: 'mtp-inhibitors', nav: false, role: 'specialist', note: 'Homozygous familial hypercholesterolemia only, under a REMS because of hepatotoxicity.' },
     ],
   });
 })();

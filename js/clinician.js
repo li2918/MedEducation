@@ -56,14 +56,21 @@
   const areaClasses = (conds) => { const k = conds.join(','); if (!areaCache.has(k)) areaCache.set(k, computeAreaClasses(conds)); return areaCache.get(k); };
   function computeAreaClasses(conds) {
     const best = {};
-    conds.forEach((cid) => MedLib.forCondition(cid).forEach((e) => {
+    conds.forEach((cid) => MedLib.forCondition(cid).filter((e) => e.nav !== false).forEach((e) => {
       const r = ROLE_ORDER.indexOf(e.role), cur = best[e.id];
       if (!cur || r < cur.r) best[e.id] = { cls: e.cls, r, i: cur ? cur.i : Object.keys(best).length };
     }));
     return Object.values(best).sort((a, b) => a.r - b.r || a.i - b.i);
   }
   const inArea = (key, cls) => areaClasses((AREAS.find((a) => a[0] === key) || AREAS[0])[2]).some((x) => x.cls === cls);
-  const areaOf = (cls) => (AREAS.find(([key]) => inArea(key, cls)) || AREAS[0])[0];
+  // Category for a class: where the sidebar lists it, else (for classes kept out of the sidebar
+  // but still reachable by link) the category of its first mapped condition.
+  const areaOf = (cls) => {
+    const listed = AREAS.find(([key]) => inArea(key, cls));
+    if (listed) return listed[0];
+    const cond = (MedLib.indicationsOf(cls.id)[0] || {}).condition;
+    return (AREAS.find((a) => a[2].includes(cond)) || AREAS[0])[0];
+  };
   const areaName = (key) => (AREAS.find((a) => a[0] === key) || [])[1] || '';
   function findClass(id) {
     if (!id) return null;
@@ -261,7 +268,7 @@
     if (!cls) return;
     if (state.view !== 'pharm') setView('pharm');
     const changed = cls !== state.cls;
-    if (!state.area || !inArea(state.area, cls)) state.area = areaOf(cls);
+    if (!state.area || (!inArea(state.area, cls) && areaOf(cls) !== state.area)) state.area = areaOf(cls);
     const wasOpen = !!state.open[state.area];
     state.open[state.area] = true;
     state.cls = cls;

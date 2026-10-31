@@ -12,6 +12,7 @@
 //   legacy: { condition, drugId } to reuse an existing hand-built animation }
 // Mapping: MedLib.map(conditionId, { overview, entries: [{ id, role, note }] }), where role is
 //   'common' (common / foundational), 'selected' (selected or add-on), or 'specialist'.
+//   nav: false keeps a class mapped (indications, deep links) but out of the provider sidebar.
 (function () {
   const classes = {}, mechanisms = {}, maps = {};
   const ROLES = {
