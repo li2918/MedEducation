@@ -81,8 +81,9 @@
       const [sx, sy] = at('stomach'), mouth = [x, y - 1.55 * s];
       ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#f0b6ae'; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(mouth[0], mouth[1]); ctx.quadraticCurveTo(x + 0.02 * s, y - 1.0 * s, sx - 0.05 * s, sy - 0.12 * s); ctx.stroke(); ctx.restore();
       M.stomach(ctx, sx, sy, s * 0.24);
-      const n = Math.round(lerp(1, 8, level));
-      for (let i = 0; i < n; i++) { const ph = (t * 0.35 + i / n) % 1, py = lerp(sy - 0.1 * s, y - 1.2 * s, ph); M.dot(ctx, x + 0.02 * s + Math.sin(ph * 7 + i) * 3, py, 4, '#e0524a', Math.min(1, (1 - ph) * 3)); }
+      // o.reflux sets how often contents come up (defaults to level); colour shows how acidic they are
+      const n = Math.round(lerp(1, 8, o.reflux != null ? o.reflux : level)), col = M.mix('#f2d36b', '#e0524a', level);
+      for (let i = 0; i < n; i++) { const ph = (t * 0.35 + i / n) % 1, py = lerp(sy - 0.1 * s, y - 1.2 * s, ph); M.dot(ctx, x + 0.02 * s + Math.sin(ph * 7 + i) * 3, py, 4, col, Math.min(1, (1 - ph) * 3)); }
       const g = ctx.createRadialGradient(x, y - 1.05 * s, 2, x, y - 1.05 * s, 0.35 * s); g.addColorStop(0, `rgba(255,120,60,${0.55 * level})`); g.addColorStop(1, 'rgba(255,120,60,0)');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y - 1.05 * s, 0.35 * s, 0, M.TAU); ctx.fill();
     } else if (th.key === 'pain') {
@@ -100,10 +101,9 @@
     }
   }
 
-  // Right-hand metric: a labelled bar, or a blood-pressure monitor for the pressure theme.
+  // Right-hand metric: a qualitative labelled bar (no invented numbers).
   function metric(ctx, th, level, a = 1) {
     if (a <= 0) return;
-    if (th.key === 'pressure') { M.bpMonitor(ctx, 760, 170, lerp(124, 158, level), lerp(78, 96, level), { alpha: a }); return; }
     ctx.save(); ctx.globalAlpha *= a;
     M.text(ctx, th.metric, 600, 130, { size: 16, align: 'left', weight: 800 });
     M.rr(ctx, 600, 148, 300, 18, 9); ctx.fillStyle = '#e3e9f2'; ctx.fill();
@@ -178,7 +178,7 @@
         if (z > 0) { ctx.save(); ctx.globalAlpha = seg(z, 0.65, 1); MedAnim.organView(ctx, A.organ, ZOOM_TO[0], ZOOM_TO[1], ZOOM_SIZE, { t: s, inflam: 0.3, muscle: 0.3 }); ctx.restore(); }
         camera(ctx, at(focus), z, () => body(ctx, th, lv, s, { armUp: th.key === 'pain' ? 0.6 * k * (0.5 + 0.5 * Math.sin(s * 2)) : 0 }));
         metric(ctx, th, lv, 1 - z);
-        if (rows.length) MedAnim.bars(ctx, rows, 600, th.key === 'pressure' ? 320 : 240, 300, lerp(0, 1, seg(p, 0.2, 1)), true);
+        if (rows.length) MedAnim.bars(ctx, rows, 600, 240, 300, lerp(0, 1, seg(p, 0.2, 1)), true);
       },
     };
   }

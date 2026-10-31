@@ -413,6 +413,9 @@
     return out;
   }
   function clinicianScenes(cls) {
+    // Pilot classes with a hand-made cinematic story (cinema.js) use it; everything else uses
+    // the generic builder below.
+    if (window.MedCinema && MedCinema.has(cls.id)) return MedCinema.scenes(cls);
     if (cls.components) return combo(cls);
     const sc = build(cls.mech, cls);
     let mid = [sc[1], sc[2]];
@@ -472,5 +475,5 @@
     return wholeBody(cls, A0, c0, s0, out, Math.min(0.75, 0.35 + 0.5 * (effect.muscle + effect.inflam)));
   }
 
-  window.MedAnim = { build, scenesFor, bars, organView, cellStage, particle, drugHex, ORGAN_NAMES, P0, MY, TX };
+  window.MedAnim = { stage, build, scenesFor, bars, organView, cellStage, particle, drugHex, ORGAN_NAMES, P0, MY, TX };
 })();
