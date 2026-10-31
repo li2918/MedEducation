@@ -1,11 +1,13 @@
-// Mechanism animation kit for the Medication Mechanism Library. Every class animation has the
-// same five scenes, built from its mechanism config:
-//   1. The problem   organ-level process (particles flowing, a metric running high or low)
-//   2. The target    zoom from the organ into a cell; the receptor / channel / transporter /
-//                    enzyme / nuclear receptor / binding target works normally and glows
-//   3. Mechanism     the drug (always a purple hexagon) arrives and changes that step
-//   4. The result    back at the organ: metrics move from before to after
-//   5. Takeaway      intended effect, one key caution, and context
+// Mechanism animation kit for the Medication Mechanism Library. Every class animation tells
+// the same whole-body story (whole-body scenes live in body.js, MedBody):
+//   1. Whole-body problem  the cartoon patient with the problem in the body
+//   2. Body systems        the organs involved; the camera zooms into the target organ
+//   3. The target          from the organ into a cell; the receptor / channel / transporter /
+//                          enzyme / nuclear receptor / binding target works normally and glows
+//   4. Mechanism           the drug (always a purple hexagon) arrives and changes that step
+//   5. Whole-body result   the camera pulls back out; the body and its metrics improve
+// Classes with hand-built animations keep them as the middle scenes, and combination inhalers
+// show each component's mechanism, then their combined effect, in the middle.
 // Cues use p (0..1 progress through the scene), so scenes read at any length.
 //
 // anim config (all labels short):
@@ -390,14 +392,14 @@
   // (legacy: { condition, drugId }) keep it as their mechanism scenes. Combination products
   // (components: [class ids]) reuse each component's mechanism scene, then show the combined
   // effect on one airway; no separate animation is written per combination.
-  const PATIENT_LABELS = { 'The problem': 'What happens', 'The target': 'Where it works', Mechanism: 'How the medicine works', 'The result': 'What changes', 'Combined effect': 'Working together' };
+  const PATIENT_LABELS = { 'Whole-body problem': 'The problem', 'Body systems': 'Where it works', 'The target': 'Up close', Mechanism: 'How the medicine works', 'Whole-body result': 'What changes', 'Combined effect': 'Working together' };
   function scenesFor(cls, opts = {}) {
     if (!cls) return [];
     const sc = clinicianScenes(cls);
     if (!opts.patient) return sc;
     // Patient view: plain captions, no pharmacokinetics scenes, and a summary card in place of
     // the clinician takeaway (no cautions, dosing, or monitoring details).
-    const out = sc.slice(0, -1).filter((x) => !/pharmacokinetic/i.test(x.label)).map((x) => Object.assign({}, x, { label: PATIENT_LABELS[x.label] || x.label, caption: x.simple || x.caption }));
+    const out = sc.filter((x) => !/pharmacokinetic/i.test(x.label)).map((x) => Object.assign({}, x, { label: PATIENT_LABELS[x.label] || x.label, caption: x.simple || x.caption }));
     const P = cls.patient || {};
     out.push({
       label: 'Key points', caption: (cls.takeaway && cls.takeaway.simple) || P.summary || '',
@@ -413,28 +415,46 @@
   function clinicianScenes(cls) {
     if (cls.components) return combo(cls);
     const sc = build(cls.mech, cls);
+    let mid = [sc[1], sc[2]];
     if (cls.legacy) {
       const d = MedData.get(cls.legacy.condition), dr = d && d.clinician && (d.clinician.drugs || []).find((x) => x.id === cls.legacy.drugId);
       if (dr && dr.scenes && dr.scenes.length) {
         const pick = cls.legacy.scenes ? cls.legacy.scenes.map((i) => dr.scenes[i]).filter(Boolean) : dr.scenes;
-        return [sc[0]].concat(pick.map((x, i) => Object.assign({}, x, { caption: (cls.legacyCaptions || [])[i] || x.caption, simple: (cls.legacySimple || [])[i] || x.simple || x.caption }))).concat([sc[3], sc[4]]);
+        mid = pick.map((x, i) => Object.assign({}, x, { caption: (cls.legacyCaptions || [])[i] || x.caption, simple: (cls.legacySimple || [])[i] || x.simple || x.caption }));
       }
     }
-    return sc;
+    const mech = MedLib.mech(cls.mech) || {};
+    return wholeBody(cls, Object.assign({}, mech.anim, cls.variant || {}), Object.assign({}, mech.captions, cls.captions || {}), Object.assign({}, mech.simple, cls.simpleCaptions || {}), mid);
+  }
+  // Whole-body problem and body-systems scenes before the local scenes, and the whole-body
+  // result after them. The class's takeaway sentence joins the closing narration when the
+  // animation stays within about a minute.
+  function wholeBody(cls, A, cap, simple, mid, drop) {
+    const th = MedBody.themeOf(cls, A), T = cls.takeaway || {};
+    const sysCap = `${th.sys} This class acts mainly ${MedBody.WHERE[A.organ] || 'at its target'}.`;
+    const sysSimple = `${th.simple} This medicine works mainly in ${MedBody.WHERE_SIMPLE[A.organ] || 'one part of the body'}.`;
+    const base = [cap.problem, sysCap, cap.result].concat(mid.map((x) => x.caption)).reduce((t, c) => t + MedBody.secs(c), 0);
+    const withT = T.caption && base + T.caption.split(/\s+/).length / 2.6 <= 60;
+    const endCap = [cap.result, withT ? T.caption : ''].filter(Boolean).join(' ');
+    const endSimple = [simple.result, withT ? T.simple : ''].filter(Boolean).join(' ');
+    return [MedBody.problemScene(cls, A, th, cap.problem, simple.problem), MedBody.systemScene(cls, A, th, sysCap, sysSimple)]
+      .concat(mid)
+      .concat([MedBody.resultScene(cls, A, th, endCap, endSimple, drop == null ? (A.wholeDrop || 0.5) : drop)]);
   }
   function combo(cls) {
     const parts = cls.components.map((id) => MedLib.get(id)).filter(Boolean);
     const effect = { muscle: 0, inflam: 0 };
     parts.forEach((c) => { const e = (MedLib.mech(c.mech) || {}).anim; if (e && e.airwayEffect) { effect.muscle += e.airwayEffect.muscle || 0; effect.inflam += e.airwayEffect.inflam || 0; } });
     const cap = cls.captions || {}, simple = cls.simpleCaptions || {}, T = cls.takeaway || {};
-    const first = build(parts[0] && parts[0].mech, cls)[0];
-    const out = [Object.assign({}, first, { caption: cap.problem || first.caption, simple: simple.problem || first.simple })];
+    const out = [];
     parts.forEach((c) => {
       const m = build(c.mech, c)[2];
       out.push(Object.assign({}, m, { label: `${c.short || c.name}`, caption: m.caption, simple: m.simple }));
     });
     out.push({
-      label: 'Combined effect', caption: cap.result, simple: simple.result,
+      label: 'Combined effect',
+      caption: effect.muscle > 0 && effect.inflam > 0 ? 'Together, the components relax airway smooth muscle and, over days to weeks, reduce airway inflammation.' : effect.inflam > 0 ? 'Together, the components reduce airway inflammation over time.' : 'Together, the two bronchodilators relax airway smooth muscle through two different pathways, so their effects add up.',
+      simple: effect.muscle > 0 && effect.inflam > 0 ? 'Together, these medicines relax the airway muscle and calm the swelling inside.' : 'Together, these medicines relax the airway muscle in two different ways.',
       draw(ctx, p, s) {
         const k = ease(seg(p, 0.15, 0.65)), mus = lerp(0.75, Math.max(0.1, 0.75 - effect.muscle), k), inf = lerp(0.7, Math.max(0.1, 0.7 - effect.inflam), ease(seg(p, 0.3, 0.9)));
         Lungs.airwayCross(ctx, 270, 280, 140, s, { muscle: mus, inflam: inf, mucus: 0.2 });
@@ -446,8 +466,10 @@
         bars(ctx, rows, 540, 190, 300, p, true);
       },
     });
-    out.push(Object.assign({}, build(parts[0] && parts[0].mech, cls)[4]));
-    return out;
+    const m0 = MedLib.mech(parts[0] && parts[0].mech) || {}, A0 = Object.assign({}, m0.anim, { organ: 'airway', theme: 'airway' });
+    const c0 = Object.assign({}, m0.captions, { problem: cap.problem || (m0.captions || {}).problem, result: cap.result || (m0.captions || {}).result });
+    const s0 = Object.assign({}, m0.simple, { problem: simple.problem || (m0.simple || {}).problem, result: simple.result || (m0.simple || {}).result });
+    return wholeBody(cls, A0, c0, s0, out, Math.min(0.75, 0.35 + 0.5 * (effect.muscle + effect.inflam)));
   }
 
   window.MedAnim = { build, scenesFor, bars, organView, cellStage, particle, drugHex, ORGAN_NAMES, P0, MY, TX };
