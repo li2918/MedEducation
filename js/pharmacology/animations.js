@@ -40,7 +40,7 @@
     else if (kind === 'square') { ctx.save(); ctx.globalAlpha *= a; M.rr(ctx, x - r, y - r, 2 * r, 2 * r, r * 0.35); ctx.fillStyle = col; ctx.fill(); ctx.restore(); }
     else { ctx.save(); ctx.globalAlpha *= a; ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fillStyle = col; ctx.fill(); ctx.strokeStyle = mix(col.startsWith('#') ? col : '#888888', '#000000', 0.2); ctx.lineWidth = 1.5; ctx.stroke(); ctx.restore(); }
   }
-  const drugHex = (ctx, x, y, r = 10, a = 1) => M.drug(ctx, x, y, r, DRUG, a);
+  const drugHex = (ctx, x, y, r = 10, a = 1) => (window.MedSym ? MedSym.medicine(ctx, x, y, r, a) : M.drug(ctx, x, y, r, DRUG, a));
   function legendRow(ctx, items, x, y) {
     let cx = x;
     items.forEach(([draw, label]) => {

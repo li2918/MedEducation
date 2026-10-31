@@ -10,7 +10,7 @@
   const { C, ease, seg, lerp, rnd, mix } = M;
   const DRUG = C.purple;
   const B = () => window.MedBody;
-  const hex = (ctx, x, y, r = 9, a = 1) => M.drug(ctx, x, y, r, DRUG, a);
+  const hex = (ctx, x, y, r = 9, a = 1) => (window.MedSym ? MedSym.medicine(ctx, x, y, r, a) : M.drug(ctx, x, y, r, DRUG, a));
   const fade = (p, a, b) => ease(seg(p, a, b));
   const at = (k) => B().at(k);
 
@@ -250,27 +250,47 @@
   }
 
   // ==================================================================== GLP-1 RECEPTOR AGONISTS
-  // Kid-friendly camera journey through one patient: a small shot under the skin, then the
-  // camera travels from the head (brain: feeling full) down to the stomach (food moves out more
-  // slowly) and behind it to the pancreas (more insulin when sugar is high), and back out to
-  // the whole person. The top-to-bottom order is a camera path, not the order the medicine acts.
-  // Symbols match the dual GIP/GLP-1 story: blue round GLP-1 receiver, purple medicine, insulin
-  // keys, sugar hexagons. No GIP receivers appear here.
+  // Seven-scene kid-friendly story with one patient and one continuous camera:
+  //   after a meal (the problem) → a small shot (the medicine) → brain (feeling full) →
+  //   stomach (food moves more slowly) → pancreas (more insulin when sugar is high) →
+  //   muscle (insulin helps sugar enter the cell) → back to the whole person.
+  // The top-to-bottom camera path is a way of telling the story, not the order the medicine
+  // acts. Symbols come from MedSym (yellow hexagon glucose, teal key insulin, purple diamond
+  // medicine, blue round GLP-1 receiver). The side legend stays on screen whenever those
+  // particles move; big arrow callouts appear only while a new idea is introduced.
   def('glp1-ra', (cls) => {
-    const th = B().themeOf(cls, { organ: 'pancreas' });
-    const BR = at('brain'), ST = at('stomach'), PA = at('pancreas'), WHOLE = [270, 300, 1, 270, 300], MID = [480, 280];
-    // The see-through patient with organs drawn inside, so zooming in reveals them in place.
+    const Y = window.MedSym;
+    const BR = at('brain'), ST = at('stomach'), PA = at('pancreas'), MU = at('muscle'), GUT = at('gut'), HE = at('heart');
+    const WHOLE = [270, 300, 1, 270, 300], MID = [480, 280];
+    const med = (ctx, x, y, r = 9, a = 1) => Y.medicine(ctx, x, y, r, a);
+    const ins = (ctx, x, y, s = 0.8, a = 1, ang = 0) => Y.insulin(ctx, x, y, s, a, ang);
+    const legend = (ctx, items, a) => Y.drawMoleculeLegend(ctx, items, { alpha: a });
+    // a callout that fades in at a and out by b
+    const win = (p, a, b) => fade(p, a, a + 0.05) * (1 - fade(p, b - 0.05, b));
+    const MED_PATHS = [[HE, [272, 170], [270, 132], BR], [HE, [302, 232], ST], [HE, [258, 248], PA], [HE, [246, 262], [284, 318], MU]];
+    const KEY_PATH = [PA, [280, 300], [292, 326], MU];
+    const SUGAR_OUT = [[GUT, [232, 262], [214, 226]], [GUT, [318, 268], [338, 230]], [GUT, [260, 330], [244, 372]]];
+
+    // The see-through patient with organs drawn in place, so zooming reveals them. Blood
+    // particles shrink as the camera zooms (k) so organs stay visible.
     const inside = (ctx, s, o = {}) => {
-      const k = o.k || 1, lv = o.level == null ? 0.8 : o.level;
-      S.bodyWithBlood(ctx, 270, 300, 108, s, { density: lerp(0.25, 1.35, lv), sugarR: 6.5 / Math.max(1, k * 0.55) });
+      const k = o.k || 1, lv = o.level == null ? 0.8 : o.level, rk = Math.max(1, k * 0.55);
+      S.bodyWithBlood(ctx, 270, 300, 108, s, { density: lerp(0.25, 1.35, lv), sugarR: 6.5 / rk });
       ctx.save(); ctx.globalAlpha *= 0.9; M.brain(ctx, BR[0], BR[1] + 4, 26); ctx.restore();
       ctx.save(); ctx.globalAlpha *= o.pancAlpha == null ? 0.9 : o.pancAlpha; M.pancreas(ctx, PA[0] - 4, PA[1] + 6, 24); ctx.restore();
+      if (o.muscleAlpha) { ctx.save(); ctx.globalAlpha *= o.muscleAlpha; MedAnim.organView(ctx, 'muscle', MU[0], MU[1], 16, { t: s }); ctx.restore(); }
       ctx.save(); ctx.globalAlpha *= o.stomAlpha == null ? 0.95 : o.stomAlpha; M.stomach(ctx, ST[0], ST[1], 30);
-      // food inside the stomach and leaving into the intestine; speed slows with treatment
       const sp = o.foodSpeed == null ? 1 : o.foodSpeed;
-      for (let i = 0; i < 6; i++) M.dot(ctx, ST[0] + 4 + (i % 3) * 4, ST[1] - 2 + Math.floor(i / 3) * 4 + Math.sin(s * 2 + i) * 0.6, 1.6, '#a77b4f');
-      flow(ctx, [[ST[0] - 10, ST[1] + 14], [ST[0] - 24, ST[1] + 16], [ST[0] - 26, ST[1] + 26], [ST[0] - 6, ST[1] + 30]], Math.round(2 + 3 * sp), s, 0.15 * sp + 0.04, (x, y) => M.dot(ctx, x, y, 1.4, '#a77b4f'));
+      for (let i = 0; i < 5; i++) Y.food(ctx, ST[0] + 2 + (i % 3) * 5, ST[1] - 2 + Math.floor(i / 3) * 6 + Math.sin(s * 2 + i) * 0.6, 2.2, 1, i);
+      flow(ctx, [[ST[0] - 10, ST[1] + 14], [ST[0] - 24, ST[1] + 16], [ST[0] - 26, ST[1] + 26], [ST[0] - 6, ST[1] + 30]], Math.round(2 + 3 * sp), s, 0.15 * sp + 0.04, (x, y, i) => Y.food(ctx, x, y, 2, 1, i));
       ctx.restore();
+      // a meal travelling down to the gut, and sugar leaving the gut into the blood
+      if (o.food > 0) {
+        flow(ctx, gutPath(), 6, s, 0.22, (x, y, i) => Y.food(ctx, x, y, 4.5, o.food, i));
+        SUGAR_OUT.forEach((pts, j) => flow(ctx, pts, 3, s + j * 0.7, 0.3, (x, y) => Y.glucose(ctx, x, y, 5, o.food)));
+      }
+      if (o.meds > 0) MED_PATHS.forEach((pts, j) => flow(ctx, pts, 3, s + j * 0.37, 0.2, (x, y) => med(ctx, x, y, 5.5 / rk, o.meds)));
+      if (o.keys > 0) flow(ctx, KEY_PATH, 5, s, 0.22, (x, y) => ins(ctx, x, y, 0.42 / rk, o.keys, 0));
       (o.glow || []).forEach(([pt, r, a]) => bodyGlow(ctx, pt[0], pt[1], r, a, s));
     };
     // Fullness signal from the stomach up to the brain (body space).
@@ -280,6 +300,15 @@
       ctx.beginPath(); ctx.moveTo(ST[0], ST[1] - 10); ctx.quadraticCurveTo(BR[0] + 30, (ST[1] + BR[1]) / 2, BR[0] + 6, BR[1] + 14); ctx.stroke(); ctx.restore();
       flow(ctx, [[ST[0], ST[1] - 10], [BR[0] + 22, (ST[1] + BR[1]) / 2], [BR[0] + 6, BR[1] + 14]], 3, s, 0.4, (x, y) => M.dot(ctx, x, y, 2, '#ffc83c', a));
     };
+    const thought = (ctx, text, x, y, a, col = '#4d5f86') => {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; ctx.font = `800 16px ${M.FONT}`;
+      const w = ctx.measureText(text).width + 34;
+      [[x - w / 2 - 34, y + 34, 5], [x - w / 2 - 18, y + 22, 8]].forEach(([cx, cy, r]) => { M.dot(ctx, cx, cy, r, '#ffffff'); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(cx, cy, r, 0, M.TAU); ctx.stroke(); });
+      M.rr(ctx, x - w / 2, y - 20, w, 40, 20); ctx.fillStyle = '#ffffff'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.stroke();
+      ctx.restore();
+      M.text(ctx, text, x, y + 1, { size: 16, weight: 800, color: col, alpha: a });
+    };
     const pen = (ctx, x, y, ang, a = 1) => {
       ctx.save(); ctx.globalAlpha *= a; ctx.translate(x, y); ctx.rotate(ang); ctx.scale(1.5, 1.5);
       M.rr(ctx, -8, -78, 16, 70, 7); ctx.fillStyle = '#cfd8e6'; ctx.fill(); ctx.strokeStyle = '#8a99b0'; ctx.lineWidth = 2; ctx.stroke();
@@ -288,107 +317,278 @@
       ctx.restore();
     };
     // Magnified skin: the medicine is placed in the fat under the skin and soaks slowly into a
-    // nearby small blood vessel (never injected into the vessel).
+    // nearby small blood vessel (never injected into the vessel). Returns the first particle.
     const skin = (ctx, s, dose, soak) => {
+      let first = [760, 222];
       ctx.save(); ctx.beginPath(); ctx.arc(760, 250, 140, 0, M.TAU); ctx.clip();
       ctx.fillStyle = '#f6d8c4'; ctx.fillRect(610, 100, 300, 70); ctx.fillStyle = '#ffeec4'; ctx.fillRect(610, 170, 300, 230);
       for (let i = 0; i < 9; i++) M.dot(ctx, 640 + (i % 5) * 60, 210 + Math.floor(i / 5) * 60, 22, '#fff4d6');
       M.rr(ctx, 610, 330, 300, 22, 11); ctx.fillStyle = '#e8a39c'; ctx.fill();
-      ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(760, 60); ctx.lineTo(760, 100 + 110 * Math.min(1, dose * 3)); ctx.stroke();
-      for (let i = 0; i < 6; i++) { if (dose <= 0) break; const sp = seg(soak, i / 8, i / 8 + 0.5); hex(ctx, lerp(745 + (i % 3) * 14, 700 + i * 22, sp), lerp(220 + Math.floor(i / 3) * 16, 340, sp), 7, Math.min(1, dose * 2) * (1 - 0.6 * sp)); }
+      if (dose > 0 && soak < 0.6) { ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(760, 60); ctx.lineTo(760, 100 + 110 * Math.min(1, dose * 3)); ctx.stroke(); }
+      for (let i = 0; i < 6; i++) {
+        if (dose <= 0) break;
+        const sp = seg(soak, i / 8, i / 8 + 0.5), x = lerp(745 + (i % 3) * 14, 700 + i * 22, sp), y = lerp(220 + Math.floor(i / 3) * 16, 340, sp);
+        if (!i) first = [x, y];
+        med(ctx, x, y, 9, Math.min(1, dose * 2) * (1 - 0.5 * sp));
+      }
       ctx.restore();
       ctx.save(); ctx.strokeStyle = '#c8d6ee'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(760, 250, 140, 0, M.TAU); ctx.stroke(); ctx.restore();
-      M.text(ctx, 'Skin', 610, 135, { size: 12, align: 'right', weight: 800, color: '#a3461f' });
-      M.text(ctx, 'Fat under the skin', 610, 240, { size: 12, align: 'right', weight: 800, color: '#8a5a00' });
-      M.text(ctx, 'Small blood vessel', 610, 340, { size: 12, align: 'right', weight: 800, color: '#a3261f' });
+      M.text(ctx, 'Skin', 610, 135, { size: 13, align: 'right', weight: 800, color: '#a3461f' });
+      M.text(ctx, 'Fat under the skin', 610, 240, { size: 13, align: 'right', weight: 800, color: '#8a5a00' });
+      M.text(ctx, 'Small blood vessel', 610, 340, { size: 13, align: 'right', weight: 800, color: '#a3261f' });
+      return first;
     };
-    // Insulin at work: insulin docks on a muscle cell and its sugar doors open (insulin does
-    // not carry the sugar itself).
-    const muscle = (ctx, s, a) => {
+    // GLP-1 explained: the gut's own message, and the medicine that works like it.
+    const glpCard = (ctx, s, a) => {
       if (a <= 0) return;
-      ctx.save(); ctx.globalAlpha *= a; M.card(ctx, 16, 330, 200, 190, { r: 16 });
-      M.rr(ctx, 36, 410, 160, 70, 22); ctx.fillStyle = '#f8dcd7'; ctx.fill(); ctx.strokeStyle = '#d99b93'; ctx.lineWidth = 3; ctx.stroke();
-      const dock = seg(a, 0.2, 0.6);
-      key(ctx, lerp(70, 84, dock), lerp(366, 402, dock), 1);
-      [130, 170].forEach((x) => { ctx.fillStyle = '#9fb6e8'; ctx.fillRect(x - 10, 406, 6, 12); ctx.fillRect(x + 4, 406, 6, 12); });
-      for (let i = 0; i < 4; i++) { const ph = (s * 0.4 + i / 4) % 1, x = [130, 170][i % 2]; M.glucose(ctx, x, lerp(372, 456, dock > 0.5 ? ph : Math.min(ph, 0.4)), 6); }
-      M.text(ctx, 'Muscle cell', 116, 500, { size: 12, weight: 800, color: '#a3461f' });
-      M.text(ctx, 'Insulin opens', 116, 344, { size: 12, weight: 800, color: '#1d7a4c' }); M.text(ctx, 'the sugar doors', 116, 360, { size: 12, weight: 800, color: '#1d7a4c' });
+      ctx.save(); ctx.globalAlpha *= a;
+      M.card(ctx, 520, 130, 420, 250, { r: 18 });
+      M.text(ctx, 'After a meal, your gut sends', 730, 165, { size: 15, weight: 800, color: C.ink });
+      M.text(ctx, 'a natural message: GLP-1', 730, 186, { size: 15, weight: 800, color: Y.COL.glp1 });
+      for (let i = 0; i < 5; i++) M.dot(ctx, 640 + i * 40, 222 + Math.sin(s * 3 + i) * 4, 8, Y.COL.glp1);
+      M.text(ctx, '↓', 730, 258, { size: 22, weight: 900, color: '#8a9bb4' });
+      M.text(ctx, 'The medicine works', 730, 292, { size: 15, weight: 800, color: C.ink });
+      M.text(ctx, 'like that message', 730, 313, { size: 15, weight: 800, color: C.purple });
+      for (let i = 0; i < 5; i++) med(ctx, 640 + i * 40, 348 + Math.sin(s * 3 + i) * 4, 11);
       ctx.restore();
     };
-    const sugarBar = (ctx, lv, a) => meter(ctx, 'Blood sugar', lv, 600, 110, a);
+    // Usual stomach emptying versus slower emptying with the medicine (qualitative). Large food
+    // pieces keep moving in both; the stomach is never blocked.
+    const compare = (ctx, s, a) => {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a;
+      [[210, 'Usual movement', 1], [550, 'With the medicine', 0.4]].forEach(([cx, t, rate]) => {
+        M.card(ctx, cx - 165, 100, 330, 380, { r: 18 });
+        M.text(ctx, t, cx, 132, { size: 17, weight: 800, color: rate < 1 ? C.purple : C.ink });
+        if (rate < 1) med(ctx, cx - 100, 132, 10);
+        M.stomach(ctx, cx, 270, 110);
+        ctx.strokeStyle = '#f2c7b8'; ctx.lineWidth = 22; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx - 92, 325); ctx.quadraticCurveTo(cx - 140, 400, cx - 50, 420); ctx.lineTo(cx + 120, 420); ctx.stroke();
+        M.text(ctx, 'Small intestine', cx + 40, 452, { size: 13, color: C.muted, weight: 700 });
+        for (let i = 0; i < 6; i++) Y.food(ctx, cx - 6 + (i % 3) * 22, 245 + Math.floor(i / 3) * 24 + Math.sin(s * 2 + i) * 3, 9, 1, i);
+        flow(ctx, [[cx - 92, 325], [cx - 140, 400], [cx - 50, 420], [cx + 120, 420]], rate < 1 ? 3 : 5, s, 0.2 * rate + 0.04, (x, y, i) => Y.food(ctx, x, y, 8, 1, i));
+      });
+      ctx.restore();
+    };
+
+    // ---- the insulin-making (beta) cell, full size ------------------------------------------
+    // st: sugar (blood sugar level), med (medicine arriving at the receiver), on (receiver
+    // lit), resp (cell responding), out (insulin leaving), drift (insulin moving off in blood).
+    const VES = [[430, 340], [480, 320], [530, 345], [455, 395], [510, 400], [565, 380]];
+    const keyAt = (i, st, s) => {
+      const u = seg(st.out, i * 0.1, i * 0.1 + 0.45), [vx, vy] = VES[i], ex = vx + 10;
+      if (u <= 0) return null;
+      if (u < 0.5) return [lerp(vx, ex, u * 2), lerp(vy, 250, u * 2), -Math.PI / 2];
+      if (u < 1) return [ex, lerp(250, 150, (u - 0.5) * 2), -Math.PI / 2];
+      return [ex + st.drift * 90 + ((s * 24 + i * 37) % 60), 150 + Math.sin(s * 2 + i) * 10, 0];
+    };
+    const blood = (ctx, s, n, hero) => {
+      M.rr(ctx, 40, 50, 680, 140, 30); ctx.fillStyle = '#fde3df'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#e8a39c'; ctx.stroke();
+      M.text(ctx, 'Blood', 62, 74, { size: 14, align: 'left', weight: 800, color: '#a3261f' });
+      for (let i = 0; i < 6; i++) M.rbc(ctx, 80 + ((s * 30 + i * 110) % 620), 170 - (i % 2) * 8, 7, 0.7);
+      for (let i = 0; i < n; i++) { const x = 220 + ((s * 26 + i * (480 / Math.max(1, n))) % 480), y = 100 + (i % 3) * 22 + Math.sin(s * 2 + i) * 4; Y.glucose(ctx, x, y, 11); }
+      if (hero) Y.glucose(ctx, 130, 118 + Math.sin(s * 2) * 3, 14, 1, { letter: true });
+    };
+    const betaCell = (ctx, s, st) => {
+      blood(ctx, s, Math.round(2 + 5 * st.sugar), true);
+      M.pill(ctx, st.sugar > 0.6 ? 'Blood sugar: high' : 'Blood sugar: lower', 610, 74, { size: 13, bg: st.sugar > 0.6 ? '#fff6e5' : '#e9f7ef', border: st.sugar > 0.6 ? '#f2c27a' : '#9fd8b8', color: st.sugar > 0.6 ? '#8a5a00' : '#1d7a4c' });
+      M.rr(ctx, 60, 250, 660, 262, 46); ctx.fillStyle = '#e9f6ef'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = '#8fcfb0'; ctx.stroke();
+      if (st.resp > 0) { const g = ctx.createRadialGradient(480, 370, 10, 480, 370, 220); g.addColorStop(0, `rgba(255,214,90,${0.35 * st.resp})`); g.addColorStop(1, 'rgba(255,214,90,0)'); ctx.fillStyle = g; ctx.fillRect(60, 250, 660, 262); }
+      M.dot(ctx, 640, 440, 36, '#cfe9da');
+      M.text(ctx, 'Insulin-making cell (pancreas)', 390, 494, { size: 14, weight: 800, color: '#1d7a4c' });
+      Y.receptor(ctx, 250, 250, st.on, s);
+      M.text(ctx, 'Receiver', 250, 304, { size: 13, weight: 800, color: '#1f4fa8' });
+      if (st.med > 0) med(ctx, 250, lerp(120, 236, ease(st.med)), 12);
+      if (st.resp > 0) { ctx.save(); ctx.globalAlpha *= st.resp; ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -s * 20; ctx.beginPath(); ctx.moveTo(262, 292); ctx.quadraticCurveTo(330, 360, 420, 345); ctx.stroke(); ctx.restore(); }
+      VES.forEach(([x, y], i) => { if (seg(st.out, i * 0.1, i * 0.1 + 0.45) <= 0) { M.dot(ctx, x, y, 17, '#ffffff', 0.9); ins(ctx, x, y + 1, 0.62, 1, -Math.PI / 2); } });
+      for (let i = 0; i < VES.length; i++) { const k = keyAt(i, st, s), u = seg(st.out, i * 0.1, i * 0.1 + 0.45); if (!k) continue; if (u < 0.5) M.dot(ctx, k[0], k[1], 17, '#ffffff', 0.9 * (1 - seg(u, 0.4, 0.5))); ins(ctx, k[0], k[1], 0.75, 1, k[2]); }
+    };
+    // ---- the muscle cell, full size ------------------------------------------------------------
+    // st: dock (insulin reaching its receiver), signal, doors (sugar doors moving up and
+    // opening), uptake (sugar moving in), energy.
+    const DOORS = [420, 580];
+    const muscleCell = (ctx, s, st) => {
+      blood(ctx, s, Math.round(2 + 4 * (1 - 0.6 * st.uptake)), false);
+      for (let i = 0; i < 2; i++) ins(ctx, 420 + ((s * 22 + i * 160) % 280), 90 + i * 40, 0.7, 1, 0);
+      M.rr(ctx, 60, 250, 660, 262, 46); ctx.fillStyle = '#fbe1dc'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = '#e2a59b'; ctx.stroke();
+      ctx.save(); M.rr(ctx, 60, 250, 660, 262, 46); ctx.clip(); ctx.strokeStyle = 'rgba(214,120,110,0.18)'; ctx.lineWidth = 10; for (let x = 90; x < 720; x += 34) { ctx.beginPath(); ctx.moveTo(x, 260); ctx.lineTo(x, 512); ctx.stroke(); } ctx.restore();
+      M.text(ctx, 'Muscle cell', 390, 494, { size: 14, weight: 800, color: '#a3461f' });
+      // insulin receiver (a teal socket) and the insulin key docking into it
+      if (st.dock >= 1) { const g = ctx.createRadialGradient(200, 236, 0, 200, 236, 46); g.addColorStop(0, `rgba(255,214,90,${0.6 * (0.75 + 0.25 * Math.sin(s * 5))})`); g.addColorStop(1, 'rgba(255,214,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(200, 236, 46, 0, M.TAU); ctx.fill(); }
+      ctx.save(); ctx.strokeStyle = '#0f6b60'; ctx.fillStyle = '#bfe8e1'; ctx.lineWidth = 3;
+      M.rr(ctx, 192, 246, 16, 40, 5); ctx.fill(); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(178, 212); ctx.lineTo(178, 246); ctx.lineTo(222, 246); ctx.lineTo(222, 212); ctx.stroke();
+      ctx.restore();
+      M.text(ctx, 'Insulin receiver', 200, 304, { size: 13, weight: 800, color: '#0f6b60' });
+      ins(ctx, 200, lerp(110, 226, ease(st.dock)), 0.85, 1, lerp(0, -Math.PI / 2, ease(seg(st.dock, 0.4, 1))));
+      if (st.signal > 0) { ctx.save(); ctx.globalAlpha *= st.signal; ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 3; ctx.setLineDash([6, 5]); ctx.lineDashOffset = -s * 20; DOORS.forEach((dx) => { ctx.beginPath(); ctx.moveTo(214, 300); ctx.quadraticCurveTo((214 + dx) / 2, 360, dx, 400); ctx.stroke(); }); ctx.restore(); }
+      // sugar doors: start inside the cell, move up to the membrane, then open
+      const up = seg(st.doors, 0, 0.6), open = seg(st.doors, 0.6, 1);
+      DOORS.forEach((dx) => {
+        const y = lerp(410, 250, ease(up)), gap = 12 * open;
+        ctx.save(); ctx.fillStyle = '#7d93c9'; ctx.strokeStyle = '#3f5592'; ctx.lineWidth = 2;
+        M.rr(ctx, dx - 22 - gap, y - 22, 20, 44, 5); ctx.fill(); ctx.stroke();
+        M.rr(ctx, dx + 2 + gap, y - 22, 20, 44, 5); ctx.fill(); ctx.stroke();
+        M.dot(ctx, dx - 7 - gap, y, 2.5, '#ffffff'); M.dot(ctx, dx + 7 + gap, y, 2.5, '#ffffff');
+        ctx.restore();
+      });
+      if (st.doors > 0.2) M.text(ctx, 'Sugar door', 500, lerp(460, 304, ease(up)), { size: 13, weight: 800, color: '#3f5592' });
+      // glucose moving through the open doors into the cell, then used for energy
+      for (let j = 0; j < 8; j++) {
+        const dx = DOORS[j % 2], u = seg(st.uptake, j * 0.08, j * 0.08 + 0.4);
+        if (u <= 0) continue;
+        const inX = dx + ((j % 4) - 1.5) * 26, inY = 360 + Math.floor(j / 4) * 40;
+        const x = u < 0.5 ? dx : lerp(dx, inX, (u - 0.5) * 2), y = u < 0.5 ? lerp(140, 250, u * 2) : lerp(250, inY, (u - 0.5) * 2);
+        Y.glucose(ctx, x, y, 11);
+        if (st.energy > 0 && u >= 1) M.text(ctx, '⚡', x + 13, y - 12, { size: 13, alpha: st.energy * (0.6 + 0.4 * Math.sin(s * 5 + j)) });
+      }
+    };
+
+    const B1 = { sugar: 1, med: 1, on: 1, resp: 1, out: 1, drift: 1 };
+    const M1 = { dock: 1, signal: 1, doors: 1, uptake: 1, energy: 1 };
     return [
-      { label: 'A small shot', dur: 9, caption: 'Many people take this medicine as a small shot under the skin. Over time, it sends signals that help different parts of the body.',
+      // 1 ---------------------------------------------------------------- the problem
+      { label: 'After we eat', dur: 10, caption: 'After we eat, sugar enters our blood. In type 2 diabetes, keeping blood sugar in a healthy range can be difficult.',
         draw(ctx, p, s) {
-          const xr = fade(p, 0.55, 0.8);
+          const xr = fade(p, 0.36, 0.52), lv = lerp(0.35, 0.95, fade(p, 0.45, 0.85));
+          if (xr < 1) { ctx.save(); ctx.globalAlpha *= 1 - xr; meal(ctx, s, lerp(1, 0.35, fade(p, 0.05, 0.4)), true, 0.85); ctx.restore(); }
+          if (xr > 0) { ctx.save(); ctx.globalAlpha *= xr; inside(ctx, s, { level: lv, food: fade(p, 0.45, 0.55) }); ctx.restore(); }
+          tag(ctx, 'After eating', 480, 60, fade(p, 0.04, 0.12) * (1 - fade(p, 0.5, 0.58)), 'key');
+          // one large glucose leaves the gut and gets the introduction; the legend takes over
+          const gk = fade(p, 0.52, 0.66), gx = lerp(GUT[0], 352, gk), gy = lerp(GUT[1], 212, gk) + Math.sin(s * 2) * 3;
+          if (gk > 0) Y.glucose(ctx, gx, gy, 14, gk, { letter: true });
+          Y.drawCallout(ctx, { text: 'Glucose (sugar)', targetX: gx, targetY: gy, labelX: 540, labelY: 200, radius: 20, tone: 'sugar', progress: win(p, 0.6, 0.92) });
+          legend(ctx, ['glucose', 'food'], fade(p, 0.5, 0.6));
+          meter(ctx, 'Blood sugar', lv, 600, 330, fade(p, 0.55, 0.65));
+          tag(ctx, 'Glucose = blood sugar', 740, 420, fade(p, 0.66, 0.74), 'note');
+          tag(ctx, 'Type 2 diabetes: sugar stays high', 740, 470, fade(p, 0.8, 0.88), 'warn');
+        } },
+      // 2 ---------------------------------------------------------------- the medicine
+      { label: 'A small shot', dur: 12, caption: 'Many people take a GLP-1 medicine as a small shot. It works like a natural message from your gut that helps control blood sugar and hunger.',
+        draw(ctx, p, s) {
+          const back = fade(p, 0, 0.08), xr = fade(p, 0.72, 0.84);
+          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; inside(ctx, s, { level: 0.95 }); ctx.restore(); }
+          let first = null;
           if (xr < 1) {
-            ctx.save(); ctx.globalAlpha *= 1 - xr;
+            ctx.save(); ctx.globalAlpha *= back * (1 - xr);
             M.person(ctx, 270, 300, 108, { t: s, mood: 0.85 });
-            const press = fade(p, 0.12, 0.25) * (1 - fade(p, 0.45, 0.55));
-            pen(ctx, 300, 300 - 0.15 * 108 - 14 * (1 - press), -0.35, fade(p, 0.02, 0.1) * (1 - fade(p, 0.45, 0.55)));
-            skin(ctx, s, fade(p, 0.15, 0.3), fade(p, 0.3, 0.55));
+            const press = fade(p, 0.12, 0.22) * (1 - fade(p, 0.42, 0.5));
+            pen(ctx, 300, 300 - 0.15 * 108 - 14 * (1 - press), -0.35, fade(p, 0.06, 0.12) * (1 - fade(p, 0.42, 0.5)));
+            const la = fade(p, 0.1, 0.18) * (1 - fade(p, 0.46, 0.52));
+            if (la > 0) { ctx.save(); ctx.globalAlpha *= la; first = skin(ctx, s, fade(p, 0.14, 0.26), fade(p, 0.26, 0.48)); ctx.restore(); }
+            glpCard(ctx, s, fade(p, 0.5, 0.56) * (1 - fade(p, 0.7, 0.76)));
             ctx.restore();
           }
           if (xr > 0) {
             ctx.save(); ctx.globalAlpha *= xr;
-            inside(ctx, s, { level: 0.8, glow: [[BR, 30, fade(p, 0.72, 0.8)], [ST, 30, fade(p, 0.8, 0.88)], [PA, 30, fade(p, 0.88, 0.96)]] });
+            inside(ctx, s, { level: 0.9, meds: fade(p, 0.76, 0.86), glow: [[BR, 30, fade(p, 0.84, 0.9)], [ST, 30, fade(p, 0.88, 0.94)], [PA, 30, fade(p, 0.92, 0.98)]] });
             ctx.restore();
           }
-          tag(ctx, 'A small shot', 720, 440, fade(p, 0.1, 0.2) * (1 - xr), 'key');
-          M.text(ctx, 'Not every GLP-1 medicine is a shot', 720, 470, { size: 12, color: C.muted, weight: 700, alpha: fade(p, 0.25, 0.35) * (1 - xr) });
-          tag(ctx, 'Inside the body', 700, 200, fade(p, 0.65, 0.8), 'key');
-          [['Brain', 0.72], ['Stomach', 0.8], ['Pancreas', 0.88]].forEach(([t, a], i) => tag(ctx, t, 700, 260 + i * 46, fade(p, a, a + 0.06)));
+          if (first) Y.drawCallout(ctx, { text: 'GLP-1 medicine', targetX: first[0], targetY: first[1], labelX: 470, labelY: 420, radius: 16, tone: 'key', icon: (c, x, y) => med(c, x, y, 10), progress: win(p, 0.2, 0.46) });
+          tag(ctx, 'A small shot under the skin', 480, 60, fade(p, 0.08, 0.16) * (1 - fade(p, 0.48, 0.54)), 'key');
+          M.text(ctx, 'Not every GLP-1 medicine is a shot', 480, 90, { size: 13, color: C.muted, weight: 700, alpha: fade(p, 0.2, 0.28) * (1 - fade(p, 0.48, 0.54)) });
+          legend(ctx, back < 1 ? ['glucose', 'food'] : xr > 0 ? ['glucose', 'medicine'] : ['medicine'], back < 1 ? 1 - back : xr > 0 ? xr : fade(p, 0.18, 0.26));
+          tag(ctx, 'Inside the body', 700, 200, fade(p, 0.8, 0.86), 'key');
+          [['Brain', 0.84], ['Stomach', 0.88], ['Pancreas', 0.92]].forEach(([t, a], i) => tag(ctx, t, 700, 256 + i * 46, fade(p, a, a + 0.05)));
         } },
-      { label: 'Up in the brain', dur: 11, caption: "First, up in the brain, this medicine helps your body notice when you've had enough food. You may feel less hungry.",
+      // 3 ---------------------------------------------------------------- brain
+      { label: 'Brain: feeling full', dur: 11, caption: "In the brain, this medicine helps your body notice when you've had enough food. You may feel less hungry.",
         draw(ctx, p, s) {
-          const c = camAt([[0, ...WHOLE], [0.15, ...WHOLE], [0.4, BR[0], BR[1] + 30, 2.4, 380, 300], [0.6, BR[0], BR[1] + 4, 6, ...MID], [1, BR[0], BR[1] + 4, 6.4, ...MID]], p);
-          withCam(ctx, c, () => { inside(ctx, s, { k: c.k, glow: [[BR, 32, 1 - fade(p, 0.5, 0.65)]] }); fullness(ctx, s, fade(p, 0.6, 0.75)); });
-          const hb = fade(p, 0.68, 0.78);
-          if (hb > 0) M.say(ctx, "I'm full!", 700, 150, hb, '#1d7a4c');
-          meter(ctx, 'Hunger', lerp(0.8, 0.45, fade(p, 0.7, 1)), 640, 380, fade(p, 0.62, 0.72));
+          const c = camAt([[0, ...WHOLE], [0.2, ...WHOLE], [0.42, BR[0], BR[1] + 30, 2.4, 380, 300], [0.6, BR[0], BR[1] + 4, 6, ...MID], [1, BR[0], BR[1] + 4, 6.4, ...MID]], p);
+          withCam(ctx, c, () => { inside(ctx, s, { k: c.k, meds: 1, glow: [[BR, 32, 0.4 + 0.6 * fade(p, 0.55, 0.7)]] }); fullness(ctx, s, fade(p, 0.62, 0.76)); });
+          thought(ctx, 'Still hungry…', 470, 120, fade(p, 0.04, 0.1) * (1 - fade(p, 0.3, 0.36)));
+          if (fade(p, 0.04, 0.1) * (1 - fade(p, 0.3, 0.36)) > 0) Y.food(ctx, 560, 120, 9, fade(p, 0.04, 0.1) * (1 - fade(p, 0.3, 0.36)), 2);
+          const hb = fade(p, 0.7, 0.78);
+          if (hb > 0) M.say(ctx, "I'm full!", 700, 160, hb, '#1d7a4c');
+          meter(ctx, 'Hunger', lerp(0.8, 0.45, fade(p, 0.72, 1)), 640, 380, fade(p, 0.64, 0.72));
           tag(ctx, 'Brain', 480, 60, fade(p, 0.45, 0.55), 'key');
-          tag(ctx, 'Feeling full', 760, 250, fade(p, 0.72, 0.8), 'good');
-          tag(ctx, 'Less hungry', 760, 300, fade(p, 0.82, 0.9), 'good');
+          tag(ctx, 'Feeling full', 780, 250, fade(p, 0.74, 0.8), 'good');
+          tag(ctx, 'Less hungry', 780, 300, fade(p, 0.84, 0.9), 'good');
+          legend(ctx, ['glucose', 'medicine'], 1);
         } },
-      { label: 'Down to the stomach', dur: 12, caption: 'Next, in the stomach, food may move out more slowly. That can help you feel full, but your stomach still works.',
+      // 4 ---------------------------------------------------------------- stomach
+      { label: 'Stomach: food moves slowly', dur: 12, caption: 'The medicine can also slow how quickly food leaves your stomach. That may help you feel full longer.',
         draw(ctx, p, s) {
-          const c = camAt([[0, BR[0], BR[1] + 4, 6.4, ...MID], [0.22, BR[0] + 10, BR[1] + 80, 1.7, 480, 260], [0.42, ST[0], ST[1] - 10, 1.9, 480, 260], [0.62, ST[0] - 6, ST[1] + 8, 5, ...MID], [1, ST[0] - 6, ST[1] + 8, 5.2, ...MID]], p);
-          const slow = fade(p, 0.75, 0.88);
-          withCam(ctx, c, () => inside(ctx, s, { k: c.k, foodSpeed: lerp(1, 0.4, slow), glow: [[ST, 34, fade(p, 0.3, 0.42) * (1 - fade(p, 0.55, 0.65))]] }));
-          tag(ctx, 'Stomach', 480, 60, fade(p, 0.55, 0.65), 'key');
-          S.phasePill(ctx, 480, 500, p, [[0.62, 'Usual movement', '#4d6a90'], [0.78, 'May move more slowly', C.purple]]);
-          tag(ctx, 'Food moves more slowly', 790, 200, fade(p, 0.8, 0.88), 'good');
-          tag(ctx, 'Feeling full longer', 790, 250, fade(p, 0.88, 0.95), 'good');
+          const c = camAt([[0, BR[0], BR[1] + 4, 6.4, ...MID], [0.2, BR[0] + 10, BR[1] + 80, 1.7, 480, 260], [0.36, ST[0], ST[1] - 10, 1.9, 480, 260], [0.5, ST[0] - 6, ST[1] + 8, 5, ...MID], [1, ST[0] - 6, ST[1] + 8, 5.2, ...MID]], p);
+          const cmp = fade(p, 0.5, 0.58) * (1 - fade(p, 0.9, 0.97));
+          withCam(ctx, c, () => inside(ctx, s, { k: c.k, meds: 1, foodSpeed: lerp(1, 0.4, fade(p, 0.85, 0.95)), glow: [[ST, 34, fade(p, 0.28, 0.4) * (1 - fade(p, 0.5, 0.58))]] }));
+          if (cmp > 0) { ctx.save(); ctx.globalAlpha *= cmp; ctx.fillStyle = '#f4f8fd'; ctx.fillRect(0, 0, 960, 540); ctx.restore(); compare(ctx, s, cmp); }
+          tag(ctx, 'Stomach', 480, 60, fade(p, 0.42, 0.5) * (1 - cmp), 'key');
+          tag(ctx, 'Food moves more slowly', 550, 505, fade(p, 0.62, 0.7) * (1 - fade(p, 0.9, 0.96)), 'good');
+          tag(ctx, 'Food still moves', 210, 505, fade(p, 0.68, 0.76) * (1 - fade(p, 0.9, 0.96)), 'note');
+          tag(ctx, 'Food moves more slowly', 480, 470, fade(p, 0.94, 1), 'good');
+          legend(ctx, ['glucose', 'medicine', 'food'], 1);
         } },
-      { label: 'Into the pancreas', dur: 15, caption: 'Now inside the pancreas, the medicine turns on a tiny message receiver. When blood sugar is high, the pancreas releases more insulin to help bring it down.',
+      // 5 ---------------------------------------------------------------- pancreas
+      { label: 'Pancreas: insulin release', dur: 16, caption: 'Now we zoom into the pancreas, behind the stomach. Here, the medicine turns on a tiny message receiver. When blood sugar is high, the cell releases more insulin into the blood.',
         draw(ctx, p, s) {
-          const c = camAt([[0, ST[0] - 6, ST[1] + 8, 5.2, ...MID], [0.16, ST[0], ST[1] + 10, 2.4, 480, 280], [0.3, PA[0], PA[1] + 6, 2.6, 480, 280], [0.44, PA[0], PA[1] + 6, 7, ...MID], [1, PA[0], PA[1] + 6, 7.5, ...MID]], p);
-          const behind = fade(p, 0.16, 0.3);
-          withCam(ctx, c, () => inside(ctx, s, { k: c.k, stomAlpha: lerp(0.95, 0.25, behind), pancAlpha: lerp(0.9, 1, behind), glow: [[PA, 30, behind * (1 - fade(p, 0.4, 0.46))]] }));
-          tag(ctx, 'Pancreas (behind the stomach)', 480, 60, fade(p, 0.25, 0.32) * (1 - fade(p, 0.44, 0.5)), 'key');
-          // islet, then the insulin-making cell with its blue round GLP-1 receiver
-          const isl = fade(p, 0.44, 0.56), cel = fade(p, 0.58, 0.68);
+          const c = camAt([[0, ST[0] - 6, ST[1] + 8, 5.2, ...MID], [0.1, ST[0], ST[1] + 10, 2.4, 480, 280], [0.2, PA[0], PA[1] + 6, 2.6, 480, 280], [0.3, PA[0], PA[1] + 6, 7, ...MID], [1, PA[0], PA[1] + 6, 7.5, ...MID]], p);
+          const behind = fade(p, 0.1, 0.2);
+          withCam(ctx, c, () => inside(ctx, s, { k: c.k, meds: 1, stomAlpha: lerp(0.95, 0.25, behind), pancAlpha: lerp(0.9, 1, behind), glow: [[PA, 30, behind * (1 - fade(p, 0.28, 0.32))]] }));
+          tag(ctx, 'Pancreas (behind the stomach)', 480, 60, fade(p, 0.16, 0.22) * (1 - fade(p, 0.3, 0.34)), 'key');
+          const isl = fade(p, 0.3, 0.38), cel = fade(p, 0.38, 0.46);
           lensOpen(ctx, isl, () => cam(ctx, 330, 280, lerp(0.4, 1.1, isl), 480, 280, () => window.MedAssets.islet(ctx, s, { insulin: 0.5, glucagon: 0.5, betaLoss: 0.15 })));
-          lensOpen(ctx, cel, () => { const sugar = lerp(1, 0.6, fade(p, 0.88, 1)); insulinCell(ctx, s, fade(p, 0.66, 0.8), sugar, ['glp1', 'glp1', 'glp1']); });
-          if (cel > 0.9) {
-            tag(ctx, 'Message receiver', 120, 230, fade(p, 0.7, 0.78), 'key');
-            tag(ctx, 'More insulin when sugar is high', 580, 52, fade(p, 0.78, 0.85), 'good');
-            muscle(ctx, s, fade(p, 0.86, 1));
+          tag(ctx, 'A tiny cell cluster (islet)', 480, 505, isl * (1 - cel), 'note');
+          const st = { sugar: 1, med: fade(p, 0.58, 0.66), on: fade(p, 0.64, 0.68), resp: fade(p, 0.68, 0.74), out: seg(p, 0.74, 0.94), drift: seg(p, 0.88, 1) };
+          lensOpen(ctx, cel, () => betaCell(ctx, s, st));
+          if (cel >= 1) {
+            Y.drawCallout(ctx, { text: 'Glucose = sugar in the blood', targetX: 130, targetY: 118, labelX: 250, labelY: 400, radius: 22, tone: 'sugar', progress: win(p, 0.46, 0.6) });
+            Y.drawCallout(ctx, { text: 'GLP-1 medicine turns on a receiver', targetX: 250, targetY: 232, labelX: 300, labelY: 400, radius: 24, tone: 'key', progress: win(p, 0.6, 0.72) });
+            tag(ctx, 'Sugar is high, so the cell responds', 420, 440, fade(p, 0.7, 0.75) * (1 - fade(p, 0.78, 0.82)), 'warn');
+            const k0 = keyAt(0, st, s);
+            if (k0) Y.drawCallout(ctx, { text: 'Insulin released by the pancreas', targetX: k0[0], targetY: k0[1], labelX: 300, labelY: 440, radius: 22, tone: 'insulin', progress: win(p, 0.8, 0.94) });
           }
+          legend(ctx, cel >= 1 ? ['glucose', 'insulin', 'medicine'] : ['glucose', 'medicine'], cel > 0 && cel < 1 ? Math.abs(cel - 0.5) * 2 : 1);
         } },
-      { label: 'Back to the whole body', dur: 12, caption: 'Together, these changes can improve blood sugar and help some people eat less. Weight changes happen gradually, not after one shot.',
+      // 6 ---------------------------------------------------------------- muscle
+      { label: 'Muscle: sugar moves in', dur: 16, caption: "Insulin sends a signal to the body's cells. In muscle cells, this helps sugar move from the blood into the cells, where it can be used for energy.",
         draw(ctx, p, s) {
-          const back = fade(p, 0, 0.12);
-          const c = camAt([[0, PA[0], PA[1] + 6, 7.5, ...MID], [0.12, PA[0], PA[1] + 6, 7.5, ...MID], [0.4, ...WHOLE], [1, ...WHOLE]], p);
-          const lv = lerp(0.8, 0.4, fade(p, 0.35, 0.7));
-          withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: lv, foodSpeed: 0.5, glow: [[BR, 26, fade(p, 0.45, 0.55)], [ST, 26, fade(p, 0.5, 0.6)], [PA, 26, fade(p, 0.55, 0.65)]] }));
-          if (back < 1) { ctx.save(); ctx.globalAlpha *= 1 - back; insulinCell(ctx, s, 1, 0.6, ['glp1', 'glp1', 'glp1']); ctx.restore(); }
-          sugarBar(ctx, lv, fade(p, 0.4, 0.5));
-          meter(ctx, 'Hunger', lerp(0.6, 0.45, fade(p, 0.45, 0.8)), 600, 190, fade(p, 0.45, 0.55));
-          meter(ctx, 'Weight (slowly, over months)', lerp(0.7, 0.58, fade(p, 0.6, 1)), 600, 270, fade(p, 0.55, 0.65));
-          timeChip(ctx, ['Days', 'Weeks', 'Months'], seg(p, 0.55, 0.95), 740, 370);
-          ['Blood sugar control', 'Less hunger', 'Weight may change over time'].forEach((t, i) => M.text(ctx, '✓ ' + t, 600, 420 + i * 22, { size: 14, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, 0.6 + i * 0.08, 0.68 + i * 0.08) }));
-          tag(ctx, 'Nausea or stomach upset can happen', 740, 505, fade(p, 0.86, 0.95), 'warn');
+          const c = camAt([[0, PA[0], PA[1] + 6, 7.5, ...MID], [0.1, PA[0], PA[1] + 6, 6, ...MID], [0.2, PA[0], PA[1] + 10, 2.6, 400, 250], [0.32, MU[0], MU[1], 2.6, 400, 300], [0.42, MU[0], MU[1], 7, ...MID], [1, MU[0], MU[1], 7.4, ...MID]], p);
+          const off = fade(p, 0, 0.1), cel = fade(p, 0.42, 0.5);
+          withCam(ctx, c, () => inside(ctx, s, { k: c.k, keys: fade(p, 0.08, 0.16), muscleAlpha: fade(p, 0.2, 0.3), glow: [[MU, 30, fade(p, 0.28, 0.36) * (1 - fade(p, 0.4, 0.44))]] }));
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; betaCell(ctx, s, B1); ctx.restore(); }
+          tag(ctx, 'Insulin travels in the blood', 480, 60, fade(p, 0.1, 0.16) * (1 - fade(p, 0.3, 0.34)), 'good');
+          tag(ctx, 'Muscle', 480, 60, fade(p, 0.34, 0.38) * (1 - fade(p, 0.44, 0.48)), 'key');
+          const st = { dock: fade(p, 0.52, 0.62), signal: fade(p, 0.62, 0.68), doors: seg(p, 0.66, 0.78), uptake: seg(p, 0.78, 0.96), energy: fade(p, 0.9, 1) };
+          lensOpen(ctx, cel, () => muscleCell(ctx, s, st));
+          if (cel >= 1) {
+            Y.drawCallout(ctx, { text: 'Insulin sends a signal', targetX: 200, targetY: lerp(110, 226, ease(st.dock)), labelX: 360, labelY: 360, radius: 24, tone: 'insulin', progress: win(p, 0.5, 0.66) });
+            Y.drawCallout(ctx, { text: 'Sugar doors open', targetX: DOORS[0], targetY: 250, labelX: 330, labelY: 430, radius: 26, tone: 'good', progress: win(p, 0.7, 0.8) });
+            Y.drawCallout(ctx, { text: 'Glucose enters the cell', targetX: DOORS[1], targetY: 300, labelX: 330, labelY: 430, radius: 22, tone: 'sugar', progress: win(p, 0.82, 0.94) });
+            tag(ctx, 'Used for energy', 250, 470, fade(p, 0.92, 0.98), 'good');
+          }
+          legend(ctx, [{ key: 'insulin', title: 'Insulin', note: 'The signal' }, { key: 'glucose', title: 'Glucose (sugar)', note: 'The sugar that moves in' }], 1);
+        } },
+      // 7 ---------------------------------------------------------------- whole person
+      { label: 'Back to the whole body', dur: 13, caption: 'Together, these changes can help control blood sugar and reduce hunger. Some people also lose weight over time. Stomach upset can happen.',
+        draw(ctx, p, s) {
+          const off = fade(p, 0, 0.1), person = fade(p, 0.66, 0.76);
+          const c = camAt([[0, MU[0], MU[1], 7.4, ...MID], [0.1, MU[0], MU[1], 6, ...MID], [0.3, ...WHOLE], [1, ...WHOLE]], p);
+          const lv = lerp(0.85, 0.4, fade(p, 0.45, 0.7));
+          if (person < 1) {
+            ctx.save(); ctx.globalAlpha *= 1 - person;
+            withCam(ctx, c, () => inside(ctx, s, { k: c.k, level: lv, meds: 0.6, keys: 0.6, muscleAlpha: 0.8, foodSpeed: 0.5, glow: [[BR, 26, fade(p, 0.3, 0.36)], [ST, 26, fade(p, 0.34, 0.4)], [PA, 26, fade(p, 0.38, 0.44)]] }));
+            ctx.restore();
+          }
+          if (off < 1) { ctx.save(); ctx.globalAlpha *= 1 - off; muscleCell(ctx, s, M1); ctx.restore(); }
+          // what changed, with lines to each organ (muscle via insulin, dashed)
+          const la = fade(p, 0.3, 0.36) * (1 - fade(p, 0.6, 0.66));
+          [[BR, 'Brain: feeling full sooner', 0.3, false], [ST, 'Stomach: food may move slower', 0.34, false], [PA, 'Pancreas: insulin when sugar is high', 0.38, false], [MU, 'Muscle: takes in sugar (via insulin)', 0.42, true]].forEach(([pt, t, a0, dash], i) => {
+            const a = fade(p, a0, a0 + 0.05) * la, ly = 190 + i * 64;
+            if (a <= 0) return;
+            ctx.save(); ctx.globalAlpha *= a; ctx.strokeStyle = dash ? '#8a9bb4' : C.purple; ctx.lineWidth = 2; ctx.setLineDash(dash ? [5, 5] : []); ctx.beginPath(); ctx.moveTo(pt[0] + 14, pt[1]); ctx.lineTo(450, ly); ctx.stroke(); ctx.restore();
+            tag(ctx, t, 600, ly, a, dash ? 'note' : 'key');
+          });
+          legend(ctx, off < 1 ? [{ key: 'insulin', title: 'Insulin', note: 'The signal' }, { key: 'glucose', title: 'Glucose (sugar)', note: 'The sugar that moves in' }] : ['glucose', 'insulin', 'medicine'], off < 1 ? 1 - off : fade(p, 0.1, 0.2) * (1 - person));
+          meter(ctx, 'Blood sugar', lv, 600, 220, fade(p, 0.64, 0.72));
+          if (p > 0.64) timeChip(ctx, ['Days', 'Weeks', 'Months'], seg(p, 0.64, 0.9), 740, 320);
+          // the same patient, enjoying a smaller meal, then on the move
+          const walk = fade(p, 0.88, 0.94);
+          if (person > 0) {
+            ctx.save(); ctx.globalAlpha *= person * (1 - walk); meal(ctx, s, 0.5, true, 1); ctx.restore();
+            if (walk > 0) { ctx.save(); ctx.globalAlpha *= walk; ctx.fillStyle = '#c9e7b5'; ctx.fillRect(60, GROUND, 480, 10); mover(ctx, 220 + 90 * seg(p, 0.9, 1), s * 3, 0.45, 0.08, 1, s); ctx.restore(); }
+          }
+          ['Better blood sugar control', 'Less hunger', 'Weight may change over time'].forEach((t, i) => M.text(ctx, '✓ ' + t, 600, 370 + i * 28, { size: 16, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, 0.72 + i * 0.05, 0.77 + i * 0.05) }));
+          tag(ctx, 'Stomach upset can happen', 740, 480, fade(p, 0.88, 0.95), 'warn');
         } },
     ];
   });
@@ -398,7 +598,7 @@
   // Teaching symbols (not molecular shapes), the same in every scene and readable without colour:
   //   GLP-1: blue ROUND receiver, its natural message a small blue circle
   //   GIP:   orange SQUARE receiver, its natural message a small orange square
-  //   the medicine: one purple hexagon that can turn on either receiver (one at a time)
+  //   the medicine: one purple diamond that can turn on either receiver (one at a time)
   //   insulin: the key symbol, glucose: the sugar hexagon
   const GLP_C = '#2f6fde', GIP_C = '#f08c3a';
   function receiver(ctx, kind, x, y, on, s, label = true) {

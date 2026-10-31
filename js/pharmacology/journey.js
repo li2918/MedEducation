@@ -14,9 +14,9 @@
   const PX = 270, PY = 300, PS = 108;
   const MOUTH = [PX + 4, PY - 1.5 * PS], BELLY = [PX + 0.3 * PS, PY + 0.02 * PS], ARM = [PX - 0.72 * PS, PY - 0.42 * PS];
   const LX = 740, LY = 290, LR = 115;            // the magnifying lens on the right
-  const hex = (ctx, x, y, r = 7, a = 1) => M.drug(ctx, x, y, r, C.purple, a);
+  const hex = (ctx, x, y, r = 7, a = 1) => (window.MedSym ? MedSym.medicine(ctx, x, y, r, a) : M.drug(ctx, x, y, r, C.purple, a));
   // medicine inside the body: a hexagon with a white halo, so it reads against blood particles
-  const med = (ctx, x, y, r, a = 1) => { if (a <= 0) return; M.dot(ctx, x, y, r * 1.6, '#ffffff', 0.85 * a); M.drug(ctx, x, y, r, C.purple, a); };
+  const med = (ctx, x, y, r, a = 1) => { if (a <= 0) return; M.dot(ctx, x, y, r * 1.6, '#ffffff', 0.85 * a); hex(ctx, x, y, r, a); };
   const at = (k) => B().at(k);
 
   // ---- shared conventions ---------------------------------------------------------------------
