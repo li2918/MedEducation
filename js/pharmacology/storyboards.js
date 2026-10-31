@@ -64,16 +64,8 @@
       result: 'Blood sugar rises less after meals. Food that is not digested can cause gas and bloating.',
     },
   });
-  sb('dpp4-inhibitors', {
-    route: 'pill', dest: 'blood',
-    lines: {
-      take: 'This medicine is a pill taken once a day. It soaks into the blood, where an enzyme called DPP-4 is waiting.',
-      travel: 'We follow it to the pancreas. After meals, the gut sends helpful messages here, called GLP-1 and GIP.',
-      target: 'These messages tell the pancreas to release insulin when sugar is high. But DPP-4 cuts them up within minutes.',
-      moa: "The medicine blocks DPP-4, so the body's own messages last longer.",
-      result: 'The pancreas releases a little more insulin after meals, and blood sugar comes down gently. Low blood sugar is uncommon when it is used alone.',
-    },
-  });
+  // the DPP-4 "scissors" story has its own opening (the meal and the gut messages) and narration
+  sb('dpp4-inhibitors', { route: 'pill', dest: 'blood', target: 'pancreas', opening: false });
   sb('glp1-ra', { route: 'shot', dest: 'blood', target: 'pancreas', opening: false });
   // the dual story has its own opening (two gut messages, then the weekly shot) and narration
   sb('gip-glp1-ra', { route: 'shot', dest: 'blood', target: 'pancreas', opening: false });

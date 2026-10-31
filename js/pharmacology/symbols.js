@@ -57,6 +57,49 @@
     else { ctx.beginPath(); ctx.arc(x, y, r, 0, M.TAU); ctx.fill(); ctx.stroke(); }
     ctx.restore();
   }
+  // A natural message after DPP-4 has cut it: the same shape split in two, gone grey (inactive).
+  // split: 0 just cut → 1 fully apart and faded.
+  function fragment(ctx, kind, x, y, r = 6, split = 1, a = 1) {
+    if (a <= 0) return;
+    const col = mix(kind === 'gip' ? COL.gip : COL.glp1, '#a9b3c2', Math.min(1, 0.4 + split)), d = r * 0.35 + split * r * 0.9;
+    ctx.save(); ctx.globalAlpha *= a * (1 - 0.6 * split); ctx.fillStyle = col; ctx.strokeStyle = mix(col, '#000000', 0.25); ctx.lineWidth = 1.5;
+    [-1, 1].forEach((side) => {
+      ctx.save(); ctx.translate(x + side * d, y + side * split * r * 0.4); ctx.rotate(side * split * 0.5);
+      ctx.beginPath();
+      if (kind === 'gip') ctx.rect(side < 0 ? -r : 0, -r, r, 2 * r);
+      else ctx.arc(0, 0, r, side < 0 ? Math.PI / 2 : -Math.PI / 2, side < 0 ? Math.PI * 1.5 : Math.PI / 2);
+      ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.restore();
+    });
+    ctx.restore();
+  }
+  // DPP-4, drawn as friendly red scissors with round handles, blades pointing left.
+  // open: 0 closed → 1 open. blocked: 0 working → 1 blocked (faded grey-red, blades held still,
+  // with a purple medicine diamond sitting in the pivot, the part that does the cutting). The
+  // medicine blocks the enzyme for a while; it does not destroy it or coat the messages.
+  function scissors(ctx, x, y, r = 30, o = {}) {
+    const a = o.alpha == null ? 1 : o.alpha;
+    if (a <= 0) return;
+    const blocked = o.blocked || 0, open = lerp(o.open == null ? 0.5 : o.open, 0.35, blocked), ang = 0.12 + 0.42 * open;
+    const red = mix('#e0524a', '#c9a6a2', blocked * 0.75), dark = mix('#a3261f', '#9a8a8a', blocked * 0.75);
+    ctx.save(); ctx.globalAlpha *= a * (1 - 0.4 * blocked); ctx.translate(x, y); ctx.lineJoin = 'round';
+    [-1, 1].forEach((side) => {
+      ctx.save(); ctx.rotate(side * ang);
+      // blade: a rounded leaf shape toward the left
+      ctx.beginPath(); ctx.moveTo(r * 0.2, -side * r * 0.08); ctx.quadraticCurveTo(-r * 0.45, -side * r * 0.36, -r * 1.2, -side * r * 0.04); ctx.quadraticCurveTo(-r * 1.28, side * r * 0.02, -r * 1.12, side * r * 0.06); ctx.quadraticCurveTo(-r * 0.45, side * r * 0.1, r * 0.2, side * r * 0.08); ctx.closePath();
+      ctx.fillStyle = mix('#f7b8b0', '#dcdfe5', blocked); ctx.fill(); ctx.strokeStyle = dark; ctx.lineWidth = 2.5; ctx.stroke();
+      // handle: a round loop to the right
+      ctx.strokeStyle = red; ctx.lineWidth = r * 0.2; ctx.beginPath(); ctx.moveTo(r * 0.1, 0); ctx.lineTo(r * 0.45, side * r * 0.22); ctx.stroke();
+      ctx.beginPath(); ctx.arc(r * 0.72, side * r * 0.36, r * 0.3, 0, M.TAU); ctx.stroke();
+      ctx.restore();
+    });
+    M.dot(ctx, 0, 0, r * 0.14, dark);
+    ctx.restore();
+    if (blocked > 0) {
+      ctx.save(); ctx.globalAlpha *= a * blocked; ctx.strokeStyle = COL.medicine; ctx.lineWidth = 3; ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.arc(x, y, r * 0.55, 0, M.TAU); ctx.stroke(); ctx.restore();
+      medicine(ctx, x, y, r * 0.38, a * blocked);
+    }
+  }
   function food(ctx, x, y, r = 8, a = 1, i = 0) {
     if (a <= 0) return;
     const c = ['#c98b4a', '#7fbf5a', '#e0a33c', '#b46a4a'][i % 4];
@@ -80,6 +123,8 @@
     'dual-medicine': { title: 'Dual Medicine', note: 'Activates both receptor types', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     // biguanides (metformin) story; red and green mark how much sugar leaves the liver, the
     // sugar itself always stays yellow
+    'dpp4-medicine': { title: 'DPP-4 medicine', note: 'Blocks the scissors', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
+    'dpp4-enzyme': { title: 'DPP-4 (scissors)', note: 'Breaks down messages', icon: (ctx, x, y) => scissors(ctx, x + 4, y, 14, { open: 0.6 }) },
     'metformin-medicine': { title: 'Metformin (Medicine)', note: 'Helps the liver release less sugar', icon: (ctx, x, y) => medicine(ctx, x, y, 12) },
     liver: { title: 'Liver', note: 'Helps control blood sugar', icon: (ctx, x, y) => M.liver(ctx, x + 1, y + 2, 15) },
     'high-output': { title: 'More sugar released', note: 'Too much leaves the liver', icon: (ctx, x, y) => flowArrow(ctx, x - 13, y, x + 13, y, 9, '#e0524a') },
@@ -152,5 +197,5 @@
     ctx.restore();
   }
 
-  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
+  window.MedSym = { COL, glucose, insulin, medicine, receptor, message, fragment, scissors, food, flowArrow, ITEMS, drawMoleculeLegend, drawCallout };
 })();
