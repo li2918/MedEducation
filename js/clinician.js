@@ -2,7 +2,8 @@
 // - Pharmacology: a sidebar of medication classes from the shared Medication Mechanism Library
 //   (js/pharmacology), in collapsible therapeutic categories with search, and an
 //   animation-first detail view: breadcrumb, title, one-line mechanism, the mechanism
-//   animation, an optional "sites of action" body map, and clinical information in tabs.
+//   animation, and clinical information in tabs. (Anatomy lives in Pathophysiology; the
+//   animations show the anatomy each mechanism needs.)
 //   Deep link: #pharm/<class id>; older #<condition>/pharm/<id> links still work.
 // - Pathophysiology: search a condition, then explore organs by stage (conditions that have an
 //   organ-level module). Deep link: #<condition>/patho/<organ>.
@@ -28,18 +29,32 @@
   const esc = (s) => String(s == null ? '' : s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
   const state = { view: 'pharm', d: null, stage: 1, organ: null, cls: null, area: null, cond: null, filter: '', open: {}, info: 'overview' };
-  const pathoPlayer = new Player($('player'), { voice: false });
-  const pharmPlayer = new Player($('pharm-player'), { voice: false });
+  // Narration is on by default. Turning it off applies to both players and lasts for the
+  // session; a new visit starts with it on. Nothing plays until the user presses Play.
+  const VOICE_KEY = 'medmotion.provider.voice';
+  let voicePref = true;
+  try { voicePref = sessionStorage.getItem(VOICE_KEY) !== 'off'; } catch (e) { /* storage unavailable */ }
+  const pathoPlayer = new Player($('player'), { voice: voicePref });
+  const pharmPlayer = new Player($('pharm-player'), { voice: voicePref });
+  [pathoPlayer, pharmPlayer].forEach((pl) => {
+    pl.btnVoice.addEventListener('click', () => {
+      voicePref = pl.voice;
+      try { sessionStorage.setItem(VOICE_KEY, voicePref ? 'on' : 'off'); } catch (e) { /* storage unavailable */ }
+      [pathoPlayer, pharmPlayer].forEach((o) => { if (o !== pl && o.voice !== voicePref) { o.voice = voicePref; o._syncButtons(); } });
+    });
+  });
   const map = new BodyMap($('bodymap'), (id) => { if (state.view === 'patho') selectOrgan(id); });
-  const pharmMap = new BodyMap($('pharm-bodymap'), () => {});
 
   const list = (items) => `<ul>${items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>`;
   const hasPatho = (d) => !!(d && d.clinician && d.clinician.organs && Object.keys(d.clinician.organs).length);
   const condName = (id) => (MedData.get(id) ? MedData.get(id).name : id);
   const firstClass = () => Object.values(MedLib.classes)[0];
 
-  // Classes in a category, ordered by their strongest role there, without duplicates.
-  function areaClasses(conds) {
+  // Classes in a category, ordered by their strongest role there, without duplicates. The
+  // library is fixed once loaded, so each category's list is computed once and reused.
+  const areaCache = new Map();
+  const areaClasses = (conds) => { const k = conds.join(','); if (!areaCache.has(k)) areaCache.set(k, computeAreaClasses(conds)); return areaCache.get(k); };
+  function computeAreaClasses(conds) {
     const best = {};
     conds.forEach((cid) => MedLib.forCondition(cid).forEach((e) => {
       const r = ROLE_ORDER.indexOf(e.role), cur = best[e.id];
@@ -47,7 +62,8 @@
     }));
     return Object.values(best).sort((a, b) => a.r - b.r || a.i - b.i);
   }
-  const areaOf = (cls) => (AREAS.find(([, , conds]) => areaClasses(conds).some((x) => x.cls === cls)) || AREAS[0])[0];
+  const inArea = (key, cls) => areaClasses((AREAS.find((a) => a[0] === key) || AREAS[0])[2]).some((x) => x.cls === cls);
+  const areaOf = (cls) => (AREAS.find(([key]) => inArea(key, cls)) || AREAS[0])[0];
   const areaName = (key) => (AREAS.find((a) => a[0] === key) || [])[1] || '';
   function findClass(id) {
     if (!id) return null;
@@ -68,20 +84,68 @@
       </div>`;
     }).join('');
     $('class-nav').innerHTML = html || '<p class="muted nav-empty">No classes match.</p>';
-    $('class-nav').querySelectorAll('.nav-cat-btn').forEach((b) => { b.onclick = () => { state.open[b.dataset.area] = !state.open[b.dataset.area]; renderNav(); }; });
-    $('class-nav').querySelectorAll('.nav-item').forEach((b) => {
-      b.onclick = () => { state.cond = null; state.area = b.dataset.area; selectClass(MedLib.get(b.dataset.id), true); closeDrawer(); };
-    });
   }
-  $('cls-filter').addEventListener('input', (e) => { state.filter = e.target.value; renderNav(); });
+  // One delegated listener for the whole sidebar, so re-rendering never re-binds handlers.
+  $('class-nav').addEventListener('click', (e) => {
+    const cat = e.target.closest('.nav-cat-btn'), item = e.target.closest('.nav-item');
+    if (cat) {
+      const key = cat.dataset.area, open = !state.open[key];
+      state.open[key] = open;
+      cat.setAttribute('aria-expanded', String(open)); cat.parentElement.classList.toggle('open', open);
+      cat.nextElementSibling.hidden = !open;
+    } else if (item) {
+      state.cond = null; state.area = item.dataset.area;
+      selectClass(MedLib.get(item.dataset.id), true);
+      closeDrawer();
+    }
+  });
+  // Move the highlight to the selected class without rebuilding the list, and scroll only the
+  // sidebar's own list (never the page) so the item is visible.
+  function markActive() {
+    const nav = $('class-nav'), q = state.filter.trim();
+    let target = null;
+    nav.querySelectorAll('.nav-item').forEach((b) => {
+      const on = b.dataset.id === state.cls.id && (!!q || b.dataset.area === state.area);
+      b.classList.toggle('on', on);
+      if (b.dataset.id === state.cls.id) b.setAttribute('aria-current', 'true'); else b.removeAttribute('aria-current');
+      if (on && !target) target = b;
+    });
+    if (target && !target.closest('.nav-items').hidden) {
+      const top = target.offsetTop - nav.offsetTop, bottom = top + target.offsetHeight;
+      if (top < nav.scrollTop) nav.scrollTop = top - 8;
+      else if (bottom > nav.scrollTop + nav.clientHeight) nav.scrollTop = bottom - nav.clientHeight + 8;
+    }
+  }
+  $('cls-filter').addEventListener('input', (e) => { state.filter = e.target.value; renderNav(); markActive(); });
 
-  // Mobile drawer
-  function openDrawer() { $('pharm-side').classList.add('open'); $('side-backdrop').hidden = false; $('cls-filter').focus(); }
-  function closeDrawer() { $('pharm-side').classList.remove('open'); $('side-backdrop').hidden = true; }
+  // Mobile drawer. On narrow screens the closed drawer is inert (not focusable); while open,
+  // the page behind it does not scroll, Escape closes it, and focus returns to the button.
+  const narrow = window.matchMedia('(max-width: 900px)');
+  const drawerOpen = () => $('pharm-side').classList.contains('open');
+  function syncInert() { const side = $('pharm-side'); if (narrow.matches && !drawerOpen()) side.setAttribute('inert', ''); else side.removeAttribute('inert'); }
+  function openDrawer() {
+    $('pharm-side').classList.add('open'); $('side-backdrop').hidden = false; syncInert();
+    document.body.style.overflow = 'hidden';
+    $('cls-filter').focus();
+  }
+  function closeDrawer() {
+    if (!drawerOpen()) return;
+    $('pharm-side').classList.remove('open'); $('side-backdrop').hidden = true; syncInert();
+    document.body.style.overflow = '';
+    if (narrow.matches) $('browse-btn').focus({ preventScroll: true });
+  }
   $('browse-btn').onclick = openDrawer;
   $('side-close').onclick = closeDrawer;
   $('side-backdrop').onclick = closeDrawer;
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+  if (narrow.addEventListener) narrow.addEventListener('change', () => { if (!narrow.matches) closeDrawer(); syncInert(); });
+  syncInert();
+
+  // Keep the sticky sidebar below the sticky top bar, whatever its height.
+  const topbar = document.querySelector('.topbar');
+  const setHeaderH = () => document.documentElement.style.setProperty('--header-h', `${topbar ? topbar.offsetHeight : 0}px`);
+  setHeaderH();
+  window.addEventListener('resize', setHeaderH);
 
   // ---- pharmacology detail ----------------------------------------------------------------
   function renderHeader() {
@@ -105,18 +169,6 @@
     };
   }
   const shareUrl = (cls) => `share.html#${encodeURIComponent(cls.id)}`;
-
-  function renderAnatomy() {
-    const cls = state.cls, states = {};
-    Object.keys(BodyMap.NAMES).forEach((id) => {
-      const act = (cls.targetOrgans || []).includes(id), eff = (cls.effectOrgans || []).includes(id);
-      states[id] = act || eff ? { color: act ? ACTION : EFFECT, ring: act && eff ? EFFECT : null, tip: `${BodyMap.NAMES[id]} · ${act && eff ? 'site of action + adverse effects' : act ? 'site of action / benefit' : 'adverse effects / caution'}` } : { tip: BodyMap.NAMES[id] };
-    });
-    pharmMap.set(states, null);
-    const none = !(cls.targetOrgans || []).length && !(cls.effectOrgans || []).length;
-    $('pharm-legend').innerHTML = `<span><i style="background:${ACTION}"></i>Site of action / benefit</span><span><i style="background:${EFFECT}"></i>Adverse effects / caution</span>`
-      + (none ? '<p class="map-note">No organ on this map is a meaningful target for this class. Its site of action is shown in the animation.</p>' : '');
-  }
 
   function renderInfo() {
     const cls = state.cls, T = cls.takeaway || {};
@@ -200,18 +252,27 @@
     if (view === 'pharm') pathoPlayer.pause(); else { pharmPlayer.pause(); closeDrawer(); }
   }
 
+  // Selecting a class updates only what depends on it: the sidebar highlight, header,
+  // animation script, clinical tabs, and URL. Loading a new script stops the previous class's
+  // narration (Player.load pauses and cancels speech) and draws the new first frame at once; it
+  // does not autoplay. Re-selecting the current class changes nothing.
+  let navBuilt = false;
   function selectClass(cls, push) {
     if (!cls) return;
-    setView('pharm');
+    if (state.view !== 'pharm') setView('pharm');
     const changed = cls !== state.cls;
-    state.cls = cls;
-    if (!state.area || !areaClasses((AREAS.find((a) => a[0] === state.area) || AREAS[0])[2]).some((x) => x.cls === cls)) state.area = areaOf(cls);
+    if (!state.area || !inArea(state.area, cls)) state.area = areaOf(cls);
+    const wasOpen = !!state.open[state.area];
     state.open[state.area] = true;
-    if (changed || !pharmPlayer.scenes.length) pharmPlayer.load({ title: cls.name, scenes: MedAnim.scenesFor(cls) });
-    renderNav(); renderHeader(); renderAnatomy(); renderInfo();
+    state.cls = cls;
+    if (!navBuilt || !wasOpen) { renderNav(); navBuilt = true; }
+    markActive();
+    if (changed || !pharmPlayer.scenes.length) {
+      state.info = 'overview';
+      pharmPlayer.load({ title: cls.name, scenes: MedAnim.scenesFor(cls) });
+      renderHeader(); renderInfo();
+    }
     setHash(`#pharm/${cls.id}`, push);
-    const on = $('class-nav').querySelector('.nav-item.on');
-    if (on && on.scrollIntoView) on.scrollIntoView({ block: 'nearest' });
   }
 
   function renderPatho(push) { renderMap(); renderLegend(); renderOrganChips(); renderOrganDetail(); setHash(`#${state.d.id}/patho/${state.organ}`, push); }

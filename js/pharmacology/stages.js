@@ -181,10 +181,16 @@
         M.text(ctx, k < 0.5 ? 'Activation: heat / burning at first' : 'Repeated exposure: endings defunctionalize', 600, y + 60, { size: 13, weight: 700, color: C.muted, alpha: k > 0.05 ? 1 : 0 });
       }
       if (mode === 'central') {
-        M.text(ctx, 'Motor signals from the brainstem / spinal cord to muscle', 600, y - 50, { size: 13, weight: 800, color: '#1f4fa8' });
+        // The drug acts in the CNS (left box). The peripheral motor nerve and the muscle are
+        // downstream: they carry fewer signals but are not where the drug works.
+        M.rr(ctx, x0 - 40, y - 70, 150, 140, 18); ctx.fillStyle = '#efe6fa'; ctx.fill(); ctx.strokeStyle = '#b79ae6'; ctx.lineWidth = 3; ctx.stroke();
+        M.text(ctx, 'Brainstem /', x0 + 35, y - 40, { size: 13, weight: 800, color: '#6a4fb0' });
+        M.text(ctx, 'spinal cord (CNS)', x0 + 35, y - 22, { size: 13, weight: 800, color: '#6a4fb0' });
+        kit.glowAt(ctx, x0 + 35, y + 18, 50, 1 - 0.6 * k, '255,200,60');
+        if (k > 0) kit.drugHex(ctx, x0 + 35, y + 18, 12, Math.min(1, k * 3));
+        M.text(ctx, 'Peripheral motor nerve (not the drug target)', 640, y - 50, { size: 13, weight: 700, color: C.muted });
         M.rr(ctx, x1 - 40, y + 50, 90, 70, 20); ctx.fillStyle = mix('#c94a4a', '#e8a39c', k); ctx.fill(); M.text(ctx, 'Muscle', x1 + 5, y + 85, { size: 12, weight: 800, color: '#fff' });
-        if (k > 0) kit.drugHex(ctx, x0 + 40, y - 40, 10, Math.min(1, k * 3));
-        M.text(ctx, 'Acts in the CNS, not on the muscle itself', 600, y + 150, { size: 13, weight: 700, color: C.muted });
+        M.text(ctx, k > 0.5 ? 'Less motor output → less spasm (intended effect)' : 'Increased motor output → spasm and guarding', 600, y + 150, { size: 13, weight: 700, color: k > 0.5 ? '#1d7a4c' : '#a3261f' });
       }
       return 1 - block;
     }

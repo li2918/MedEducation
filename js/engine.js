@@ -403,14 +403,20 @@
   };
 
   Player.prototype._speakText = function (textStr) {
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) { this._voiceFailed = true; this._syncButtons(); return; }
     const u = new SpeechSynthesisUtterance(textStr.replace(/[↑↓]/g, ''));
     const v = pickVoice();
     if (v) { u.voice = v; u.lang = v.lang; } else u.lang = LANG === 'zh' ? 'zh-CN' : 'en-US';
     // Slightly slower than default reads as calmer and more conversational.
     u.rate = this.opts.rate || 0.95;
     u.pitch = 1;
-    u.onend = u.onerror = () => { if (this._utter === u) this._speaking = false; };
+    u.onend = () => { if (this._utter === u) this._speaking = false; };
+    // A real synthesis failure (not a cancel from pausing or switching scenes) means no voice is
+    // available: say so on the Voice button rather than implying narration is playing.
+    u.onerror = (e) => {
+      if (this._utter === u) this._speaking = false;
+      if (e && e.error && !/interrupted|canceled/.test(e.error)) { this._voiceFailed = true; this._syncButtons(); }
+    };
     this._utter = u;
     this._speaking = true;
     speechSynthesis.speak(u);
@@ -444,7 +450,9 @@
     this.bigPlay.hidden = this.playing;
     this.btnVoice.classList.toggle('on', this.voice);
     this.btnVoice.setAttribute('aria-pressed', String(this.voice));
-    this.btnVoice.textContent = (this.voice ? '🔊 ' : '🔇 ') + tr('Voice');
+    const noVoice = this.voice && this._voiceFailed && !(this._recorded && this._recorded());
+    this.btnVoice.textContent = noVoice ? '🔇 ' + tr('Voice unavailable') : (this.voice ? '🔊 ' : '🔇 ') + tr('Voice');
+    this.btnVoice.title = noVoice ? tr('Narration could not start in this browser') : tr('Narration');
     this.btnCC.classList.toggle('on', this.cc);
     this.btnCC.setAttribute('aria-pressed', String(this.cc));
     this.btnDl.textContent = this.recording ? '■ ' + tr('Stop') : '⬇ ' + tr('Video');

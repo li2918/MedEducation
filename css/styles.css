@@ -298,7 +298,7 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
 /* Provider pharmacology workspace: medication sidebar + animation-first detail */
 .pharm-layout { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 28px; align-items: start; }
 .pharm-layout[hidden] { display: none; }
-.pharm-side { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px 10px; }
+.pharm-side { position: sticky; top: calc(var(--header-h, 64px) + 16px); max-height: calc(100vh - var(--header-h, 64px) - 32px); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px 10px; }
 .side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 8px; }
 .side-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .side-close { display: none; border: 0; background: none; font-size: 1.1rem; cursor: pointer; color: var(--muted); min-width: 40px; min-height: 40px; }
@@ -331,9 +331,6 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
 .share-row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 0.88rem; margin: 12px 2px 4px; }
 .share-row a, .linklike { color: var(--blue); font-weight: 600; text-decoration: none; background: none; border: 0; font: inherit; cursor: pointer; padding: 0; }
 .share-row a:hover, .linklike:hover { text-decoration: underline; }
-.anatomy { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
-.anatomy summary { cursor: pointer; padding: 12px 16px; font-weight: 700; font-size: 0.93rem; }
-.anatomy-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: center; padding: 0 16px 16px; }
 .info-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-top: 22px; overflow-x: auto; }
 .info-tabs [role="tab"] { font: inherit; font-weight: 700; font-size: 0.93rem; padding: 10px 16px; border: 0; background: none; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; min-height: 44px; }
 .info-tabs [role="tab"][aria-selected="true"] { color: var(--pro); border-color: var(--pro); }
@@ -356,7 +353,5 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
   .side-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; background: rgba(20, 30, 50, 0.35); z-index: 40; }
   .browse-btn { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; padding: 9px 14px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font: inherit; font-weight: 700; font-size: 0.9rem; color: var(--ink); cursor: pointer; }
   .cls-head h1 { font-size: 1.4rem; }
-  .anatomy-body { grid-template-columns: 1fr; }
-  .anatomy-body #pharm-bodymap { max-width: 220px; margin: 0 auto; }
   .nav-item, .nav-cat-btn { min-height: 44px; }
 }

@@ -1912,6 +1912,8 @@ I18N.add('zh', {
   "Vessels relax and stay flexible": "血管放松，保持弹性",
   "Video": "视频",
   "Video download is not supported in this browser. Please try Chrome or Edge.": "此浏览器不支持下载视频，请使用 Chrome 或 Edge。",
+  "Voice unavailable": "无法播放语音",
+  "Narration could not start in this browser": "此浏览器无法播放解说",
   "Voice": "声音",
   "Vomiting blood, or vomit that looks like coffee grounds": "吐血，或呕吐物像咖啡渣",
   "Vomiting, especially if it keeps happening": "呕吐，尤其是反复呕吐",

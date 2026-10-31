@@ -291,8 +291,11 @@
     id: 'muscle-relaxants', name: 'Skeletal muscle relaxants (centrally acting)', short: 'Muscle relaxant', category: 'Musculoskeletal pain', mech: 'central-muscle-relaxant',
     mechanism: 'Act in the brainstem and spinal cord to reduce polysynaptic reflex activity and motor output; mechanisms vary by agent and are often incompletely defined.',
     site: 'Brainstem and spinal cord (not skeletal muscle)',
-    targetOrgans: ['brain', 'nerves'], effectOrgans: ['muscle', 'brain'],
-    pharmacodynamics: ['Heterogeneous agents with varied CNS actions; sedation contributes to perceived benefit', 'Short-term improvement in acute low back pain and spasm (ACP 2017: moderate-quality evidence)', 'No good evidence for chronic low back pain', 'Distinct from antispasticity agents used for upper motor neuron spasticity'],
+    // Central nervous system action: the brain on the body map stands in for brainstem and spinal
+    // cord; there is no spinal cord on the map, and peripheral nerves are not the target. Muscle
+    // relaxation is the intended effect, so muscle is not listed as an adverse-effect site.
+    targetOrgans: ['brain'], effectOrgans: ['brain', 'liver'],
+    pharmacodynamics: ['Act centrally (brainstem and spinal cord), not on peripheral nerves, the neuromuscular junction, or skeletal muscle directly', 'Heterogeneous agents with different molecular targets (for example α2-adrenergic, GABA-B, or serotonergic pathways, or poorly defined mechanisms); sedation contributes to perceived benefit', 'Reduced muscle spasm and guarding is the intended therapeutic effect, not an adverse effect', 'Short-term improvement in acute low back pain and spasm (ACP 2017: moderate-quality evidence)', 'No good evidence for chronic low back pain', 'Distinct from antispasticity agents used for upper motor neuron spasticity'],
     pharmacokinetics: ['Oral; onset within about an hour', 'Mostly hepatic metabolism; some agents have active metabolites', 'Some agents structurally resemble tricyclic antidepressants'],
     adverseEffects: ['Sedation, drowsiness, dizziness', 'Anticholinergic effects with some agents (dry mouth, urinary retention, confusion)', 'Hepatotoxicity with certain agents', 'Misuse and dependence with one controlled agent in this class'],
     precautions: ['Additive CNS depression with alcohol, opioids, benzodiazepines, and gabapentinoids', 'Generally avoid in older adults (falls, confusion; AGS Beers Criteria)', 'Driving and machinery caution', 'Intended for short-term use in acute conditions', 'Serotonergic interactions with some agents'],
