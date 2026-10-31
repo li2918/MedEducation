@@ -19,7 +19,7 @@ Narration uses the browser's built-in text-to-speech (Web Speech API). On Window
 |---|---|---|
 | Animation | One ~60 s, 7-chapter story per condition | 1–3 scenes per organ and per drug class |
 | Extras | Key points, questions for your doctor, 3-question teach-back quiz | Body map with stage slider, findings by stage, PD/PK/AE/contraindications/monitoring, references |
-| Conditions | Type 2 diabetes, hypertension, high cholesterol, COPD, asthma, GERD, osteoarthritis, tendon pain, back pain, muscle pain, nerve pain (Parts 1-2) | T2D (8 organs + 4 drug classes), HTN (5 organs + 3 drug classes); the others are coming soon |
+| Conditions | Type 2 diabetes, hypertension, high cholesterol, COPD, asthma, GERD, osteoarthritis, tendon pain, back pain, muscle pain, nerve pain (Parts 1-3) | T2D (8 organs + 4 drug classes), HTN (5 organs + 3 drug classes); the others are coming soon |
 
 Search handles lay terms, abbreviations, ICD-10 codes, and typos (`diabetis`, `HTN`, `E11`, `high bp`). Roadmap conditions show up as "coming soon" with a request button.
 
@@ -50,7 +50,7 @@ pip install edge-tts
 python tools/make-narration.py
 ```
 
-**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031e`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
+**Deploying:** the HTML pages load scripts and styles with a `?v=` version (for example `js/engine.js?v=20261031f`). Change that version in `index.html`, `patient.html`, and `clinician.html` whenever you publish, so browsers never mix old scripts with new narration.
 
 **Languages:** the patient portal has English and Chinese (language picker in the top bar, or `?lang=zh`). Text is translated by its English source string in `js/i18n-zh.js`; Chinese narration lives in `audio/<id>-a-zh/` and so on. After changing captions or labels, add their translations to `js/i18n-zh.js`, then run `python tools/make-narration.py --lang zh` (this also refreshes `js/audio-durations.js`, which keeps translated narration in step with the animation).
 

@@ -8,7 +8,8 @@
   const { C, ease, seg, lerp } = M;
 
   // ---------------------------------------------------------------------------
-  // Patient portal: Part 1 "How do nerves work?" and Part 2 "Why do nerves hurt? Carpal tunnel".
+  // Patient portal: Part 1 "How do nerves work?", Part 2 "Why do nerves hurt? Carpal tunnel", and
+  // Part 3 "How can nerve pain improve?".
   // Nerves are yellow, the brain pink, signals
   // glowing dots: blue for feeling (sensory, traveling in) and orange for moving (motor,
   // traveling out). Cues use s (seconds since the narration started), matched to the words.
@@ -319,7 +320,7 @@
     ctx.restore();
   }
   // Wrist cross-section: bones form the floor, the transverse carpal ligament the roof, with
-  // nine tendons and the median nerve inside. swell (0..1): tendon linings swell, the space
+  // nine tendons and the median nerve inside. cut (0..1) divides the roof (surgery). swell (0..1): tendon linings swell, the space
   // shrinks, and the nerve flattens and turns red; sig (0..1) shows signals in the nerve.
   function carpalTunnel(ctx, x, y, k, s, o = {}) {
     const sw = o.swell || 0;
@@ -349,13 +350,16 @@
     for (let i = 0; i < 5; i++) M.dot(ctx, -6 + (i - 2) * nrx * 0.36, ny + ((i % 2) - 0.5) * nry * 0.5, 3.5, '#fff6d8');
     if (o.sig > 0) M.dot(ctx, -6, ny, nrx + 12, `rgba(242,194,48,${0.3 * o.sig * (1 - 0.7 * sw) * (0.6 + 0.4 * Math.sin(s * 5))})`);
     // the roof: transverse carpal ligament
-    ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#8fa6c4'; ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(-140, -24); ctx.quadraticCurveTo(0, -78, 140, -24); ctx.stroke();
+    const cut = o.cut || 0, g = 24 * cut, lift = -51 - 16 * cut;
+    ctx.save(); ctx.lineCap = 'round'; ctx.strokeStyle = '#8fa6c4'; ctx.lineWidth = 16; ctx.beginPath();
+    if (cut > 0) { ctx.moveTo(-140, -24); ctx.quadraticCurveTo(-70, -66, -g, lift); ctx.moveTo(140, -24); ctx.quadraticCurveTo(70, -66, g, lift); } else { ctx.moveTo(-140, -24); ctx.quadraticCurveTo(0, -78, 140, -24); }
+    ctx.stroke();
     ctx.strokeStyle = LIG; ctx.lineWidth = 11; ctx.stroke(); ctx.restore();
     if (o.glow) { ctx.save(); ctx.globalAlpha *= o.glow.lig || 0; ctx.strokeStyle = 'rgba(255,200,90,0.8)'; ctx.lineWidth = 24; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(-140, -24); ctx.quadraticCurveTo(0, -78, 140, -24); ctx.stroke(); ctx.restore(); }
     ctx.restore();
   }
-  // A nerve strip from left to right. mode: 'ok', 'pinch' (squeezed at one spot), 'wide'
-  // (damaged toward the far end, as in peripheral neuropathy). k (0..1) brings the change in.
+  // A nerve strip from left to right. mode: 'ok', 'pinch' (squeezed at one spot), 'injury'
+  // (hurt at one spot), 'wide' (damaged toward the far end, as in peripheral neuropathy). k (0..1) brings the change in.
   function nerveStrip(ctx, x, y, w, s, mode, k) {
     const mid = x + w * 0.45;
     ctx.save(); ctx.lineCap = 'round';
@@ -363,7 +367,7 @@
     for (let i = 0; i < segs; i++) {
       const x0 = x + (i / segs) * w, x1 = x + ((i + 1) / segs) * w, u = (i + 0.5) / segs;
       let th = 16, col = NERVE;
-      if (mode === 'pinch' && Math.abs((x0 + x1) / 2 - mid) < w / segs) { th = 16 - 9 * k; col = M.mix(NERVE, '#e5484d', k); }
+      if ((mode === 'pinch' || mode === 'injury') && Math.abs((x0 + x1) / 2 - mid) < w / segs) { th = 16 - 9 * k; col = M.mix(NERVE, mode === 'pinch' ? '#e5484d' : '#8a8f99', k); }
       if (mode === 'wide' && u > 0.55) { th = 16 - 6 * k * (u - 0.55) / 0.45; col = M.mix(NERVE, '#c9c0b0', k * (u - 0.55) / 0.45); }
       ctx.strokeStyle = col; ctx.lineWidth = th; ctx.beginPath(); ctx.moveTo(x0, y); ctx.lineTo(x1 + 1, y); ctx.stroke();
     }
@@ -372,7 +376,7 @@
     for (let i = 0; i < 4; i++) {
       const q = ((s * 0.35 + i / 4) % 1), px = x + q * w;
       let a = 1, col = SENS;
-      if (mode === 'pinch' && px > mid) { a = 1 - 0.75 * k; col = M.mix(SENS, '#e5484d', 0.5 * k); }
+      if ((mode === 'pinch' || mode === 'injury') && px > mid) { a = 1 - 0.75 * k; col = M.mix(SENS, '#e5484d', 0.5 * k); }
       if (mode === 'wide' && q > 0.55) { a = 1 - k * (q - 0.55) / 0.45; }
       spark(ctx, px, y, 5, col, Math.max(0.1, a));
     }
@@ -532,6 +536,240 @@
     M.pill(ctx, 'Next: how carpal tunnel can get better', 765, 470, { size: 16, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TN6.next, TN6.next + 0.5) });
   }
 
+  // ---- Part 3: How can nerve pain improve? ----------------------------------------------
+  // Treatment depends on the cause: find it, take pressure off (carpal tunnel: a neutral wrist
+  // and a night splint), protect the nerve day to day, manage conditions like diabetes, see a
+  // doctor when more is needed (tests, surgery to open the tunnel), and recovery over time,
+  // without promising that every nerve fully recovers.
+  // Side view of a forearm and hand. bend (radians): positive bends the wrist down; splint
+  // (0..1) fades in a wrist splint that holds it straight; hurt (0..1) marks the wrist red.
+  function wristSide(ctx, x, y, k, s, bend, o = {}) {
+    const SKIN = '#f1c7a5';
+    ctx.save(); ctx.translate(x, y); ctx.scale(k, k); ctx.lineCap = 'round';
+    ctx.strokeStyle = '#8fb3e0'; ctx.lineWidth = 60; ctx.beginPath(); ctx.moveTo(-200, 0); ctx.lineTo(-150, 0); ctx.stroke();
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 50; ctx.beginPath(); ctx.moveTo(-150, 0); ctx.lineTo(0, 0); ctx.stroke();
+    ctx.save(); ctx.rotate(bend);
+    M.rr(ctx, -6, -24, 96, 46, 20); ctx.fillStyle = SKIN; ctx.fill();
+    ctx.strokeStyle = SKIN; ctx.lineWidth = 30; ctx.beginPath(); ctx.moveTo(80, -2); ctx.lineTo(146, 4); ctx.stroke();
+    ctx.lineWidth = 16; ctx.beginPath(); ctx.moveTo(34, -18); ctx.lineTo(78, -30); ctx.stroke();
+    ctx.strokeStyle = 'rgba(200,140,110,0.5)'; ctx.lineWidth = 2; [104, 124].forEach((fx) => { ctx.beginPath(); ctx.moveTo(fx, -10); ctx.lineTo(fx + 2, 16); ctx.stroke(); });
+    ctx.restore();
+    if (o.hurt > 0) { M.dot(ctx, 4, 14, 22 + 3 * Math.sin(s * 6), '#e5484d', 0.3 * o.hurt); M.dot(ctx, 4, 14, 8, '#e5484d', o.hurt); }
+    if (o.splint > 0) {
+      ctx.save(); ctx.globalAlpha *= o.splint;
+      M.rr(ctx, -130, -32, 220, 62, 18); ctx.fillStyle = 'rgba(76,111,168,0.85)'; ctx.fill();
+      ctx.fillStyle = '#2f4d80'; [-104, -30, 50].forEach((sx) => ctx.fillRect(sx, -32, 16, 62));
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  // 1. Find the cause: a squeezed nerve, nerves harmed by a condition like diabetes, or an
+  //    injury or other cause. Each works differently, so finding the cause comes first.
+  const TN31 = { depends: 2.9, squeezed: 5.6, diabetes: 9.8, injury: 14.2, finding: 17.4 };
+  function findCause(ctx, p, s) {
+    M.text(ctx, 'Find what is affecting the nerve', 480, 44, { size: 28, weight: 800 });
+    M.pill(ctx, 'Treatment depends on the cause', 480, 92, { size: 16, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TN31.depends, TN31.depends + 0.4) });
+    const rows = [['Squeezed', 'Like carpal tunnel', 'pinch', TN31.squeezed, '#c2410c', '✋'], ['A condition like diabetes', 'Can affect many nerves', 'wide', TN31.diabetes, '#7a5fb0', '🦶'], ['An injury or other causes', 'A nerve can be hurt directly', 'injury', TN31.injury, '#4d6a90', '🩹']];
+    rows.forEach(([t, d, mode, at, col, ic], i) => {
+      const a = ease(seg(s, at - 0.4, at + 0.2)), y = 170 + i * 104, k = ease(seg(s, at + 0.3, at + 1.4));
+      M.card(ctx, 60, y - 44, 840, 90, { r: 16, alpha: a, border: col });
+      if (a <= 0) return;
+      M.text(ctx, t, 90, y - 12, { size: 17, weight: 800, align: 'left', color: col, alpha: a });
+      M.text(ctx, d, 90, y + 16, { size: 14, weight: 700, align: 'left', color: C.muted, alpha: a });
+      ctx.save(); ctx.globalAlpha *= a; nerveStrip(ctx, 420, y, 340, s, mode, k); M.emoji(ctx, ic, 840, y, 36); ctx.restore();
+    });
+    const fa = seg(s, TN31.finding, TN31.finding + 0.5);
+    M.pill(ctx, '🔍  Finding the cause is the first step', 480, 505, { size: 17, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: fa });
+  }
+
+  // 2. Take pressure off: a bent wrist leaves the tunnel tight; a straight (neutral) wrist
+  //    gives more room. A splint worn at night keeps the wrist straight during sleep.
+  const TN32 = { pressure: 2.7, straight: 4.8, room: 7.5, splint: 9.1, night: 10.4, ease: 13.2 };
+  function reducePressure(ctx, p, s) {
+    M.text(ctx, 'Take pressure off the nerve', 480, 44, { size: 28, weight: 800 });
+    M.pill(ctx, 'Carpal tunnel example', 480, 88, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: seg(s, 0.2, 0.6) });
+    const ra = seg(s, TN32.straight, TN32.straight + 0.5);
+    [[260, 'Bent wrist', 0.75, 1, '#c2410c', 'Tight: less room', 1], [700, 'Straight (neutral) wrist', 0, 0.1, C.green, 'More room', ra]].forEach(([cx, t, bend, sw, col, lab, a]) => {
+      M.card(ctx, cx - 210, 112, 420, 340, { r: 18, alpha: a, border: col });
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a;
+      M.text(ctx, t, cx, 140, { size: 17, weight: 800, color: col });
+      wristSide(ctx, cx + 30, 210, 0.85, s, bend, { hurt: bend ? seg(s, TN32.pressure, TN32.pressure + 0.4) : 0, splint: bend ? 0 : seg(s, TN32.splint, TN32.splint + 0.5) });
+      carpalTunnel(ctx, cx, 355, 0.42, s, { swell: sw, sig: 1 });
+      M.text(ctx, lab, cx, 432, { size: 15, weight: 800, color: col, alpha: bend ? 1 : seg(s, TN32.room, TN32.room + 0.4) });
+      ctx.restore();
+    });
+    M.emoji(ctx, '🌙', 880, 150, 30, seg(s, TN32.night, TN32.night + 0.4));
+    S.phasePill(ctx, 700, 490, s, [[TN32.splint, 'A wrist splint worn at night', M.C.blue], [TN32.ease, 'May ease symptoms for some people', '#1d7a4c']]);
+  }
+
+  // 3. Protect the nerve during the day: short breaks, a looser grip, straight wrists, and
+  //    gentle exercises from a hand therapist that fit each person.
+  const TN33 = { breaks: 2.6, grip: 5.3, straight: 6.8, therapist: 8.2, exercises: 10.5 };
+  function protectNerve(ctx, p, s) {
+    M.text(ctx, 'Protect the nerve during the day', 480, 44, { size: 28, weight: 800 });
+    const cards = [[180, 'Take short breaks', TN33.breaks], [480, 'Loosen your grip', TN33.grip], [780, 'Keep wrists straight', TN33.straight]];
+    cards.forEach(([cx, t, at], i) => {
+      const a = ease(seg(s, at - 0.3, at + 0.3));
+      M.card(ctx, cx - 135, 80, 270, 240, { r: 18, alpha: a });
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a;
+      M.text(ctx, t, cx, 290, { size: 17, weight: 800 });
+      if (i === 0) {
+        M.person(ctx, cx - 30, 200, 36, { t: s, armUp: 0.5 + 0.5 * Math.sin(s * 2.5) });
+        M.emoji(ctx, '💻', cx + 40, 230, 34); M.emoji(ctx, '⏸️', cx + 60, 140, 30);
+      }
+      if (i === 1) {
+        const loose = seg(s, at + 0.5, at + 0.9);
+        M.emoji(ctx, '✊', cx, 180, 60, 1 - loose);
+        for (let k = 0; k < 4 && loose < 1; k++) { const ang = k * Math.PI / 2 + 0.6; M.text(ctx, '|', cx + Math.cos(ang) * 50, 180 + Math.sin(ang) * 50, { size: 18, color: '#e5484d', alpha: 1 - loose }); }
+        M.emoji(ctx, '🤚', cx, 180, 60, loose);
+        M.emoji(ctx, '📱', cx + 50, 220, 28);
+      }
+      if (i === 2) {
+        ctx.save(); ctx.globalAlpha *= 0.3; wristSide(ctx, cx + 10, 150, 0.45, s, 0.75); ctx.restore();
+        M.text(ctx, '✗', cx + 95, 160, { size: 22, weight: 800, color: '#e5484d' });
+        wristSide(ctx, cx + 10, 225, 0.45, s, 0); M.text(ctx, '✓', cx + 95, 225, { size: 24, weight: 800, color: C.green });
+      }
+      ctx.restore();
+    });
+    const ta = seg(s, TN33.therapist - 0.3, TN33.therapist + 0.3);
+    M.card(ctx, 45, 345, 870, 170, { r: 18, alpha: ta, border: '#bfe3cf' });
+    if (ta > 0) {
+      ctx.save(); ctx.globalAlpha *= ta;
+      M.person(ctx, 150, 418, 30, { t: s, look: { shirt: '#bfe3cf', shirtShade: '#9fd1b6' } });
+      M.text(ctx, 'A hand therapist', 150, 503, { size: 14, weight: 800, color: '#1d7a4c' });
+      const ex = seg(s, TN33.exercises, TN33.exercises + 0.4);
+      wristSide(ctx, 470, 430, 0.5, s, ex * 0.35 * Math.sin(s * 2));
+      M.pill(ctx, 'Gentle exercises that fit your needs', 740, 430, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: ex });
+      ctx.restore();
+    }
+  }
+
+  // 4. Help the underlying condition: with diabetes, keeping blood sugar in range helps limit
+  //    further nerve damage, and daily foot checks catch cuts that numb feet may not feel.
+  const TN34 = { diabetes: 0.9, care: 3.1, sugar: 5, range: 6.2, limit: 7.6, check: 10.1, daily: 10.8, numb: 12.1, cut: 13.5 };
+  function helpCondition(ctx, p, s) {
+    M.text(ctx, 'Care for the underlying condition', 480, 44, { size: 28, weight: 800 });
+    M.pill(ctx, 'Example: diabetes', 250, 92, { size: 15, bg: '#fff', border: '#c9b8e8', color: '#5b4590', alpha: seg(s, TN34.diabetes, TN34.diabetes + 0.4) });
+    M.pill(ctx, 'Ongoing care matters', 680, 92, { size: 15, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TN34.care, TN34.care + 0.4) });
+    const la = seg(s, TN34.sugar - 0.3, TN34.sugar + 0.2);
+    M.card(ctx, 40, 125, 420, 385, { r: 18, alpha: la });
+    if (la > 0) {
+      ctx.save(); ctx.globalAlpha *= la;
+      M.text(ctx, 'Blood sugar', 250, 160, { size: 17, weight: 800 });
+      const bx = 80, bw = 340, by = 210;
+      M.rr(ctx, bx, by - 9, bw, 18, 9); ctx.fillStyle = '#e3e9f2'; ctx.fill();
+      M.rr(ctx, bx + bw * 0.35, by - 9, bw * 0.3, 18, 9); ctx.fillStyle = 'rgba(63,179,122,0.55)'; ctx.fill();
+      M.text(ctx, 'Healthy range', bx + bw * 0.5, by + 30, { size: 13, weight: 800, color: '#1d7a4c', alpha: seg(s, TN34.range, TN34.range + 0.4) });
+      const mv = ease(seg(s, TN34.range - 0.4, TN34.range + 0.8)), mx = bx + bw * lerp(0.88, 0.5, mv);
+      M.dot(ctx, mx, by, 13, M.mix('#e5484d', '#3fb37a', mv)); M.dot(ctx, mx, by, 5, '#fff');
+      const lim = seg(s, TN34.limit, TN34.limit + 0.5);
+      M.text(ctx, 'Nerves', 250, 300, { size: 14, weight: 800, color: C.muted, alpha: lim });
+      ctx.save(); ctx.globalAlpha *= lim; nerveStrip(ctx, 80, 340, 300, s, 'wide', 0.5); ctx.restore();
+      M.emoji(ctx, '🛡️', 410, 340, 32, lim);
+      M.text(ctx, 'Helps limit further nerve damage', 250, 400, { size: 15, weight: 800, color: '#1d7a4c', alpha: lim });
+      ctx.restore();
+    }
+    const ra = seg(s, TN34.check - 0.3, TN34.check + 0.2);
+    M.card(ctx, 500, 125, 420, 385, { r: 18, alpha: ra });
+    if (ra > 0) {
+      ctx.save(); ctx.globalAlpha *= ra;
+      M.text(ctx, 'Check your feet', 710, 160, { size: 17, weight: 800 });
+      M.pill(ctx, '📅 Every day', 710, 200, { size: 15, bg: '#fff', border: '#c8d6ee', alpha: seg(s, TN34.daily, TN34.daily + 0.4) });
+      M.emoji(ctx, '🦶', 710, 320, 120);
+      const cut = seg(s, TN34.cut, TN34.cut + 0.4);
+      ctx.save(); ctx.globalAlpha *= cut; ctx.strokeStyle = '#d33'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(682, 350); ctx.lineTo(708, 342); ctx.stroke(); ctx.restore();
+      const mg = s - TN34.check;
+      M.emoji(ctx, '🔍', 710 + 50 * Math.sin(mg * 1.6), 300 + 25 * Math.cos(mg * 1.1), 44);
+      M.text(ctx, 'Numb feet may not feel a cut', 710, 450, { size: 15, weight: 800, color: '#a3261f', alpha: seg(s, TN34.numb, TN34.numb + 0.4) });
+      ctx.restore();
+    }
+  }
+
+  // 5. When more treatment is needed: symptoms that return, worsen, or bring weakness mean a
+  //    doctor visit; tests check nerve function; for some, surgery cuts the ligament roof to
+  //    make more room, taking pressure off the nerve.
+  const TN35 = { items: [0.2, 1.9, 3], doctor: 3.8, tests: 5, surgery: 8.8, cuts: 9.6, room: 11, off: 12.2 };
+  function moreTreatment(ctx, p, s) {
+    M.text(ctx, 'When more treatment is needed', 480, 44, { size: 28, weight: 800 });
+    M.card(ctx, 40, 85, 400, 430, { r: 18 });
+    [['Symptoms keep coming back'], ['Symptoms get worse'], ['You notice weakness']].forEach(([t], i) => {
+      const a = seg(s, TN35.items[i], TN35.items[i] + 0.4);
+      M.emoji(ctx, '⚠️', 80, 125 + i * 44, 22, a); M.text(ctx, t, 104, 125 + i * 44, { size: 16, weight: 800, align: 'left', alpha: a });
+    });
+    const da = seg(s, TN35.doctor, TN35.doctor + 0.4);
+    if (da > 0) {
+      ctx.save(); ctx.globalAlpha *= da;
+      M.person(ctx, 110, 380, 34, { t: s, look: { shirt: '#ffffff', pants: '#5a6b85' } });
+      M.emoji(ctx, '🩺', 140, 360, 26);
+      M.pill(ctx, 'See your doctor', 110, 470, { size: 14, bg: '#fff', border: M.C.blue, color: M.C.blue });
+      ctx.restore();
+    }
+    const ta = seg(s, TN35.tests, TN35.tests + 0.4);
+    if (ta > 0) {
+      ctx.save(); ctx.globalAlpha *= ta;
+      M.rr(ctx, 200, 300, 210, 120, 12); ctx.fillStyle = '#1f2a3d'; ctx.fill();
+      ctx.strokeStyle = '#5ee0a0'; ctx.lineWidth = 3; ctx.beginPath();
+      for (let i = 0; i <= 60; i++) {
+        const u = i / 60, xx = 215 + u * 180, ph = (u * 3 + s * 0.8) % 1;
+        const yy = 360 - (ph > 0.45 && ph < 0.55 ? 40 * Math.sin((ph - 0.45) * 10 * Math.PI) : 0);
+        i ? ctx.lineTo(xx, yy) : ctx.moveTo(xx, yy);
+      }
+      ctx.stroke();
+      M.text(ctx, 'Tests check how well the nerve works', 305, 450, { size: 13, weight: 800, color: C.muted });
+      ctx.restore();
+    }
+    const sa = seg(s, TN35.surgery - 0.4, TN35.surgery + 0.2);
+    M.card(ctx, 470, 85, 450, 430, { r: 18, alpha: sa, border: '#c8d6ee' });
+    if (sa > 0) {
+      ctx.save(); ctx.globalAlpha *= sa;
+      M.text(ctx, 'For some people: surgery', 695, 118, { size: 17, weight: 800, color: '#4d6a90' });
+      const cut = ease(seg(s, TN35.cuts, TN35.cuts + 1)), relief = ease(seg(s, TN35.room, TN35.off + 0.8));
+      carpalTunnel(ctx, 695, 300, 0.85, s, { swell: 1 - relief, cut, sig: 1 });
+      M.pill(ctx, 'The ligament roof is cut', 695, 168, { size: 15, bg: '#fff', border: '#8fa6c4', color: '#4d6a90', alpha: seg(s, TN35.cuts, TN35.cuts + 0.4) });
+      M.pill(ctx, 'More room: less pressure on the nerve', 695, 470, { size: 15, bg: '#e9f7ef', border: C.green, color: '#1d7a4c', alpha: seg(s, TN35.room, TN35.room + 0.4) });
+      ctx.restore();
+    }
+  }
+
+  // 6. Recovery: before, the nerve is flat with weak signals; after the pressure is reduced it
+  //    has room and signals travel better. Improvement takes weeks to months and may not be
+  //    complete; keep up with follow-up and get help for warning signs.
+  const TN36 = { before: 0.1, weak: 4.1, after: 4.9, room: 7.2, better: 8.8, improve: 10.7, weeks: 11.9, months: 12.3, notFull: 13.4, follow: 16.1, warn: 18.2 };
+  function recovery(ctx, p, s) {
+    M.text(ctx, 'Recovery takes time', 480, 44, { size: 28, weight: 800 });
+    const aa = seg(s, TN36.after - 0.3, TN36.after + 0.3);
+    [[250, 'Before: squeezed', '#c2410c', 1, 1, 'Weak signals', TN36.weak], [710, 'After: pressure reduced', C.green, 0, aa, 'Signals travel better', TN36.better]].forEach(([cx, t, col, sw, a, lab, at], i) => {
+      M.card(ctx, cx - 215, 72, 430, 270, { r: 18, alpha: a, border: col });
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a;
+      M.text(ctx, t, cx, 100, { size: 17, weight: 800, color: col });
+      carpalTunnel(ctx, cx, 180, 0.48, s, { swell: i ? 1 - ease(seg(s, TN36.after, TN36.room + 0.5)) : sw, sig: 1 });
+      nerveStrip(ctx, cx - 150, 270, 300, s, i ? 'pinch' : 'pinch', i ? 1 - ease(seg(s, TN36.room, TN36.better + 0.5)) : 1);
+      M.text(ctx, lab, cx, 318, { size: 14, weight: 800, color: col, alpha: seg(s, at, at + 0.4) });
+      ctx.restore();
+    });
+    // timeline: symptoms ease gradually over weeks to months
+    const ta = seg(s, TN36.improve - 0.3, TN36.improve + 0.3);
+    M.card(ctx, 35, 360, 520, 160, { r: 18, alpha: ta });
+    if (ta > 0) {
+      ctx.save(); ctx.globalAlpha *= ta;
+      M.text(ctx, 'Improvement often takes time', 295, 384, { size: 15, weight: 800 });
+      M.arrow(ctx, 70, 470, 520, 470, { color: '#9fb0c6', width: 3, head: 10 });
+      [['Now', 1, TN36.improve], ['Weeks', 0.5, TN36.weeks], ['Months', 0.15, TN36.months]].forEach(([t, tg, at], i) => {
+        const a = seg(s, at, at + 0.4), hx = 120 + i * 175;
+        ctx.save(); ctx.globalAlpha *= a; hand(ctx, hx, 440, 0.2, s, { med: tg, tingle: tg }); ctx.restore();
+        M.text(ctx, t, hx, 498, { size: 13, weight: 800, color: C.muted, alpha: a });
+      });
+      ctx.restore();
+    }
+    M.pill(ctx, 'Some nerves may not recover fully', 745, 395, { size: 14, bg: '#fff8db', border: '#e09400', color: '#8a5a00', alpha: seg(s, TN36.notFull, TN36.notFull + 0.4) });
+    M.pill(ctx, '📅  Keep up with follow-up visits', 745, 445, { size: 14, bg: '#fff', border: M.C.blue, color: M.C.blue, alpha: seg(s, TN36.follow, TN36.follow + 0.4) });
+    M.pill(ctx, '⚠️  Warning signs: get help right away', 745, 495, { size: 14, bg: '#fdecec', border: '#e5484d', color: '#a3261f', alpha: seg(s, TN36.warn, TN36.warn + 0.4) });
+  }
+
   const patientScenesA = [
     { label: 'Nerves throughout your body', caption: "Your nervous system is like your body's messaging network. Your brain and spinal cord are the control center, and nerves branch out to every part of your body, from your head to your toes.", draw: nervesEverywhere },
     { label: 'What is a nerve?', caption: 'A nerve is a bundle of long, thin fibers, wrapped in protective layers, like the wires inside a cable. Many fibers also have a coating that helps signals travel fast.', draw: whatIsNerve },
@@ -550,6 +788,15 @@
     { label: 'Where you may feel it', caption: "The median nerve carries feeling from the thumb, index, middle, and part of the ring finger. That's where you may feel tingling, numbness, or burning. The little finger is usually fine. Symptoms are often worse at night, and over time your grip may get weaker. Next, let's see how carpal tunnel can get better.", draw: whereFeel },
   ];
 
+  const patientScenesC = [
+    { label: 'Find the cause', caption: "Nerve pain can get better, but how it gets better depends on what is affecting the nerve. A nerve may be squeezed, like in carpal tunnel. It may be harmed by a condition like diabetes, which can affect many nerves. Or it may be hurt by an injury or other causes. Finding the cause is the first step.", draw: findCause },
+    { label: 'Take pressure off', caption: "For carpal tunnel, the first goal is to take pressure off the nerve. Keeping your wrist straight, in a neutral position, gives the tunnel more room. A wrist splint worn at night keeps the wrist straight while you sleep, which may ease symptoms for some people.", draw: reducePressure },
+    { label: 'Protect the nerve', caption: "You can also protect the nerve during the day. Take short breaks from typing or phone use, loosen your grip, and keep your wrists straight. A hand therapist may suggest gentle exercises that fit your needs.", draw: protectNerve },
+    { label: 'Care for the condition', caption: "If a condition like diabetes is affecting your nerves, ongoing care matters. Keeping blood sugar in a healthy range can help limit further nerve damage. Check your feet every day, because numb feet may not feel a cut.", draw: helpCondition },
+    { label: 'When more is needed', caption: "If symptoms keep coming back, get worse, or you notice weakness, see your doctor. Tests can check how well the nerve is working. For some people, surgery cuts the ligament roof to make more room, which takes pressure off the nerve.", draw: moreTreatment },
+    { label: 'Recovery takes time', caption: "Before treatment, the squeezed nerve is flat, and its signals are weak. After the pressure is reduced, the nerve has room again, and signals can travel better. Improvement often takes weeks to months, and some nerves may not recover fully. Keep up with follow-up visits, and get help right away for warning signs.", draw: recovery },
+  ];
+
   MedData.register({
     id: 'nerve-pain',
     name: 'Nerve pain (neuropathy)',
@@ -558,10 +805,11 @@
     patient: {
       tagline: 'Nerves carry messages between your brain and your body, so you can feel, move, and respond.',
       // Part 1 explains nerves; Part 2 compares common nerve problems and looks closely at carpal
-      // tunnel syndrome.
+      // tunnel syndrome; Part 3 shows how nerve pain can improve, depending on the cause.
       videos: [
         { title: 'How do nerves work?', length: 80, audio: 'audio/nerve-pain-a/', scenes: patientScenesA },
         { title: 'Why do nerves hurt? Carpal tunnel', length: 112, audio: 'audio/nerve-pain-b/', scenes: patientScenesB },
+        { title: 'How can nerve pain improve?', length: 98, audio: 'audio/nerve-pain-c/', scenes: patientScenesC },
       ],
       keyPoints: [
         'Your brain and spinal cord are the control center. Nerves branch out to every part of your body.',
@@ -570,6 +818,8 @@
         'When a nerve is injured, squeezed, or affected by disease, signals can get mixed up, causing tingling, numbness, burning, or weakness.',
         'Common nerve problems include a pinched nerve in the neck, cubital tunnel at the elbow, carpal tunnel at the wrist, sciatica, and peripheral neuropathy in the feet. They are different problems with different patterns.',
         'In carpal tunnel syndrome, pressure inside a narrow tunnel in the wrist squeezes the median nerve. Tingling or numbness is felt in the thumb, index, middle, and part of the ring finger, often worse at night.',
+        'Treatment depends on the cause. For carpal tunnel, keeping the wrist straight and wearing a splint at night may ease symptoms; some people need surgery to take pressure off the nerve.',
+        'Nerves can take weeks to months to improve, and some may not recover fully. Managing conditions like diabetes helps limit further nerve damage.',
       ],
       questions: [
         'What could be causing my tingling, numbness, or burning?',
@@ -580,6 +830,7 @@
         'Numbness, tingling, or weakness that keeps spreading or getting worse',
         'A foot sore or cut you did not feel',
         'Nerve symptoms that keep you from sleeping or doing daily tasks',
+        'New weakness, trouble gripping, or losing feeling in part of your hand or foot',
       ],
       // Shown in a separate tap-to-open box on the patient page, not only inside the video.
       emergency: {
@@ -587,7 +838,7 @@
         items: [
           'Sudden weakness, numbness, or drooping on one side of the face or body, or trouble speaking (signs of a stroke)',
           'Weakness that spreads quickly up the legs or arms over hours to days',
-          'New trouble controlling your bladder or bowels, or numbness between the legs',
+          'New trouble controlling your bladder or bowels, or numbness between the legs, especially with new leg numbness or weakness',
         ],
         action: 'Call 911 or go to the nearest emergency room.',
       },
@@ -596,6 +847,8 @@
         { q: 'How does your hand move when you decide to wave?', options: ['The muscle moves on its own', 'The brain sends a signal down the spinal cord and through a nerve to the muscle', 'The skin pushes the hand'], answer: 1, explain: 'Motor nerves carry signals from the brain to muscles. The muscles tighten, and the hand moves.' },
         { q: 'In carpal tunnel syndrome, which nerve is squeezed?', options: ['The median nerve in the wrist', 'A nerve in the lower back', 'The nerves in the feet'], answer: 0, explain: 'Pressure inside the carpal tunnel squeezes the median nerve as it passes through the wrist.' },
         { q: 'Which fingers usually tingle with carpal tunnel syndrome?', options: ['Only the little finger', 'The thumb, index, middle, and part of the ring finger', 'All fingers and toes'], answer: 1, explain: 'Those fingers get their feeling from the median nerve. The little finger is usually fine.' },
+        { q: 'How can a wrist splint help carpal tunnel syndrome?', options: ['It keeps the wrist straight at night, giving the nerve more room', 'It makes the nerve grow longer', 'It stops all nerve signals'], answer: 0, explain: 'A straight, neutral wrist leaves more room in the tunnel, which may ease symptoms for some people.' },
+        { q: 'After pressure on a nerve is reduced, how fast does it get better?', options: ['Always overnight', 'Often over weeks to months, and some nerves may not recover fully', 'It never gets better'], answer: 1, explain: 'Nerves recover slowly. Follow-up visits help track how you are doing.' },
         { q: 'What can happen when a nerve is injured or squeezed?', options: ['Signals can get mixed up, causing tingling, numbness, burning, or weakness', 'Nothing ever changes', 'You get taller'], answer: 0, explain: 'Hurt nerves may send the wrong signals or not enough signals.' },
       ],
     },
