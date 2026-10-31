@@ -172,19 +172,47 @@
   // One medicine, several organs: the same patient eats a meal; the medicine reaches the
   // pancreas, brain, and stomach by separate routes (not one chain); each organ's effect is shown
   // in place; then the camera returns to the patient for glucose and appetite outcomes over time.
+  // ---- shared incretin pieces (GLP-1 RA, dual GIP/GLP-1 RA) --------------------------------
+  const mouth = [270, 300 - 1.55 * 108];
+  const gutPath = () => [mouth, [272, 300 - 1.0 * 108], at('stomach'), [at('stomach')[0] - 10, at('stomach')[1] + 30], at('gut')];
+  // The patient at a table; the fork travels between plate and mouth. food: plate fullness.
+  const meal = (ctx, s, food, eating, mood = 0.75) => {
+    M.person(ctx, 270, 300, 108, { t: s, mood });
+    ctx.fillStyle = '#c8a27a'; M.rr(ctx, 110, 330, 330, 18, 6); ctx.fill(); ctx.fillRect(130, 348, 12, 130); ctx.fillRect(408, 348, 12, 130);
+    M.dot(ctx, 330, 322, 30, '#ffffff'); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(330, 322, 30, 0, M.TAU); ctx.stroke();
+    for (let i = 0; i < Math.round(6 * food); i++) M.dot(ctx, 316 + (i % 3) * 14, 316 + Math.floor(i / 3) * 10, 6, ['#e8a33c', '#7fbf5a', '#c96f4a'][i % 3]);
+    if (eating) { const u = 0.5 - 0.5 * Math.cos(s * 2.2), fx = lerp(326, mouth[0] + 12, u), fy = lerp(316, mouth[1] + 10, u); ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 22, fy + 18); ctx.stroke(); if (u < 0.9) M.dot(ctx, fx, fy, 4, '#e8a33c'); }
+  };
+  // Brain close-up: satiety signals arrive in the blood and along gut-to-brain nerves.
+  const brainClose = (ctx, s, sat, label = 'Appetite centres (hypothalamus, brainstem)') => {
+    M.brain(ctx, 400, 250, 190);
+    const hy = [430, 300];
+    const g = ctx.createRadialGradient(...hy, 0, ...hy, 60); g.addColorStop(0, `rgba(47,111,222,${0.2 + 0.5 * sat})`); g.addColorStop(1, 'rgba(47,111,222,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(...hy, 60, 0, M.TAU); ctx.fill();
+    M.text(ctx, label, 430, 390, { size: 13, weight: 800, color: '#1f4fa8' });
+    ctx.save(); ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(500, 520); ctx.quadraticCurveTo(560, 420, hy[0] + 30, hy[1] + 20); ctx.stroke(); ctx.restore();
+    M.text(ctx, 'Gut–brain nerve signals', 600, 470, { size: 12, align: 'left', weight: 700, color: '#a36b00' });
+    flow(ctx, [[500, 520], [560, 420], [hy[0] + 30, hy[1] + 20]], Math.round(1 + 4 * sat), s, 0.5, (x, y) => M.dot(ctx, x, y, 5, '#ffc83c'));
+    for (let i = 0; i < Math.round(1 + 4 * sat); i++) { const a = i * 1.3 + s * 1.5; M.dot(ctx, hy[0] + Math.cos(a) * 34, hy[1] + Math.sin(a) * 22, 4, '#2f6fde'); }
+  };
+  // Two stomachs: usual emptying and slower emptying with treatment (qualitative).
+  const emptying = (ctx, s, a, names = ['Usual', 'With treatment']) => {
+    if (a <= 0) return;
+    ctx.save(); ctx.globalAlpha *= a;
+    [[250, names[0], 1], [690, names[1], 0.45]].forEach(([cx, t, rate]) => {
+      M.card(ctx, cx - 190, 90, 380, 380, { r: 18 });
+      M.text(ctx, t, cx, 120, { size: 16, weight: 800, color: rate < 1 ? '#1f4fa8' : C.ink });
+      M.stomach(ctx, cx, 270, 120);
+      ctx.strokeStyle = '#f2c7b8'; ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx - 102, 330); ctx.quadraticCurveTo(cx - 150, 400, cx - 60, 420); ctx.lineTo(cx + 120, 420); ctx.stroke();
+      M.text(ctx, 'Small intestine', cx + 40, 450, { size: 12, color: C.muted, weight: 700 });
+      for (let i = 0; i < 8; i++) M.dot(ctx, cx + 10 + (i % 4) * 16 - 20, 250 + Math.floor(i / 4) * 18 + Math.sin(s * 2 + i) * 2, 6, '#a77b4f');
+      flow(ctx, [[cx - 100, 330], [cx - 150, 400], [cx - 60, 420], [cx + 120, 420]], Math.round(2 + 4 * rate), s, 0.18 * rate + 0.05, (x, y) => M.dot(ctx, x, y, 5, '#a77b4f'));
+    });
+    ctx.restore();
+  };
+
   def('glp1-ra', (cls) => {
     const th = B().themeOf(cls, { organ: 'pancreas' });
     const P = { pancreas: '#14a38b', brain: '#2f6fde', stomach: '#f2a531' };   // pathway colours
-    const mouth = [270, 300 - 1.55 * 108];
-    const gutPath = () => [mouth, [272, 300 - 1.0 * 108], at('stomach'), [at('stomach')[0] - 10, at('stomach')[1] + 30], at('gut')];
-    // The patient at a table; the fork travels between plate and mouth. food: plate fullness.
-    const meal = (ctx, s, food, eating, mood = 0.75) => {
-      M.person(ctx, 270, 300, 108, { t: s, mood });
-      ctx.fillStyle = '#c8a27a'; M.rr(ctx, 110, 330, 330, 18, 6); ctx.fill(); ctx.fillRect(130, 348, 12, 130); ctx.fillRect(408, 348, 12, 130);
-      M.dot(ctx, 330, 322, 30, '#ffffff'); ctx.strokeStyle = '#d7e0ec'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(330, 322, 30, 0, M.TAU); ctx.stroke();
-      for (let i = 0; i < Math.round(6 * food); i++) M.dot(ctx, 316 + (i % 3) * 14, 316 + Math.floor(i / 3) * 10, 6, ['#e8a33c', '#7fbf5a', '#c96f4a'][i % 3]);
-      if (eating) { const u = 0.5 - 0.5 * Math.cos(s * 2.2), fx = lerp(326, mouth[0] + 12, u), fy = lerp(316, mouth[1] + 10, u); ctx.strokeStyle = '#9aa6b6'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx + 22, fy + 18); ctx.stroke(); if (u < 0.9) M.dot(ctx, fx, fy, 4, '#e8a33c'); }
-    };
     const paths = (ctx, s, a) => {
       const h = at('heart');
       [['pancreas', at('pancreas')], ['brain', [at('brain')[0], at('brain')[1] + 30]], ['stomach', at('stomach')]].forEach(([k, to], i) => {
@@ -194,32 +222,6 @@
         ctx.beginPath(); ctx.moveTo(...h); ctx.quadraticCurveTo(...mid, ...to); ctx.stroke(); ctx.restore();
         flow(ctx, [h, mid, to], 2, s, 0.35, (x, y) => hex(ctx, x, y, 6, aa));
       });
-    };
-    // Brain close-up: satiety signals arrive in the blood and along gut-to-brain nerves.
-    const brainClose = (ctx, s, sat) => {
-      M.brain(ctx, 400, 250, 190);
-      const hy = [430, 300];
-      const g = ctx.createRadialGradient(...hy, 0, ...hy, 60); g.addColorStop(0, `rgba(47,111,222,${0.2 + 0.5 * sat})`); g.addColorStop(1, 'rgba(47,111,222,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(...hy, 60, 0, M.TAU); ctx.fill();
-      M.text(ctx, 'Appetite centres (hypothalamus, brainstem)', 430, 390, { size: 13, weight: 800, color: '#1f4fa8' });
-      ctx.save(); ctx.strokeStyle = '#f2c230'; ctx.lineWidth = 4; ctx.beginPath(); ctx.moveTo(500, 520); ctx.quadraticCurveTo(560, 420, hy[0] + 30, hy[1] + 20); ctx.stroke(); ctx.restore();
-      M.text(ctx, 'Gut–brain nerve signals', 600, 470, { size: 12, align: 'left', weight: 700, color: '#a36b00' });
-      flow(ctx, [[500, 520], [560, 420], [hy[0] + 30, hy[1] + 20]], Math.round(1 + 4 * sat), s, 0.5, (x, y) => M.dot(ctx, x, y, 5, '#ffc83c'));
-      for (let i = 0; i < Math.round(1 + 4 * sat); i++) { const a = i * 1.3 + s * 1.5; M.dot(ctx, hy[0] + Math.cos(a) * 34, hy[1] + Math.sin(a) * 22, 4, P.brain); }
-    };
-    // Two stomachs: usual emptying and slower emptying with treatment (qualitative).
-    const emptying = (ctx, s, a) => {
-      if (a <= 0) return;
-      ctx.save(); ctx.globalAlpha *= a;
-      [[250, 'Usual', 1], [690, 'With treatment', 0.45]].forEach(([cx, t, rate]) => {
-        M.card(ctx, cx - 190, 90, 380, 380, { r: 18 });
-        M.text(ctx, t, cx, 120, { size: 16, weight: 800, color: rate < 1 ? '#1f4fa8' : C.ink });
-        M.stomach(ctx, cx, 270, 120);
-        ctx.strokeStyle = '#f2c7b8'; ctx.lineWidth = 18; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(cx - 102, 330); ctx.quadraticCurveTo(cx - 150, 400, cx - 60, 420); ctx.lineTo(cx + 120, 420); ctx.stroke();
-        M.text(ctx, 'Small intestine', cx + 40, 450, { size: 12, color: C.muted, weight: 700 });
-        for (let i = 0; i < 8; i++) M.dot(ctx, cx + 10 + (i % 4) * 16 - 20, 250 + Math.floor(i / 4) * 18 + Math.sin(s * 2 + i) * 2, 6, '#a77b4f');
-        flow(ctx, [[cx - 100, 330], [cx - 150, 400], [cx - 60, 420], [cx + 120, 420]], Math.round(2 + 4 * rate), s, 0.18 * rate + 0.05, (x, y) => M.dot(ctx, x, y, 5, '#a77b4f'));
-      });
-      ctx.restore();
     };
     const betaA = { type: 'receptor-agonist', cell: 'Pancreatic beta cell', outside: 'Blood: glucose is high after the meal', target: 'GLP-1 receptor',
       ligand: { kind: 'hormone', color: '#2f6fde', label: 'Native GLP-1' }, baseline: 0.3, output: { kind: 'hormone', color: '#14a38b', label: 'Insulin' }, outX: 840,
@@ -306,6 +308,145 @@
           if (fade(p, 0.6, 0.75) > 0) { ctx.save(); ctx.globalAlpha *= fade(p, 0.6, 0.75); M.heart(ctx, 612, 370, 20); M.kidney(ctx, 648, 370, 18); ctx.restore(); M.text(ctx, 'Additional benefits with certain agents', 672, 370, { size: 13, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, 0.6, 0.75) }); }
           tag(ctx, 'GI side effects are common', 740, 425, fade(p, 0.78, 0.9), 'warn');
           [['Better glucose regulation', 0.2], ['Reduced appetite', 0.35], ['Potential weight reduction over time', 0.5]].forEach(([t, a], i) => M.text(ctx, '✓ ' + t, 600, 476 + i * 24, { size: 14, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, a + 0.3, a + 0.4) }));
+        } },
+    ];
+  });
+
+  // ============================================================ DUAL GIP / GLP-1 RECEPTOR AGONISTS
+  // Kid-friendly story: one medicine can turn on two different kinds of message receivers.
+  // Teaching symbols (not molecular shapes), the same in every scene and readable without colour:
+  //   GLP-1: blue ROUND receiver, its natural message a small blue circle
+  //   GIP:   orange SQUARE receiver, its natural message a small orange square
+  //   the medicine: one purple hexagon that can turn on either receiver (one at a time)
+  //   insulin: the key symbol, glucose: the sugar hexagon
+  const GLP_C = '#2f6fde', GIP_C = '#f08c3a';
+  function receiver(ctx, kind, x, y, on, s, label = true) {
+    const col = kind === 'glp1' ? GLP_C : GIP_C;
+    if (on > 0) { const g = ctx.createRadialGradient(x, y, 0, x, y, 40); g.addColorStop(0, `rgba(255,214,90,${0.6 * on * (0.75 + 0.25 * Math.sin(s * 5))})`); g.addColorStop(1, 'rgba(255,214,90,0)'); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 40, 0, M.TAU); ctx.fill(); }
+    ctx.save(); ctx.fillStyle = col; ctx.strokeStyle = mix(col, '#000000', 0.25); ctx.lineWidth = 2.5;
+    M.rr(ctx, x - 7, y, 14, 34, 5); ctx.fill(); ctx.stroke();              // stem through the membrane
+    if (kind === 'glp1') { ctx.beginPath(); ctx.arc(x, y - 14, 16, 0, M.TAU); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(x, y - 14, 7, 0, M.TAU); ctx.fill(); }
+    else { M.rr(ctx, x - 16, y - 30, 32, 32, 3); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#ffffff'; ctx.fillRect(x - 7, y - 21, 14, 14); }
+    ctx.restore();
+    if (label) M.text(ctx, kind === 'glp1' ? 'GLP-1' : 'GIP', x, y + 48, { size: 12, weight: 800, color: mix(col, '#000000', 0.25) });
+  }
+  const message = (ctx, kind, x, y, a = 1) => { if (kind === 'glp1') M.dot(ctx, x, y, 7, GLP_C, a); else { ctx.save(); ctx.globalAlpha *= a; ctx.fillStyle = GIP_C; ctx.fillRect(x - 6, y - 6, 12, 12); ctx.restore(); } };
+  const key = (ctx, x, y, a = 1) => M.key(ctx, x, y, 0.8, -Math.PI / 2, C.teal, a);
+  // A cell membrane with two GLP-1 and two GIP receivers. on: how many medicine molecules have
+  // turned receivers on (each molecule turns on ONE receiver). Returns the signal strength.
+  function receiverRow(ctx, s, y, on, kinds = ['glp1', 'gip', 'glp1', 'gip'], x0 = 380, gap = 120) {
+    let sig = 0;
+    kinds.forEach((k, i) => {
+      const x = x0 + i * gap, lit = seg(on * kinds.length, i, i + 1);
+      receiver(ctx, k, x, y, lit, s);
+      if (lit > 0) hex(ctx, x, lerp(y - 110, y - 14, ease(lit)), 9);
+      sig += lit;
+    });
+    return sig / kinds.length;
+  }
+
+  def('gip-glp1-ra', (cls) => {
+    const th = B().themeOf(cls, { organ: 'pancreas' });
+    // The beta cell up close: blood (with sugar) on top, two kinds of receivers on the membrane,
+    // insulin keys leaving into the blood when sugar is high.
+    const betaCell = (ctx, s, on, sugar) => {
+      M.rr(ctx, 230, 80, 700, 120, 24); ctx.fillStyle = '#fde8e4'; ctx.fill();
+      M.text(ctx, 'Blood', 250, 100, { size: 13, align: 'left', color: C.muted, weight: 700 });
+      for (let i = 0; i < Math.round(3 + 6 * sugar); i++) { const ph = (s * 0.15 + i / 9) % 1; M.glucose(ctx, 250 + ph * 660, 130 + (i % 3) * 22, 7); }
+      M.rr(ctx, 230, 220, 700, 270, 40); ctx.fillStyle = '#e9f6ef'; ctx.fill(); ctx.lineWidth = 5; ctx.strokeStyle = '#8fcfb0'; ctx.stroke();
+      M.text(ctx, 'Insulin-making cell (pancreas)', 580, 470, { size: 14, weight: 800, color: '#1d7a4c' });
+      const sig = receiverRow(ctx, s, 222, on);
+      // inside: a simple "go" signal grows, and insulin keys leave into the blood
+      if (sig > 0) { ctx.save(); ctx.globalAlpha *= sig; for (let i = 0; i < 6; i++) { const a = i / 6 * M.TAU + s; M.text(ctx, '✦', 580 + Math.cos(a) * 60, 340 + Math.sin(a) * 34, { size: 16, color: '#f2c230' }); } ctx.restore(); }
+      const out = Math.round((1 + 6 * sig) * sugar);
+      for (let i = 0; i < out; i++) { const ph = (s * 0.35 + i / Math.max(1, out)) % 1; key(ctx, 520 + i * 26, lerp(380, 120, ph), Math.min(1, (1 - ph) * 4)); }
+      return sig;
+    };
+    const legend = (ctx, a) => {
+      if (a <= 0) return;
+      ctx.save(); ctx.globalAlpha *= a; M.card(ctx, 600, 410, 320, 100, { r: 14 });
+      message(ctx, 'glp1', 625, 440); M.text(ctx, 'GLP-1 message', 640, 440, { size: 13, align: 'left', weight: 800, color: GLP_C });
+      message(ctx, 'gip', 785, 440); M.text(ctx, 'GIP message', 800, 440, { size: 13, align: 'left', weight: 800, color: GIP_C });
+      hex(ctx, 625, 478, 8); M.text(ctx, 'The medicine: turns on both kinds', 640, 478, { size: 13, align: 'left', weight: 800, color: '#4b3a8f' });
+      ctx.restore();
+    };
+    return [
+      { label: 'After we eat', dur: 9, caption: 'After we eat, sugar enters our blood. Our body uses special messages to help keep blood sugar in a healthy range.',
+        draw(ctx, p, s) {
+          const r = fade(p, 0.45, 0.75);
+          if (r < 1) { ctx.save(); ctx.globalAlpha *= 1 - r; meal(ctx, s, lerp(1, 0.7, fade(p, 0, 0.45)), true); ctx.restore(); }
+          if (r > 0) { ctx.save(); ctx.globalAlpha *= r; B().body(ctx, th, lerp(0.3, 0.8, fade(p, 0.6, 1)), s); ctx.restore(); flow(ctx, gutPath(), 5, s, 0.3, (x, y) => M.dot(ctx, x, y, 5, '#a77b4f', r)); }
+          tag(ctx, 'After eating', 740, 150, fade(p, 0.05, 0.2), 'key');
+          meter(ctx, 'Blood sugar', lerp(0.3, 0.8, fade(p, 0.6, 1)), 600, 230, fade(p, 0.55, 0.7));
+          tag(ctx, 'Blood sugar rises', 740, 330, fade(p, 0.7, 0.85));
+        } },
+      { label: 'Two different messages', dur: 11, caption: 'Two natural messages are called GLP-1 and GIP. This medicine can turn on both kinds of message receivers.',
+        draw(ctx, p, s) {
+          ctx.save(); ctx.globalAlpha *= 0.55; B().body(ctx, th, 0.8, s); ctx.restore();
+          xray(ctx, ['pancreas'], 'pancreas', s, fade(p, 0.05, 0.2));
+          // natural messages leave the gut and travel in the blood
+          const g = at('gut'), pc = at('pancreas'), mid = [g[0] - 70, (g[1] + pc[1]) / 2];
+          flow(ctx, [g, mid, pc], 3, s, 0.35, (x, y, i) => message(ctx, 'glp1', x - 8, y, fade(p, 0.05, 0.2)));
+          flow(ctx, [g, [g[0] + 70, mid[1]], pc], 3, s, 0.3, (x, y) => message(ctx, 'gip', x + 8, y, fade(p, 0.1, 0.25)));
+          [['glp1', 'GLP-1 message', 600], ['gip', 'GIP message', 790]].forEach(([k, t, x], i) => { const a = fade(p, 0.1 + i * 0.05, 0.25 + i * 0.05); message(ctx, k, x, 450, a); M.text(ctx, t, x + 14, 450, { size: 14, align: 'left', weight: 800, color: k === 'glp1' ? GLP_C : GIP_C, alpha: a }); });
+          // the comparison: one kind of receiver turned on, or two
+          const ca = fade(p, 0.35, 0.5);
+          if (ca > 0) {
+            ctx.save(); ctx.globalAlpha *= ca;
+            [[130, 'GLP-1 medicine', ['glp1'], 0.5], [290, 'Dual medicine', ['glp1', 'gip'], 0.7]].forEach(([y, t, turnOn, at2]) => {
+              M.card(ctx, 520, y - 50, 400, 130, { r: 16, border: turnOn.length > 1 ? '#c6b6f2' : '#d7e0ec' });
+              M.text(ctx, t, 545, y - 26, { size: 15, align: 'left', weight: 800, color: turnOn.length > 1 ? '#4b3a8f' : C.ink });
+              ctx.fillStyle = '#fbe3c8'; ctx.fillRect(560, y + 36, 330, 8);
+              const k = fade(p, at2, at2 + 0.12);
+              [['glp1', 640], ['gip', 800]].forEach(([kind, x]) => { const lit = turnOn.includes(kind) ? k : 0; receiver(ctx, kind, x, y + 8, lit, s); if (lit > 0) hex(ctx, x, lerp(y - 60, y - 6, ease(lit)), 8); });
+            });
+            ctx.restore();
+          }
+          tag(ctx, 'Two receivers. One medicine.', 720, 500, fade(p, 0.82, 0.95), 'key');
+        } },
+      { label: 'Helping the pancreas', dur: 13, caption: 'In the pancreas, these two receivers help the body release insulin when blood sugar is high. Insulin helps bring sugar down.',
+        draw(ctx, p, s) {
+          const z = fade(p, 0, 0.2), toCell = fade(p, 0.32, 0.44);
+          if (toCell < 1) {
+            ctx.save(); ctx.globalAlpha *= 1 - toCell;
+            zoom(ctx, z, at('pancreas'), [330, 280], () => { B().body(ctx, th, 0.8, s); xray(ctx, ['pancreas'], 'pancreas', s); }, () => window.MedAssets.islet(ctx, s, { insulin: 0.45, glucagon: 0.6, betaLoss: 0.2 }));
+            ctx.restore();
+            if (z >= 1) tag(ctx, 'Pancreas', 330, 470, 1 - toCell, 'key');
+          }
+          if (toCell > 0) {
+            ctx.save(); ctx.globalAlpha *= toCell;
+            M.pancreas(ctx, 120, 300, 80); M.text(ctx, 'Pancreas', 120, 350, { size: 13, weight: 800, color: C.muted });
+            const sugar = lerp(1, 0.55, fade(p, 0.8, 1));
+            betaCell(ctx, s, fade(p, 0.46, 0.74), sugar);
+            ctx.restore();
+            tag(ctx, 'More insulin when sugar is high', 580, 52, fade(p, 0.62, 0.75), 'good');
+            tag(ctx, 'Blood sugar control', 140, 470, fade(p, 0.85, 0.95), 'good');
+          }
+        } },
+      { label: 'Helping us feel full', dur: 14, caption: 'The medicine also helps the brain notice when we are full. Food may leave the stomach more slowly, so many people feel less hungry.',
+        draw(ctx, p, s) {
+          const brainZ = fade(p, 0, 0.2), full = fade(p, 0.4, 0.47) * (1 - fade(p, 0.55, 0.6)), stom = fade(p, 0.58, 0.68);
+          if (p < 0.42) {
+            if (brainZ < 1) zoom(ctx, brainZ, at('brain'), [400, 250], () => { B().body(ctx, th, 0.7, s); xray(ctx, ['brain', 'stomach'], 'brain', s); }, () => brainClose(ctx, s, 0.2, 'Fullness signals'));
+            else { brainClose(ctx, s, fade(p, 0.2, 0.38), 'Fullness signals'); tag(ctx, 'Brain: feeling full', 780, 200, fade(p, 0.22, 0.3), 'good'); }
+          }
+          if (full > 0) { ctx.save(); ctx.globalAlpha *= full; meal(ctx, s, 0.5, false, 1); M.say(ctx, "I'm full!", 380, 120, 1, '#1d7a4c'); ctx.restore(); }
+          emptying(ctx, s, stom, ['Usual', 'With the medicine']);
+          tag(ctx, 'Stomach: food moves more slowly', 470, 500, fade(p, 0.7, 0.8), 'key');
+          tag(ctx, 'Less hunger', 780, 52, fade(p, 0.82, 0.92), 'good');
+        } },
+      { label: 'The whole-body result', dur: 13, caption: 'Together, these effects can lower blood sugar and help people eat less. Over time, body weight may also go down. Some people get nausea or an upset stomach.',
+        draw(ctx, p, s) {
+          const lv = lerp(0.8, 0.4, fade(p, 0.1, 0.55));
+          B().body(ctx, th, lv, s);
+          xray(ctx, ['pancreas', 'brain', 'stomach'], null, s, 1 - fade(p, 0.45, 0.6));
+          meter(ctx, 'Blood sugar', lv, 600, 90, 1);
+          meter(ctx, 'Hunger', lerp(0.75, 0.45, fade(p, 0.2, 0.6)), 600, 170, fade(p, 0.15, 0.3));
+          meter(ctx, 'Weight (slowly, over time)', lerp(0.7, 0.55, fade(p, 0.55, 1)), 600, 250, fade(p, 0.45, 0.6));
+          timeChip(ctx, ['Days', 'Weeks', 'Months'], seg(p, 0.45, 0.95), 740, 345);
+          legend(ctx, fade(p, 0.2, 0.32) * (1 - fade(p, 0.5, 0.58)));
+          tag(ctx, 'Stomach side effects are common', 740, 430, fade(p, 0.82, 0.92), 'warn');
+          ['Blood sugar ↓', 'Hunger ↓', 'Weight may decrease over time'].forEach((t, i) => M.text(ctx, '✓ ' + t, 600, 476 + i * 22, { size: 14, align: 'left', weight: 800, color: '#1d7a4c', alpha: fade(p, 0.6 + i * 0.08, 0.68 + i * 0.08) }));
         } },
     ];
   });
