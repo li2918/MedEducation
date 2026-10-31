@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>MedMotion — Provider portal</title>
-  <link rel="stylesheet" href="css/styles.css?v=20261031j">
+  <link rel="stylesheet" href="css/styles.css?v=20261031k">
 </head>
 <body class="clinician-body">
   <header class="topbar">
@@ -29,12 +29,43 @@
       <div class="chips" id="chips"></div>
     </section>
 
-    <section class="panel class-browser" id="pharm-top">
-      <div class="cb-head">
-        <h2>Medication classes</h2>
-        <input class="cls-filter" id="cls-filter" type="search" placeholder="Filter by class, mechanism, or condition" aria-label="Filter medication classes">
+    <!-- Pharmacology: medication-class sidebar + animation-first detail -->
+    <section class="pharm-layout" id="pharm-view">
+      <aside class="pharm-side" id="pharm-side" aria-label="Medication classes">
+        <div class="side-head">
+          <span class="side-title">Medication classes</span>
+          <button class="side-close" type="button" id="side-close" aria-label="Close medication list">✕</button>
+        </div>
+        <input class="side-search" id="cls-filter" type="search" placeholder="Search classes or conditions" aria-label="Search medication classes">
+        <nav id="class-nav" class="class-nav"></nav>
+      </aside>
+      <div class="side-backdrop" id="side-backdrop" hidden></div>
+
+      <div class="pharm-main">
+        <button class="browse-btn" type="button" id="browse-btn" aria-controls="pharm-side">☰ Medication classes</button>
+        <nav class="crumbs" id="crumbs" aria-label="Breadcrumb"></nav>
+        <header class="cls-head">
+          <h1 id="cls-title"></h1>
+          <p class="cls-sub" id="cls-sub"></p>
+          <p class="cls-meta" id="cls-meta"></p>
+        </header>
+        <div id="pharm-player"></div>
+        <div class="share-row" id="share-row"></div>
+        <details class="anatomy" id="anatomy">
+          <summary>Anatomy / sites of action</summary>
+          <div class="anatomy-body">
+            <div id="pharm-bodymap"></div>
+            <div class="legend" id="pharm-legend"></div>
+          </div>
+        </details>
+        <div class="info-tabs" role="tablist" id="info-tabs">
+          <button role="tab" type="button" data-info="overview" aria-selected="true">Overview</button>
+          <button role="tab" type="button" data-info="safety" aria-selected="false">Safety</button>
+          <button role="tab" type="button" data-info="monitoring" aria-selected="false">Monitoring</button>
+          <button role="tab" type="button" data-info="advanced" aria-selected="false">Advanced</button>
+        </div>
+        <div class="info-panel" id="info-panel" role="tabpanel"></div>
       </div>
-      <div id="class-list"></div>
     </section>
 
     <section id="workspace" hidden>
@@ -82,34 +113,34 @@
 
     <p class="disclaimer">For professional education. Verify against current guidelines and prescribing information before clinical use. This is not clinical decision support, and hiding this page from patients is not access control.</p>
   </main>
-  <script src="js/primitives.js?v=20261031j"></script>
-  <script src="js/food.js?v=20261031j"></script>
-  <script src="js/lungs.js?v=20261031j"></script>
-  <script src="js/engine.js?v=20261031j"></script>
-  <script src="js/scenes.js?v=20261031j"></script>
-  <script src="js/registry.js?v=20261031j"></script>
-  <script src="js/diseases/diabetes.js?v=20261031j"></script>
-  <script src="js/diseases/hypertension.js?v=20261031j"></script>
-  <script src="js/diseases/hyperlipidemia.js?v=20261031j"></script>
-  <script src="js/diseases/copd.js?v=20261031j"></script>
-  <script src="js/diseases/asthma.js?v=20261031j"></script>
-  <script src="js/diseases/gerd.js?v=20261031j"></script>
-  <script src="js/diseases/osteoarthritis.js?v=20261031j"></script>
-  <script src="js/diseases/tendinopathy.js?v=20261031j"></script>
-  <script src="js/diseases/backpain.js?v=20261031j"></script>
-  <script src="js/diseases/muscle.js?v=20261031j"></script>
-  <script src="js/diseases/nerve.js?v=20261031j"></script>
-  <script src="js/pharmacology/library.js?v=20261031j"></script>
-  <script src="js/pharmacology/animations.js?v=20261031j"></script>
-  <script src="js/pharmacology/stages.js?v=20261031j"></script>
-  <script src="js/pharmacology/classes-diabetes.js?v=20261031j"></script>
-  <script src="js/pharmacology/classes-hypertension.js?v=20261031j"></script>
-  <script src="js/pharmacology/classes-lipids.js?v=20261031j"></script>
-  <script src="js/pharmacology/classes-respiratory.js?v=20261031j"></script>
-  <script src="js/pharmacology/classes-gerd.js?v=20261031j"></script>
-  <script src="js/pharmacology/classes-msk.js?v=20261031j"></script>
-  <script src="js/bodymap.js?v=20261031j"></script>
-  <script src="js/search-box.js?v=20261031j"></script>
-  <script src="js/clinician.js?v=20261031j"></script>
+  <script src="js/primitives.js?v=20261031k"></script>
+  <script src="js/food.js?v=20261031k"></script>
+  <script src="js/lungs.js?v=20261031k"></script>
+  <script src="js/engine.js?v=20261031k"></script>
+  <script src="js/scenes.js?v=20261031k"></script>
+  <script src="js/registry.js?v=20261031k"></script>
+  <script src="js/diseases/diabetes.js?v=20261031k"></script>
+  <script src="js/diseases/hypertension.js?v=20261031k"></script>
+  <script src="js/diseases/hyperlipidemia.js?v=20261031k"></script>
+  <script src="js/diseases/copd.js?v=20261031k"></script>
+  <script src="js/diseases/asthma.js?v=20261031k"></script>
+  <script src="js/diseases/gerd.js?v=20261031k"></script>
+  <script src="js/diseases/osteoarthritis.js?v=20261031k"></script>
+  <script src="js/diseases/tendinopathy.js?v=20261031k"></script>
+  <script src="js/diseases/backpain.js?v=20261031k"></script>
+  <script src="js/diseases/muscle.js?v=20261031k"></script>
+  <script src="js/diseases/nerve.js?v=20261031k"></script>
+  <script src="js/pharmacology/library.js?v=20261031k"></script>
+  <script src="js/pharmacology/animations.js?v=20261031k"></script>
+  <script src="js/pharmacology/stages.js?v=20261031k"></script>
+  <script src="js/pharmacology/classes-diabetes.js?v=20261031k"></script>
+  <script src="js/pharmacology/classes-hypertension.js?v=20261031k"></script>
+  <script src="js/pharmacology/classes-lipids.js?v=20261031k"></script>
+  <script src="js/pharmacology/classes-respiratory.js?v=20261031k"></script>
+  <script src="js/pharmacology/classes-gerd.js?v=20261031k"></script>
+  <script src="js/pharmacology/classes-msk.js?v=20261031k"></script>
+  <script src="js/bodymap.js?v=20261031k"></script>
+  <script src="js/search-box.js?v=20261031k"></script>
+  <script src="js/clinician.js?v=20261031k"></script>
 </body>
 </html>

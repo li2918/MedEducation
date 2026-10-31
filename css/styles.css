@@ -294,3 +294,69 @@ table.profiles th, table.profiles td { border-bottom: 1px solid var(--line); pad
 .role-switch a:hover { color: var(--ink); }
 .role-switch a[aria-current="page"] { background: #fff; color: var(--blue-dark); box-shadow: 0 1px 4px rgba(30, 50, 80, 0.15); }
 .role-switch.pro a[aria-current="page"] { color: var(--pro); }
+
+/* Provider pharmacology workspace: medication sidebar + animation-first detail */
+.pharm-layout { display: grid; grid-template-columns: 264px minmax(0, 1fr); gap: 28px; align-items: start; }
+.pharm-layout[hidden] { display: none; }
+.pharm-side { position: sticky; top: 16px; max-height: calc(100vh - 32px); display: flex; flex-direction: column; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 10px 10px; }
+.side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 8px; }
+.side-title { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+.side-close { display: none; border: 0; background: none; font-size: 1.1rem; cursor: pointer; color: var(--muted); min-width: 40px; min-height: 40px; }
+.side-search { margin: 0 4px 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; font-size: 0.92rem; }
+.side-search:focus { outline: 2px solid #c8d6ee; border-color: var(--blue); }
+.class-nav { overflow-y: auto; flex: 1; padding: 0 2px; }
+.nav-cat + .nav-cat { border-top: 1px solid #edf1f7; }
+.nav-cat-btn { width: 100%; display: flex; align-items: center; gap: 8px; padding: 10px 8px; border: 0; background: none; font: inherit; font-weight: 700; font-size: 0.93rem; color: var(--ink); cursor: pointer; border-radius: 8px; text-align: left; }
+.nav-cat-btn:hover { background: #f3f6fb; }
+.nav-cat-btn .caret { display: inline-block; width: 12px; color: var(--muted); font-size: 0.75rem; transition: transform 0.15s; }
+.nav-cat.open .caret { transform: rotate(90deg); }
+.nav-cat-btn .count { margin-left: auto; font-size: 0.75rem; font-weight: 700; color: var(--muted); }
+.nav-items { list-style: none; margin: 0 0 8px; padding: 0; }
+.nav-item { width: 100%; display: flex; align-items: center; gap: 6px; text-align: left; padding: 7px 10px 7px 28px; border: 0; background: none; font: inherit; font-size: 0.88rem; color: #3b4a5c; cursor: pointer; border-radius: 8px; line-height: 1.3; min-height: 34px; }
+.nav-item:hover { background: #f3f6fb; color: var(--ink); }
+.nav-item.on { background: #ece9fb; color: var(--pro); font-weight: 700; box-shadow: inset 3px 0 0 var(--pro); }
+.nav-item .tag { margin-left: auto; font-size: 0.68rem; font-weight: 700; color: #8b7bb8; white-space: nowrap; }
+.nav-empty { padding: 8px; }
+.pharm-main { min-width: 0; }
+.browse-btn { display: none; }
+.crumbs { font-size: 0.85rem; color: var(--muted); display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.crumbs .sep { color: #b6c2d2; }
+.crumbs [aria-current] { color: var(--ink); font-weight: 600; }
+.cls-head { margin-bottom: 16px; }
+.cls-head h1 { margin: 0 0 4px; font-size: 1.75rem; line-height: 1.2; }
+.cls-sub { margin: 0 0 8px; font-size: 1.02rem; color: #3b4a5c; max-width: 78ch; }
+.cls-meta { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 0.84rem; color: var(--muted); }
+.cls-meta b { color: #3b4a5c; font-weight: 600; }
+.cls-meta .review { color: #8a5a00; }
+.share-row { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 0.88rem; margin: 12px 2px 4px; }
+.share-row a, .linklike { color: var(--blue); font-weight: 600; text-decoration: none; background: none; border: 0; font: inherit; cursor: pointer; padding: 0; }
+.share-row a:hover, .linklike:hover { text-decoration: underline; }
+.anatomy { margin-top: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--card); }
+.anatomy summary { cursor: pointer; padding: 12px 16px; font-weight: 700; font-size: 0.93rem; }
+.anatomy-body { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 20px; align-items: center; padding: 0 16px 16px; }
+.info-tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-top: 22px; overflow-x: auto; }
+.info-tabs [role="tab"] { font: inherit; font-weight: 700; font-size: 0.93rem; padding: 10px 16px; border: 0; background: none; color: var(--muted); border-bottom: 3px solid transparent; cursor: pointer; white-space: nowrap; min-height: 44px; }
+.info-tabs [role="tab"][aria-selected="true"] { color: var(--pro); border-color: var(--pro); }
+.info-panel { padding: 18px 2px 8px; max-width: 86ch; }
+.info-panel section + section { margin-top: 18px; }
+.info-panel h4 { margin: 0 0 6px; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.info-panel p { margin: 0; }
+.info-panel ul, .info-panel ol { margin: 0; padding-left: 1.2em; }
+.info-panel li { margin-bottom: 5px; }
+.info-panel .indications li { margin-bottom: 9px; }
+.info-panel .indications li.on { background: #f3f1fd; border-radius: 8px; padding: 4px 8px; margin-left: -8px; list-style-position: inside; }
+.info-panel .note { color: #4b5a6c; }
+.side-backdrop { display: none; }
+
+@media (max-width: 900px) {
+  .pharm-layout { grid-template-columns: 1fr; gap: 0; }
+  .pharm-side { position: fixed; top: 0; left: 0; bottom: 0; width: min(86vw, 320px); max-height: none; z-index: 50; border-radius: 0 14px 14px 0; transform: translateX(-105%); transition: transform 0.2s ease; box-shadow: 0 10px 40px rgba(20, 30, 50, 0.25); }
+  .pharm-side.open { transform: none; }
+  .side-close { display: block; }
+  .side-backdrop:not([hidden]) { display: block; position: fixed; inset: 0; background: rgba(20, 30, 50, 0.35); z-index: 40; }
+  .browse-btn { display: inline-flex; align-items: center; gap: 6px; margin-bottom: 12px; padding: 9px 14px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); font: inherit; font-weight: 700; font-size: 0.9rem; color: var(--ink); cursor: pointer; }
+  .cls-head h1 { font-size: 1.4rem; }
+  .anatomy-body { grid-template-columns: 1fr; }
+  .anatomy-body #pharm-bodymap { max-width: 220px; margin: 0 auto; }
+  .nav-item, .nav-cat-btn { min-height: 44px; }
+}
